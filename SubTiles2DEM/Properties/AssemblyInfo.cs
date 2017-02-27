@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("SubTiles2DEM")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Lecos")]
+[assembly: AssemblyCompany("FSofT")]
 [assembly: AssemblyProduct("SubTiles2DEM")]
 [assembly: AssemblyCopyright("Copyright © FSofT 2017")]
 [assembly: AssemblyTrademark("")]
