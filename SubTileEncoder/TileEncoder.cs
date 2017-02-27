@@ -48,7 +48,7 @@ namespace Encoder {
             }
             set {
                if (value < Width * Height) {
-                  Set(value % Width, value / Height);
+                  Set(value % Width, value / Width);
                   PositionError = false;
                } else {
                   Set(Width - 1, Height - 1);
@@ -196,23 +196,30 @@ namespace Encoder {
          /// <returns>false, falls der Bereich überschritten würde</returns>
          public bool MoveForward(int count = 1) {
             PositionError = false;
-            if (count == 1) {
-               if (++X >= Width)
-                  if (Y < Height - 1) {
-                     Y++;
-                     X = 0;
-                  } else {
+            switch (count) {
+               case 0:
+                  break;
+
+               case 1:
+                  if (++X >= Width)
+                     if (Y < Height - 1) {
+                        Y++;
+                        X = 0;
+                     } else {
+                        X = Width - 1;
+                        PositionError = true;
+                     }
+                  break;
+
+               default:
+                  Idx = Idx + count;
+                  if (Y > Height - 1 ||
+                      X > Width - 1) {
+                     Y = Height - 1;
                      X = Width - 1;
                      PositionError = true;
                   }
-            } else {
-               Idx = Idx + count;
-               if (Y > Height - 1 ||
-                   X > Width - 1) {
-                  Y = Height - 1;
-                  X = Width - 1;
-                  PositionError = true;
-               }
+                  break;
             }
             return !PositionError;
          }
@@ -382,8 +389,9 @@ namespace Encoder {
                         new PlateauTableItem(16,5, 'e'),
                         new PlateauTableItem(32,5, '3'),
                         new PlateauTableItem(32,6, 'f'),
-                        new PlateauTableItem(64,6, 'Z'),
-                        new PlateauTableItem(64,7, 'z'),
+                        new PlateauTableItem(64,6, 'G'),
+                        new PlateauTableItem(64,7, 'g'),
+                        new PlateauTableItem(128,7, 'H'),
                      };
             }
             /// <summary>
@@ -1742,9 +1750,14 @@ namespace Encoder {
       public byte Codingtype { get; protected set; }
 
       /// <summary>
-      /// Kachelgröße
+      /// Kachelbreite
       /// </summary>
-      public int TileSize { get; protected set; }
+      public int TileSizeHorz { get; protected set; }
+
+      /// <summary>
+      /// Kachelhöhe
+      /// </summary>
+      public int TileSizeVert { get; protected set; }
 
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Standardwerte
@@ -1834,15 +1847,17 @@ namespace Encoder {
       /// </summary>
       /// <param name="maxheigth">max. Höhe</param>
       /// <param name="codingtyp">Codiertyp (z.Z. nicht verwendet)</param>
-      /// <param name="tilesize">Breite/Höhe der Kachel</param>
+      /// <param name="tilesizehorz">Breite der Kachel</param>
+      /// <param name="tilesizevert">Höhe der Kachel</param>
       /// <param name="height">Liste der Höhendaten (Anzahl normalerweise <see cref="tilesize"/> * <see cref="tilesize"/>)</param>
-      public TileEncoder(int maxheigth, byte codingtyp, int tilesize, IList<int> height) {
+      public TileEncoder(int maxheigth, byte codingtyp, int tilesizehorz, int tilesizevert, IList<int> height) {
          MaxHeigth = maxheigth;
          Codingtype = codingtyp;
-         TileSize = tilesize;
+         TileSizeHorz = tilesizehorz;
+         TileSizeVert = tilesizevert;
          StdHeigth = 0;
          HeightValues = new List<int>(height);
-         nextPosition = new Position(tilesize, tilesize);
+         nextPosition = new Position(tilesizehorz, tilesizevert);
 
          ct_std = new CodingTypeStd(MaxHeigth);
          ct_ddiff4plateaufollower_zero = new CodingTypePlateau0(MaxHeigth);
@@ -1991,7 +2006,7 @@ namespace Encoder {
       bool WritePlateau(int length, Position pos, CodingTypePlateau0 ct_followerddiffzero, CodingTypePlateau ct_followerddiffnotzero) {
          bool bEnd;
          // Plateaulänge codieren
-         Elements.Add(HeightElement.CreateHeightElement_Plateau(length, pos.X, pos.Y, TileSize, Elements));
+         Elements.Add(HeightElement.CreateHeightElement_Plateau(length, pos.X, pos.Y, TileSizeHorz, Elements));
 
          // Nachfolgewert bestimmen
          bEnd = !pos.MoveForward(length);      // <-- PROBLEM am Ende einer Kachel ????
@@ -2233,7 +2248,7 @@ namespace Encoder {
       /// <param name="line"></param>
       /// <returns>negativ, wenn ungültig</returns>
       public int Height(int column, int line) {
-         return Height(TileSize * line + column);
+         return Height(TileSizeHorz * line + column);
       }
 
       /// <summary>
@@ -2251,21 +2266,21 @@ namespace Encoder {
       }
 
       /// <summary>
-      /// liefert auch für ungültige Spalten und Zeilen eine verarbeitbare Höhe, d.h. außerhalb der <see cref="TileSize"/> immer 0 
+      /// liefert auch für ungültige Spalten und Zeilen eine verarbeitbare Höhe, d.h. außerhalb von <see cref="TileSizeHorz"/> bzw. <see cref="TileSizeVert"/> immer 0 
       /// bzw. bei Spalte -1 die virtuelle Spalte (Spalte 0 der Vorgängerzeile)
       /// </summary>
       /// <param name="column"></param>
       /// <param name="line"></param>
       /// <returns></returns>
       public int ValidHeight(int column, int line) {
-         if (0 <= column && column < TileSize &&
-             0 <= line && line < TileSize) { // innerhalb des Standardbereiches
+         if (0 <= column && column < TileSizeHorz &&
+             0 <= line && line < TileSizeVert) { // innerhalb des Standardbereiches
             int h = Height(column, line);
             if (h >= 0)
                return h;
          }
          if (column == -1 &&
-             0 <= line && line < TileSize) { // virtuelle Spalte
+             0 <= line && line < TileSizeVert) { // virtuelle Spalte
             int h = Height(0, line - 1);
             return h >= 0 ? h : 0;
          }
@@ -2303,10 +2318,11 @@ namespace Encoder {
       #endregion
 
       public override string ToString() {
-         return string.Format("MaxHeigth={0}, Codingtype={1}, TileSize={2}, BaseHeigthUnit={3}, HeigthUnit={4}, ActualMode={5}, ActualHeigth={6}",
+         return string.Format("MaxHeigth={0}, Codingtype={1}, TileSize={2}x{3}, BaseHeigthUnit={4}, HeigthUnit={5}, ActualMode={6}, ActualHeigth={7}",
                               MaxHeigth,
                               Codingtype,
-                              TileSize,
+                              TileSizeHorz,
+                              TileSizeVert,
                               InitialHeigthUnit,
                               HeigthUnit,
                               ActualMode,

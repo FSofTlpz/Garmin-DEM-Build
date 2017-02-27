@@ -29,7 +29,8 @@ namespace SubTiles2DEM {
 
       // zum Lesen der Binärdaten
       const string BIN_FILE = "FILE=";
-      const string BIN_TILESIZE = "TILESIZE=";
+      //const string BIN_TILEWIDTH = "TILEWIDTH=";
+      //const string BIN_TILEHEIGHT = "TILEHEIGHT=";
       const string BIN_BASE = "BASE=";
       const string BIN_DIFF = "DIFF=";
       const string BIN_TYPE = "TYPE=";

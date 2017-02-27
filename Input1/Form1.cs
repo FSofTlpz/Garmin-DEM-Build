@@ -358,7 +358,11 @@ namespace Input1 {
 
       private void button_dec2bin_Click(object sender, EventArgs e) {
          List<int> v = GetDecimalHeights();
-         Encoder.TileEncoder enc = new Encoder.TileEncoder((int)numericUpDown_maxheight.Value, (byte)numericUpDown_Rangevalue.Value, (int)numericUpDown_Tilesize.Value, v);
+         Encoder.TileEncoder enc = new Encoder.TileEncoder((int)numericUpDown_maxheight.Value, 
+                                                           (byte)numericUpDown_Rangevalue.Value, 
+                                                           (int)numericUpDown_TilesizeHoriz.Value, 
+                                                           (int)numericUpDown_TilesizeVert.Value, 
+                                                           v);
          int idx = 0;
          try {
             int count = -1;
@@ -386,7 +390,8 @@ namespace Input1 {
          dlg.HeightData = GetDecimalHeights();
          dlg.HeightMax = (int)numericUpDown_maxheight.Value;
          dlg.Codingtype = (byte)numericUpDown_Rangevalue.Value;
-         dlg.TileSize = (int)numericUpDown_Tilesize.Value;
+         dlg.TileSizeHorz = (int)numericUpDown_TilesizeHoriz.Value;
+         dlg.TileSizeVert = (int)numericUpDown_TilesizeVert.Value;
          dlg.ShowDialog();
       }
 
@@ -462,6 +467,14 @@ namespace Input1 {
       }
 
       private void numericUpDown_Rangevalue_ValueChanged(object sender, EventArgs e) {
+         richTextBox_Bin.BackColor = col_bin_error;
+      }
+
+      private void numericUpDown_TilesizeHoriz_ValueChanged(object sender, EventArgs e) {
+         richTextBox_Bin.BackColor = col_bin_error;
+      }
+
+      private void numericUpDown_TilesizeVert_ValueChanged(object sender, EventArgs e) {
          richTextBox_Bin.BackColor = col_bin_error;
       }
    }

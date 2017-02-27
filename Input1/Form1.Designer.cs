@@ -48,13 +48,15 @@
          this.button_Detail = new System.Windows.Forms.Button();
          this.label8 = new System.Windows.Forms.Label();
          this.label9 = new System.Windows.Forms.Label();
-         this.numericUpDown_Tilesize = new System.Windows.Forms.NumericUpDown();
+         this.numericUpDown_TilesizeHoriz = new System.Windows.Forms.NumericUpDown();
          this.groupBox1 = new System.Windows.Forms.GroupBox();
          this.button_SingleTest = new System.Windows.Forms.Button();
          this.textBox_SingleTestBin = new System.Windows.Forms.TextBox();
          this.numericUpDown_SingleTest = new System.Windows.Forms.NumericUpDown();
          this.listBox_SingleTest = new System.Windows.Forms.ListBox();
          this.groupBox2 = new System.Windows.Forms.GroupBox();
+         this.numericUpDown_TilesizeVert = new System.Windows.Forms.NumericUpDown();
+         this.label15 = new System.Windows.Forms.Label();
          this.textBox_PatchAddrRangevalue = new System.Windows.Forms.TextBox();
          this.label14 = new System.Windows.Forms.Label();
          this.label13 = new System.Windows.Forms.Label();
@@ -69,10 +71,11 @@
          this.label12 = new System.Windows.Forms.Label();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_MinBytes)).BeginInit();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_maxheight)).BeginInit();
-         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Tilesize)).BeginInit();
+         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_TilesizeHoriz)).BeginInit();
          this.groupBox1.SuspendLayout();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SingleTest)).BeginInit();
          this.groupBox2.SuspendLayout();
+         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_TilesizeVert)).BeginInit();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Rangevalue)).BeginInit();
          this.SuspendLayout();
          // 
@@ -88,9 +91,9 @@
          this.label1.AutoSize = true;
          this.label1.Location = new System.Drawing.Point(12, 41);
          this.label1.Name = "label1";
-         this.label1.Size = new System.Drawing.Size(120, 13);
+         this.label1.Size = new System.Drawing.Size(114, 13);
          this.label1.TabIndex = 2;
-         this.label1.Text = "Patch ab Adresse (hex):";
+         this.label1.Text = "Patchadr. Daten (hex):";
          // 
          // checkBox_FillBits
          // 
@@ -114,7 +117,7 @@
          this.textBox2.Location = new System.Drawing.Point(70, 18);
          this.textBox2.Name = "textBox2";
          this.textBox2.ReadOnly = true;
-         this.textBox2.Size = new System.Drawing.Size(588, 23);
+         this.textBox2.Size = new System.Drawing.Size(585, 23);
          this.textBox2.TabIndex = 0;
          this.textBox2.Text = "0  .   !1  .   !2  .   !3  .   !4  .   !5  .   !6  .   !7  .   !8  .   !9  .   !1" +
     "0 .   !11 .   !12 .   !13 .   !14 .   !15 .   !";
@@ -134,7 +137,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
          this.textBox_Patchfile.Location = new System.Drawing.Point(141, 12);
          this.textBox_Patchfile.Name = "textBox_Patchfile";
-         this.textBox_Patchfile.Size = new System.Drawing.Size(538, 20);
+         this.textBox_Patchfile.Size = new System.Drawing.Size(535, 20);
          this.textBox_Patchfile.TabIndex = 1;
          // 
          // textBox_Protfile
@@ -143,7 +146,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
          this.textBox_Protfile.Location = new System.Drawing.Point(141, 64);
          this.textBox_Protfile.Name = "textBox_Protfile";
-         this.textBox_Protfile.Size = new System.Drawing.Size(538, 20);
+         this.textBox_Protfile.Size = new System.Drawing.Size(535, 20);
          this.textBox_Protfile.TabIndex = 5;
          // 
          // label3
@@ -174,7 +177,7 @@
             | System.Windows.Forms.AnchorStyles.Right)));
          this.textBox_Extern.Location = new System.Drawing.Point(141, 107);
          this.textBox_Extern.Name = "textBox_Extern";
-         this.textBox_Extern.Size = new System.Drawing.Size(297, 20);
+         this.textBox_Extern.Size = new System.Drawing.Size(294, 20);
          this.textBox_Extern.TabIndex = 10;
          // 
          // label4
@@ -192,8 +195,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
          this.button_Start.Location = new System.Drawing.Point(6, 273);
          this.button_Start.Name = "button_Start";
-         this.button_Start.Size = new System.Drawing.Size(652, 27);
-         this.button_Start.TabIndex = 21;
+         this.button_Start.Size = new System.Drawing.Size(649, 27);
+         this.button_Start.TabIndex = 23;
          this.button_Start.Text = "&Start";
          this.button_Start.UseVisualStyleBackColor = true;
          this.button_Start.Click += new System.EventHandler(this.button_Start_Click);
@@ -229,7 +232,7 @@
          this.textBox1.Font = new System.Drawing.Font("Courier New", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
          this.textBox1.Location = new System.Drawing.Point(70, 73);
          this.textBox1.Name = "textBox1";
-         this.textBox1.Size = new System.Drawing.Size(588, 23);
+         this.textBox1.Size = new System.Drawing.Size(585, 23);
          this.textBox1.TabIndex = 4;
          // 
          // numericUpDown_MinBytes
@@ -263,8 +266,8 @@
          this.textBox_int.Multiline = true;
          this.textBox_int.Name = "textBox_int";
          this.textBox_int.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-         this.textBox_int.Size = new System.Drawing.Size(574, 105);
-         this.textBox_int.TabIndex = 18;
+         this.textBox_int.Size = new System.Drawing.Size(571, 105);
+         this.textBox_int.TabIndex = 20;
          this.textBox_int.WordWrap = false;
          this.textBox_int.TextChanged += new System.EventHandler(this.textBox_int_TextChanged);
          // 
@@ -273,7 +276,7 @@
          this.button_dec2bin.Location = new System.Drawing.Point(9, 188);
          this.button_dec2bin.Name = "button_dec2bin";
          this.button_dec2bin.Size = new System.Drawing.Size(72, 23);
-         this.button_dec2bin.TabIndex = 19;
+         this.button_dec2bin.TabIndex = 21;
          this.button_dec2bin.Text = "&Dez -> Bin";
          this.button_dec2bin.UseVisualStyleBackColor = true;
          this.button_dec2bin.Click += new System.EventHandler(this.button_dec2bin_Click);
@@ -293,7 +296,7 @@
             0});
          this.numericUpDown_maxheight.Name = "numericUpDown_maxheight";
          this.numericUpDown_maxheight.Size = new System.Drawing.Size(66, 20);
-         this.numericUpDown_maxheight.TabIndex = 10;
+         this.numericUpDown_maxheight.TabIndex = 12;
          this.numericUpDown_maxheight.Value = new decimal(new int[] {
             158,
             0,
@@ -307,7 +310,7 @@
          this.label6.Location = new System.Drawing.Point(6, 162);
          this.label6.Name = "label6";
          this.label6.Size = new System.Drawing.Size(80, 13);
-         this.label6.TabIndex = 17;
+         this.label6.TabIndex = 19;
          this.label6.Text = "Höhen de&zimal:";
          // 
          // label7
@@ -324,7 +327,7 @@
          this.button_Detail.Location = new System.Drawing.Point(9, 217);
          this.button_Detail.Name = "button_Detail";
          this.button_Detail.Size = new System.Drawing.Size(72, 23);
-         this.button_Detail.TabIndex = 20;
+         this.button_Detail.TabIndex = 22;
          this.button_Detail.Text = "De&tails";
          this.button_Detail.UseVisualStyleBackColor = true;
          this.button_Detail.Click += new System.EventHandler(this.button_Detail_Click);
@@ -335,41 +338,42 @@
          this.label8.Location = new System.Drawing.Point(6, 138);
          this.label8.Name = "label8";
          this.label8.Size = new System.Drawing.Size(61, 13);
-         this.label8.TabIndex = 9;
+         this.label8.TabIndex = 11;
          this.label8.Text = "max. Höhe:";
          // 
          // label9
          // 
          this.label9.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.label9.AutoSize = true;
-         this.label9.Location = new System.Drawing.Point(544, 109);
+         this.label9.Location = new System.Drawing.Point(471, 109);
          this.label9.Name = "label9";
          this.label9.Size = new System.Drawing.Size(59, 13);
          this.label9.TabIndex = 7;
          this.label9.Text = "Tile-Größe:";
          // 
-         // numericUpDown_Tilesize
+         // numericUpDown_TilesizeHoriz
          // 
-         this.numericUpDown_Tilesize.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.numericUpDown_Tilesize.Location = new System.Drawing.Point(609, 107);
-         this.numericUpDown_Tilesize.Maximum = new decimal(new int[] {
+         this.numericUpDown_TilesizeHoriz.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.numericUpDown_TilesizeHoriz.Location = new System.Drawing.Point(536, 104);
+         this.numericUpDown_TilesizeHoriz.Maximum = new decimal(new int[] {
             512,
             0,
             0,
             0});
-         this.numericUpDown_Tilesize.Minimum = new decimal(new int[] {
-            16,
+         this.numericUpDown_TilesizeHoriz.Minimum = new decimal(new int[] {
+            1,
             0,
             0,
             0});
-         this.numericUpDown_Tilesize.Name = "numericUpDown_Tilesize";
-         this.numericUpDown_Tilesize.Size = new System.Drawing.Size(48, 20);
-         this.numericUpDown_Tilesize.TabIndex = 8;
-         this.numericUpDown_Tilesize.Value = new decimal(new int[] {
+         this.numericUpDown_TilesizeHoriz.Name = "numericUpDown_TilesizeHoriz";
+         this.numericUpDown_TilesizeHoriz.Size = new System.Drawing.Size(48, 20);
+         this.numericUpDown_TilesizeHoriz.TabIndex = 8;
+         this.numericUpDown_TilesizeHoriz.Value = new decimal(new int[] {
             64,
             0,
             0,
             0});
+         this.numericUpDown_TilesizeHoriz.ValueChanged += new System.EventHandler(this.numericUpDown_TilesizeHoriz_ValueChanged);
          // 
          // groupBox1
          // 
@@ -383,7 +387,7 @@
          this.groupBox1.ForeColor = System.Drawing.Color.Blue;
          this.groupBox1.Location = new System.Drawing.Point(15, 156);
          this.groupBox1.Name = "groupBox1";
-         this.groupBox1.Size = new System.Drawing.Size(664, 89);
+         this.groupBox1.Size = new System.Drawing.Size(661, 89);
          this.groupBox1.TabIndex = 16;
          this.groupBox1.TabStop = false;
          this.groupBox1.Text = "Codierung einer einzelnen Zahl";
@@ -405,7 +409,7 @@
          this.textBox_SingleTestBin.Font = new System.Drawing.Font("Courier New", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
          this.textBox_SingleTestBin.Location = new System.Drawing.Point(169, 60);
          this.textBox_SingleTestBin.Name = "textBox_SingleTestBin";
-         this.textBox_SingleTestBin.Size = new System.Drawing.Size(489, 23);
+         this.textBox_SingleTestBin.Size = new System.Drawing.Size(486, 23);
          this.textBox_SingleTestBin.TabIndex = 3;
          // 
          // numericUpDown_SingleTest
@@ -454,6 +458,8 @@
          this.groupBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+         this.groupBox2.Controls.Add(this.numericUpDown_TilesizeVert);
+         this.groupBox2.Controls.Add(this.label15);
          this.groupBox2.Controls.Add(this.textBox_PatchAddrRangevalue);
          this.groupBox2.Controls.Add(this.label14);
          this.groupBox2.Controls.Add(this.label13);
@@ -466,7 +472,7 @@
          this.groupBox2.Controls.Add(this.label10);
          this.groupBox2.Controls.Add(this.textBox2);
          this.groupBox2.Controls.Add(this.button_Start);
-         this.groupBox2.Controls.Add(this.numericUpDown_Tilesize);
+         this.groupBox2.Controls.Add(this.numericUpDown_TilesizeHoriz);
          this.groupBox2.Controls.Add(this.textBox1);
          this.groupBox2.Controls.Add(this.label9);
          this.groupBox2.Controls.Add(this.textBox_int);
@@ -479,17 +485,51 @@
          this.groupBox2.ForeColor = System.Drawing.SystemColors.ControlText;
          this.groupBox2.Location = new System.Drawing.Point(15, 251);
          this.groupBox2.Name = "groupBox2";
-         this.groupBox2.Size = new System.Drawing.Size(664, 306);
+         this.groupBox2.Size = new System.Drawing.Size(661, 306);
          this.groupBox2.TabIndex = 17;
          this.groupBox2.TabStop = false;
          this.groupBox2.Text = "Test";
+         // 
+         // numericUpDown_TilesizeVert
+         // 
+         this.numericUpDown_TilesizeVert.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.numericUpDown_TilesizeVert.Location = new System.Drawing.Point(604, 104);
+         this.numericUpDown_TilesizeVert.Maximum = new decimal(new int[] {
+            512,
+            0,
+            0,
+            0});
+         this.numericUpDown_TilesizeVert.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+         this.numericUpDown_TilesizeVert.Name = "numericUpDown_TilesizeVert";
+         this.numericUpDown_TilesizeVert.Size = new System.Drawing.Size(48, 20);
+         this.numericUpDown_TilesizeVert.TabIndex = 10;
+         this.numericUpDown_TilesizeVert.Value = new decimal(new int[] {
+            64,
+            0,
+            0,
+            0});
+         this.numericUpDown_TilesizeVert.ValueChanged += new System.EventHandler(this.numericUpDown_TilesizeVert_ValueChanged);
+         // 
+         // label15
+         // 
+         this.label15.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+         this.label15.AutoSize = true;
+         this.label15.Location = new System.Drawing.Point(588, 109);
+         this.label15.Name = "label15";
+         this.label15.Size = new System.Drawing.Size(12, 13);
+         this.label15.TabIndex = 9;
+         this.label15.Text = "x";
          // 
          // textBox_PatchAddrRangevalue
          // 
          this.textBox_PatchAddrRangevalue.Location = new System.Drawing.Point(594, 135);
          this.textBox_PatchAddrRangevalue.Name = "textBox_PatchAddrRangevalue";
          this.textBox_PatchAddrRangevalue.Size = new System.Drawing.Size(61, 20);
-         this.textBox_PatchAddrRangevalue.TabIndex = 16;
+         this.textBox_PatchAddrRangevalue.TabIndex = 18;
          // 
          // label14
          // 
@@ -497,7 +537,7 @@
          this.label14.Location = new System.Drawing.Point(493, 138);
          this.label14.Name = "label14";
          this.label14.Size = new System.Drawing.Size(101, 13);
-         this.label14.TabIndex = 15;
+         this.label14.TabIndex = 17;
          this.label14.Text = "Patchadresse (hex):";
          // 
          // label13
@@ -506,7 +546,7 @@
          this.label13.Location = new System.Drawing.Point(388, 138);
          this.label13.Name = "label13";
          this.label13.Size = new System.Drawing.Size(57, 13);
-         this.label13.TabIndex = 13;
+         this.label13.TabIndex = 15;
          this.label13.Text = "Codingtyp:";
          // 
          // numericUpDown_Rangevalue
@@ -519,7 +559,7 @@
             0});
          this.numericUpDown_Rangevalue.Name = "numericUpDown_Rangevalue";
          this.numericUpDown_Rangevalue.Size = new System.Drawing.Size(36, 20);
-         this.numericUpDown_Rangevalue.TabIndex = 14;
+         this.numericUpDown_Rangevalue.TabIndex = 16;
          this.numericUpDown_Rangevalue.ValueChanged += new System.EventHandler(this.numericUpDown_Rangevalue_ValueChanged);
          // 
          // richTextBox_Bin
@@ -532,7 +572,7 @@
          this.richTextBox_Bin.Location = new System.Drawing.Point(70, 44);
          this.richTextBox_Bin.Multiline = false;
          this.richTextBox_Bin.Name = "richTextBox_Bin";
-         this.richTextBox_Bin.Size = new System.Drawing.Size(588, 23);
+         this.richTextBox_Bin.Size = new System.Drawing.Size(585, 23);
          this.richTextBox_Bin.TabIndex = 3;
          this.richTextBox_Bin.TabStop = false;
          this.richTextBox_Bin.Text = "";
@@ -550,19 +590,19 @@
          // 
          // textBox_PatchAddrHeight
          // 
-         this.textBox_PatchAddrHeight.Location = new System.Drawing.Point(246, 135);
+         this.textBox_PatchAddrHeight.Location = new System.Drawing.Point(314, 135);
          this.textBox_PatchAddrHeight.Name = "textBox_PatchAddrHeight";
          this.textBox_PatchAddrHeight.Size = new System.Drawing.Size(61, 20);
-         this.textBox_PatchAddrHeight.TabIndex = 12;
+         this.textBox_PatchAddrHeight.TabIndex = 14;
          // 
          // label11
          // 
          this.label11.AutoSize = true;
          this.label11.Location = new System.Drawing.Point(145, 138);
          this.label11.Name = "label11";
-         this.label11.Size = new System.Drawing.Size(101, 13);
-         this.label11.TabIndex = 11;
-         this.label11.Text = "Patchadresse (hex):";
+         this.label11.Size = new System.Drawing.Size(153, 13);
+         this.label11.TabIndex = 13;
+         this.label11.Text = "Patchadresse Basishöhe (hex):";
          // 
          // textBox_PostBits
          // 
@@ -571,7 +611,7 @@
          this.textBox_PostBits.Font = new System.Drawing.Font("Courier New", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
          this.textBox_PostBits.Location = new System.Drawing.Point(70, 102);
          this.textBox_PostBits.Name = "textBox_PostBits";
-         this.textBox_PostBits.Size = new System.Drawing.Size(427, 23);
+         this.textBox_PostBits.Size = new System.Drawing.Size(372, 23);
          this.textBox_PostBits.TabIndex = 6;
          this.textBox_PostBits.TextChanged += new System.EventHandler(this.textBox_Bin_TextChanged);
          // 
@@ -582,12 +622,12 @@
          this.label10.Name = "label10";
          this.label10.Size = new System.Drawing.Size(51, 13);
          this.label10.TabIndex = 5;
-         this.label10.Text = "Post-Bits:";
+         this.label10.Text = "&Post-Bits:";
          // 
          // textBox_ExternArgs
          // 
          this.textBox_ExternArgs.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-         this.textBox_ExternArgs.Location = new System.Drawing.Point(518, 107);
+         this.textBox_ExternArgs.Location = new System.Drawing.Point(515, 107);
          this.textBox_ExternArgs.Name = "textBox_ExternArgs";
          this.textBox_ExternArgs.Size = new System.Drawing.Size(161, 20);
          this.textBox_ExternArgs.TabIndex = 12;
@@ -596,17 +636,17 @@
          // 
          this.label12.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
          this.label12.AutoSize = true;
-         this.label12.Location = new System.Drawing.Point(451, 110);
+         this.label12.Location = new System.Drawing.Point(448, 110);
          this.label12.Name = "label12";
          this.label12.Size = new System.Drawing.Size(61, 13);
          this.label12.TabIndex = 11;
-         this.label12.Text = "Argumente:";
+         this.label12.Text = "&Argumente:";
          // 
          // Form1
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-         this.ClientSize = new System.Drawing.Size(695, 569);
+         this.ClientSize = new System.Drawing.Size(692, 569);
          this.Controls.Add(this.label12);
          this.Controls.Add(this.textBox_ExternArgs);
          this.Controls.Add(this.groupBox2);
@@ -632,12 +672,13 @@
          this.Shown += new System.EventHandler(this.Form1_Shown);
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_MinBytes)).EndInit();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_maxheight)).EndInit();
-         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Tilesize)).EndInit();
+         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_TilesizeHoriz)).EndInit();
          this.groupBox1.ResumeLayout(false);
          this.groupBox1.PerformLayout();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_SingleTest)).EndInit();
          this.groupBox2.ResumeLayout(false);
          this.groupBox2.PerformLayout();
+         ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_TilesizeVert)).EndInit();
          ((System.ComponentModel.ISupportInitialize)(this.numericUpDown_Rangevalue)).EndInit();
          this.ResumeLayout(false);
          this.PerformLayout();
@@ -671,7 +712,7 @@
       private System.Windows.Forms.Button button_Detail;
       private System.Windows.Forms.Label label8;
       private System.Windows.Forms.Label label9;
-      private System.Windows.Forms.NumericUpDown numericUpDown_Tilesize;
+      private System.Windows.Forms.NumericUpDown numericUpDown_TilesizeHoriz;
       private System.Windows.Forms.GroupBox groupBox1;
       private System.Windows.Forms.Button button_SingleTest;
       private System.Windows.Forms.TextBox textBox_SingleTestBin;
@@ -690,6 +731,8 @@
       private System.Windows.Forms.Label label14;
       private System.Windows.Forms.Label label13;
       private System.Windows.Forms.NumericUpDown numericUpDown_Rangevalue;
+      private System.Windows.Forms.Label label15;
+      private System.Windows.Forms.NumericUpDown numericUpDown_TilesizeVert;
    }
 }
 

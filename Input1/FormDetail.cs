@@ -20,9 +20,14 @@ namespace Input1 {
       public byte Codingtype;
 
       /// <summary>
-      /// Kachelgröße (i.a. 64)
+      /// Kachelbreite (i.a. 64)
       /// </summary>
-      public int TileSize;
+      public int TileSizeHorz;
+
+      /// <summary>
+      /// Kachelhöhe (i.a. 64)
+      /// </summary>
+      public int TileSizeVert;
 
       /// <summary>
       /// gewünschte Höhendaten
@@ -34,7 +39,7 @@ namespace Input1 {
 
          this.KeyPreview = true;
 
-         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightMax, Codingtype, TileSize, HeightData);
+         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightMax, Codingtype, TileSizeHorz, TileSizeVert, HeightData);
          textBox_Encoder.AppendText(string.Format("{0}{1}", enc, System.Environment.NewLine));
 
          textBox_Encoder.Visible = false;

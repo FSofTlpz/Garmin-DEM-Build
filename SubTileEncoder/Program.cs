@@ -7,14 +7,11 @@ namespace SubTileEncoder {
 
    class Program {
 
-      const int TILESIZE = 64;
-      const int DATASIZE = TILESIZE * TILESIZE;
-
 
       static void Main(string[] args) {
          if (args.Length < 1) {
             Console.Error.WriteLine("Es muss mindestens eine Textdatei für die Daten angegeben werden.");
-            Console.Error.WriteLine("Es kann außerdem ein Codiertyp, eine Basishöhe und eine Differenzhöhe angegeben werden.");
+            Console.Error.WriteLine("Es kann außerdem ein Codiertyp, eine Basishöhe, eine Differenzhöhe und die Ausgabe eines Protokolls angegeben werden.");
 
          } else {
             string txtfile = args[0];
@@ -23,43 +20,14 @@ namespace SubTileEncoder {
             int diffheight = args.Length > 3 ? Convert.ToInt32(args[3]) : int.MinValue;
             bool bWithProt = args.Length > 4 ? Convert.ToBoolean(args[4]) : false;
 
-            String txt = null;
-            try {
-               using (StreamReader sr = new StreamReader(txtfile)) {
-                  txt = sr.ReadToEnd();
-               }
-            } catch (Exception e) {
-               Console.WriteLine("Die Datei '" + txtfile + "' konnte nicht gelesen werden:");
-               Console.WriteLine(e.Message);
-            }
-            if (!string.IsNullOrEmpty(txt)) {
-               string[] sData = txt.Split(new char[] { ' ', ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            int tilewidth;
+            int tileheight;
+            int maxheight;
+            int minheight;
 
-               int maxheight = int.MinValue;
-               int minheight = int.MaxValue;
-               List<int> heights = new List<int>();
-               for (int i = 0; i < sData.Length; i++) {
-                  int val = Convert.ToInt32(sData[i].Trim());
-                  if (val < 0) {
-                     Console.WriteLine("Es können nur Werte >= 0 verwendet werden (Einschränkung auf 0).");
-                     val = 0;
-                  }
-                  minheight = Math.Min(minheight, val);
-                  maxheight = Math.Max(maxheight, val);
-                  heights.Add(val);
-               }
+            List<int> heights = ReadData(txtfile, out tilewidth, out tileheight, out minheight, out maxheight);
 
-               if (heights.Count != DATASIZE) {
-                  if (heights.Count > DATASIZE) {
-                     Console.WriteLine("Die Datei '" + txtfile + "' enthält zu viele Daten (der Rest wird ignoriert).");
-                     heights.RemoveRange(DATASIZE, heights.Count - DATASIZE);
-                  } else {
-                     Console.WriteLine("Die Datei '" + txtfile + "' enthält zu wenig Daten (es wird mit 0 aufgefüllt).");
-                     while (heights.Count < DATASIZE)
-                        heights.Add(0);
-                  }
-               }
-
+            if (heights.Count > 0) {
                if (baseheight == int.MinValue)
                   baseheight = minheight;
                if (diffheight == int.MinValue)
@@ -75,7 +43,7 @@ namespace SubTileEncoder {
                   maxheight -= baseheight;
                }
 
-               Encoder.TileEncoder enc = new Encoder.TileEncoder(maxheight, codingtype, TILESIZE, heights);
+               Encoder.TileEncoder enc = new Encoder.TileEncoder(maxheight, codingtype, tilewidth, tileheight, heights);
 
                StringBuilder sbProtData = new StringBuilder();
                StringBuilder sbProtEncoder = new StringBuilder();
@@ -171,7 +139,8 @@ namespace SubTileEncoder {
                   Console.WriteLine("schreibe Konfiguration in '" + destfile + "'.info ...");
                   using (StreamWriter w = new StreamWriter(Path.GetFullPath(destfile + ".info"))) {
                      w.WriteLine("FILE=" + destfile);
-                     w.WriteLine("TILESIZE=" + TILESIZE.ToString());
+                     w.WriteLine("TILEWIDTH=" + tilewidth.ToString());
+                     w.WriteLine("TILEHEIGHT=" + tileheight.ToString());
                      w.WriteLine("BASE=" + baseheight.ToString());
                      w.WriteLine("DIFF=" + diffheight.ToString());
                      w.WriteLine("TYPE=" + codingtype.ToString());
@@ -197,5 +166,57 @@ namespace SubTileEncoder {
 
          }
       }
+
+      /// <summary>
+      /// liest die Höhendaten ein
+      /// </summary>
+      /// <param name="txtfile"></param>
+      /// <param name="tilewidth"></param>
+      /// <param name="tileheight"></param>
+      /// <param name="minheight"></param>
+      /// <param name="maxheight"></param>
+      /// <returns></returns>
+      static List<int> ReadData(string txtfile, out int tilewidth, out int tileheight, out int minheight, out int maxheight) {
+         List<int> heights = new List<int>();
+         tilewidth = -1;
+         tileheight = 0;
+         maxheight = int.MinValue;
+         minheight = int.MaxValue;
+
+         try {
+            String txt = null;
+            using (StreamReader sr = new StreamReader(txtfile)) {
+               txt = sr.ReadToEnd();
+            }
+            string[] lines = txt.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string line in lines) {
+               string[] sData = line.Split(new char[] { ' ', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+               if (tilewidth < 0) // 1. Datenzeile gibt die Breite vor
+                  tilewidth = sData.Length;
+               else {
+                  if (tilewidth != sData.Length)
+                     throw new Exception("Die Datenanzahl (" + sData.Length.ToString() + ") in Datenzeile " + (tileheight + 1).ToString() + " ist nicht identisch zur 1. Zeile (" + tilewidth.ToString() + ").");
+               }
+               tileheight++;
+
+               for (int i = 0; i < sData.Length; i++) {
+                  int val = Convert.ToInt32(sData[i].Trim());
+                  if (val < 0)
+                     throw new Exception("Es können nur Werte >= 0 verwendet werden.");
+                  minheight = Math.Min(minheight, val);
+                  maxheight = Math.Max(maxheight, val);
+                  heights.Add(val);
+               }
+            }
+         } catch (Exception e) {
+            Console.WriteLine("Die Datei '" + txtfile + "' konnte nicht gelesen werden:");
+            Console.WriteLine(e.Message);
+         }
+
+         return heights;
+      }
+
    }
 }
