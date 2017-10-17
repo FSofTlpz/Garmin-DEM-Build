@@ -613,35 +613,46 @@ namespace SimpleProgControl {
                // Höhe ermitteln: z.B. "N54.53305 E13.41344, 17 ft"
                string txt = Helper.GetPanelText(statuswin.hWnd, 2);        // 3. Panel
                Match m = r.Match(txt);
-               if (m.Success) {
-                  int h = Convert.ToInt32(m.Groups[1].Value);
-                  string v = h > 0 ? h.ToString() : ".";
 
-                  if (wr != null) {
-                     if (stepx == 0)
-                        wr.Write(startnoy + stepy);
-                     wr.Write("\t");
+               int h = m.Success ? Convert.ToInt32(m.Groups[1].Value) : 0;
+               string v = m.Success ? (h > 0 ? h.ToString() : ".") : "-";
 
-                     //wr.Write(newpos.X);
-                     //wr.Write(";");
+               if (wr != null) {
+                  if (stepx == 0)
+                     wr.Write(startnoy + stepy);
+                  wr.Write("\t");
 
-                     wr.Write(v);
-                  } else {
-                     if (stepx == 0)
-                        Debug.Write(startnoy + stepy);
-                     Debug.Write("\t");
-                     Debug.Write(v);
-                  }
+                  //wr.Write(newpos.X);
+                  //wr.Write(";");
+
+                  wr.Write(v);
                } else {
-                  stepx = pointsx;
-                  stepy = pointsy;
-                  if (wr != null) {
-                     wr.Close();
-                     wr = null;
-                     if (File.Exists(outfile))
-                        File.Delete(outfile);
-                  }
+                  if (stepx == 0)
+                     Debug.Write(startnoy + stepy);
+                  Debug.Write("\t");
+                  Debug.Write(v);
                }
+
+               //if (v == "-") {
+               //   TopMost = true;
+               //   Focus();
+               //   MessageBox.Show("Höhe im Paneltext nicht auswertbar:" + System.Environment.NewLine + System.Environment.NewLine +
+               //                   "[" + txt + "]",
+               //                   "FEHLER",
+               //                   MessageBoxButtons.OK,
+               //                   MessageBoxIcon.Stop);
+               //   TopMost = false;
+               //   progwin.SetForeground();
+
+               //   stepx = pointsx;
+               //   stepy = pointsy;
+               //   if (wr != null) {
+               //      wr.Close();
+               //      wr = null;
+               //      if (File.Exists(outfile))
+               //         File.Delete(outfile);
+               //   }
+               //}
 
             }
             if (wr != null)

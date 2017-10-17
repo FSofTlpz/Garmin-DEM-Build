@@ -1,0 +1,26 @@
+﻿UNIX/LINUX-typisch
+  -h
+  -abc                     Gruppierung a, b und c
+  -p PASSWORD
+  --help
+  --logfile=FILE           Parameter
+  --enable-shared          
+
+MS-typisch
+  /?
+  /help
+  /def:ABC
+
+andere
+  /def=ABC
+
+
+
+'/' als "lange" Option werten
+':' als '=' werten
+"lange" Optionen mit Parametern können mehrere Parameter gleichzeitig enthalten; Trennzeichen ';'
+      soll ';' im Parameter enthalten sein, ist eine Maskierung nötig '\;'
+fehlende Parameter werden als Zeichenkette der Länge 0 angesehen, wenn ':' oder '=' verwendet wird
+Optionen müssen als 1. Test folgender Regex genügen:
+   kurz "^-([A-Za-z0-9\?]+)$"
+   lang "^(--|/)([A-Za-z0-9]{1}[\w_]*)"
