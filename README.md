@@ -1,5 +1,8 @@
 # Garmin-DEM-Build
 Erzeugung von DEM-Dateien für GARMIN-Karten
 
-Zur Zeit ist das nur eine Beschreibung, wie die Höhendaten in den DEM-Dateien von GARMIN codiert werden. 
-Ziel ist die Erzeugung eigener DEM-Dateien und eine vielleicht eine passende Verknüpfung zu MKGMAP.
+In der PDF-Datei ist der Algorithmus beschrieben. 
+Input2 und BuildDEMFile enthalten den experimentellen Encoder TileEncoder.cs. Es ist nur für das Testen des Algorithmus geschrieben und deshalb nicht
+besonders effektiv oder schnell.
+Mit BuildDEMFile können z.B. aus den Höhendaten von HGT-Dateien und den notwendigen Gebietsgrenzen aus der Garmin TRE-Datei einfach die zugehörigen
+DEM-Dateien erzeugt werden.

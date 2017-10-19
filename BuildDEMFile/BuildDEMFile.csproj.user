@@ -3,4 +3,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartArguments>--dem="d:\Karten\ms7006_D, aio, tmp\1879441408\70060000.dem" --hgtpath="d:\OSMData\srtm_zip" --hgtoutput="d:\Karten\ms7006_D, aio, tmp\dat70060000.txt.zip" --lastcolstd --tre="d:\Karten\ms7006_D, aio, tmp\1879441408\70060000.tre" --dlon=0.02 --overwrite</StartArguments>
   </PropertyGroup>
+  <PropertyGroup>
+    <PublishUrlHistory />
+    <InstallUrlHistory />
+    <SupportUrlHistory />
+    <UpdateUrlHistory />
+    <BootstrapperUrlHistory />
+    <ErrorReportUrlHistory />
+    <FallbackCulture>de-DE</FallbackCulture>
+    <VerifyUploadedFiles>false</VerifyUploadedFiles>
+  </PropertyGroup>
 </Project>

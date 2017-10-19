@@ -1662,14 +1662,57 @@ namespace Encoder {
          /// </summary>
          /// <param name="hunitvalue"></param>
          protected void SetHunitValue(int hunitvalue) {
-            hunitvalue &= 0x1FF;
-            // höchstes 1-Bit suchen
-            HunitValue = 0x100;
-            HunitExponent = 8;
-            while (HunitValue > 0 &&
-                   (HunitValue & hunitvalue) == 0) {
-               HunitValue >>= 1;
-               HunitExponent--;
+            //hunitvalue &= 0x1FF;
+            //// höchstes 1-Bit suchen
+            //HunitValue = 0x100;
+            //HunitExponent = 8;
+            //while (HunitValue > 0 &&
+            //       (HunitValue & hunitvalue) == 0) {
+            //   HunitValue >>= 1;
+            //   HunitExponent--;
+            //}
+
+            if (hunitvalue < 1) {
+               HunitValue = 0;
+               HunitExponent = 0;
+               //throw new Exception("SetHunitValue() ist für 0 nicht möglich.");
+            } else {
+               if (hunitvalue < 2)
+                  HunitExponent = 0;
+               else if (hunitvalue < 4)
+                  HunitExponent = 1;
+               else if (hunitvalue < 8)
+                  HunitExponent = 2;
+               else if (hunitvalue < 16)
+                  HunitExponent = 3;
+               else if (hunitvalue < 32)
+                  HunitExponent = 4;
+               else if (hunitvalue < 64)
+                  HunitExponent = 5;
+               else if (hunitvalue < 128)
+                  HunitExponent = 6;
+               else if (hunitvalue < 256)
+                  HunitExponent = 7;
+               else if (hunitvalue < 512)
+                  HunitExponent = 8;
+               else if (hunitvalue < 1024)
+                  HunitExponent = 9;
+               else if (hunitvalue < 2048)
+                  HunitExponent = 10;
+               else if (hunitvalue < 4096)
+                  HunitExponent = 11;
+               else if (hunitvalue < 8192)
+                  HunitExponent = 12;
+               else if (hunitvalue < 16384)
+                  HunitExponent = 13;
+               else if (hunitvalue < 32768)
+                  HunitExponent = 14;
+               else if (hunitvalue < 65536)
+                  HunitExponent = 15;
+               else
+                  HunitExponent = 16;
+
+               HunitValue = 1 << HunitExponent;
             }
          }
 
