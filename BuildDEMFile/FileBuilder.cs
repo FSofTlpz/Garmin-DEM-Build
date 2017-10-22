@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 
 namespace BuildDEMFile {
 
@@ -209,8 +210,9 @@ namespace BuildDEMFile {
       /// <param name="footflag">Angaben in Fuß (oder Meter)</param>
       /// <param name="lastcolstd">letzte Spalte mit Standardbreite</param>
       /// <param name="overwrite"></param>
+      /// <param name="maxthreads"></param>
       /// <returns></returns>
-      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite) {
+      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, int maxthreads = 0) {
 
          if (!overwrite &&
              File.Exists(demfile)) {
@@ -225,7 +227,19 @@ namespace BuildDEMFile {
          for (int z = 0; z < data4Zoomlevel.Count; z++) {
             Data2Dim rawdata;
             int minheight, maxheight;
-            if (!string.IsNullOrEmpty(data4Zoomlevel[z].HgtPath))
+            if (!string.IsNullOrEmpty(data4Zoomlevel[z].HgtPath)) {
+               /* ACHTUNG
+                * Wenn die Breite des Gebiets 1 Punktabstand ist, werden 2 Punkte ermittelt, d.h.
+                * wenn die Breite des Gebiets n Punktabstände ist, werden n+1 Punkte ermittelt.
+                * Für ein Vielfaches von 64 Punkten wird also eine Breite x*64 - 1 benötigt.
+               */
+               if (lastcolstd) { // notfalls auf 64er-Breite bringen
+                  double t = data4Zoomlevel[z].Width / (STDTILESIZE * data4Zoomlevel[z].Londist);
+                  if ((int)t < t) {
+                     data4Zoomlevel[z].Width = (1 + (int)t) * STDTILESIZE * data4Zoomlevel[z].Londist;
+                     data4Zoomlevel[z].Width -= 1.1 * data4Zoomlevel[z].Londist;
+                  }
+               }
                rawdata = ReadData(data4Zoomlevel[z].HgtPath,
                                   data4Zoomlevel[z].HgtOutput,
                                   data4Zoomlevel[z].Left,
@@ -237,7 +251,7 @@ namespace BuildDEMFile {
                                   footflag,
                                   out minheight,
                                   out maxheight);
-            else {
+            } else {
                rawdata = ReadData(data4Zoomlevel[z].Datafile, out minheight, out maxheight);
 
                if (Double.IsNaN(data4Zoomlevel[z].Width)) {
@@ -262,7 +276,7 @@ namespace BuildDEMFile {
             if (rawdata.Height > 0 && rawdata.Width > 0) {
                Subtile[,] tiles = BuildSubtileArrays(rawdata, lastcolstd, STDTILESIZE);
                Console.WriteLine("Kachelanzahl " + tiles.GetLength(0) + " x " + tiles.GetLength(1) +
-                                 " (rechte Spalte " + tiles[tiles.GetLength(0) - 1, 0].Width.ToString() + " breit, untere Zeile " + tiles[0, tiles.GetLength(1) - 1].Height.ToString() + " hoch)");
+                                                " (rechte Spalte " + tiles[tiles.GetLength(0) - 1, 0].Width.ToString() + " breit, untere Zeile " + tiles[0, tiles.GetLength(1) - 1].Height.ToString() + " hoch)");
                tiles4zoomlevel.Add(tiles);
             }
 
@@ -271,16 +285,34 @@ namespace BuildDEMFile {
          }
 
          if (tiles4zoomlevel.Count > 0) {
+
+            if (maxthreads <= 0)
+               maxthreads = Environment.ProcessorCount;
+            Console.Error.WriteLine(maxthreads == 1 ? "{0} Thread" : "{0} Threads", maxthreads);
+
+            MyThreadgroup tg = new MyThreadgroup(maxthreads);
+            tg.InfoEvent += new MyThreadgroup.Info(tg_InfoEvent);
+
             Console.WriteLine("encodiere Kacheln ...");
             // alle Daten encodieren
             int count = 0;
             for (int z = 0; z < tiles4zoomlevel.Count; z++)
                for (int y = 0; y < tiles4zoomlevel[z].GetLength(1); y++)
                   for (int x = 0; x < tiles4zoomlevel[z].GetLength(0); x++) {
-                     tiles4zoomlevel[z][x, y].Encoding();
-                     Console.Write(".");
+
+                     tg.Start(new object[] { tiles4zoomlevel[z][x, y] });
+
+                     //tiles4zoomlevel[z][x, y].Encoding();
+                     //Console.Write(".");
+
                      count++;
+
+                     if (count % 50 == 0)
+                        Console.Write(".");
                   }
+
+            tg.NothingToDo.WaitOne();
+
             Console.WriteLine();
             Console.WriteLine(count.ToString() + " Kacheln encodiert");
 
@@ -364,7 +396,11 @@ namespace BuildDEMFile {
       /// <param name="stepheight"></param>
       /// <param name="foot"></param>
       /// <returns></returns>
-      Data2Dim ReadData(string hgtpath, string hgtoutput, double left, double top, double width, double height, double stepwidth, double stepheight, bool foot, out int minheight, out int maxheight) {
+      Data2Dim ReadData(string hgtpath, string hgtoutput,
+                        double left, double top, double width, double height,
+                        double stepwidth, double stepheight,
+                        bool foot,
+                        out int minheight, out int maxheight) {
          maxheight = int.MinValue;
          minheight = int.MaxValue;
          // ---- Daten einlesen und konvertieren ----
@@ -637,5 +673,140 @@ namespace BuildDEMFile {
       }
 
 
+      #region Threadgroup
+
+      abstract class Threadgroup {
+
+         /// <summary>
+         /// max. Anzahl von erlaubten Threads
+         /// </summary>
+         int max;
+         /// <summary>
+         /// Anzahl der akt. Threads
+         /// </summary>
+         int threadcount;
+         /// <summary>
+         /// Lock-Objekt für die interne Nutzung
+         /// </summary>
+         object locker;
+         /// <summary>
+         /// gesetzt, wenn kein Thread mehr läuft
+         /// </summary>
+         public ManualResetEvent NothingToDo { get; private set; }
+
+         ManualResetEvent[] EndEvent;
+         bool[] EndEventIsInUse;
+         private int i;
+
+         public Threadgroup(int max) {
+            this.max = max;
+            threadcount = 0;
+            NothingToDo = new ManualResetEvent(false);
+            EndEvent = new ManualResetEvent[max];
+            EndEventIsInUse = new bool[max];
+            for (int i = 0; i < EndEvent.Length; i++) {
+               EndEvent[i] = new ManualResetEvent(false);
+               EndEventIsInUse[i] = false;
+            }
+            locker = new object();
+         }
+
+         /// <summary>
+         /// startet einen Thread (sofort, oder wenn wieder einer "frei wird")
+         /// </summary>
+         /// <param name="para"></param>
+         public void Start(object para) {
+
+            Monitor.Enter(locker);
+            int actualthreadcount = threadcount;
+            NothingToDo.Reset(); // auf jeden Fall
+            Monitor.Exit(locker);
+
+            // Index eines freien Threadplatzes ermitteln (ev. warten bis ein Threadplatz frei wird)
+            int idx;
+            if (actualthreadcount >= max) {                 // z.Z. kein freier Thread
+               idx = WaitHandle.WaitAny(EndEvent);
+               EndEvent[idx].Reset();
+            } else {
+               Monitor.Enter(locker);
+               for (idx = 0; idx < EndEventIsInUse.Length; idx++)
+                  if (!EndEventIsInUse[idx])
+                     break;
+            }
+
+            if (!Monitor.IsEntered(locker))
+               Monitor.Enter(locker);
+
+            threadcount++;
+            EndEventIsInUse[idx] = true;
+            Thread t = new Thread(DoWorkFrame);       // Thread erzeugen ...
+            t.Start(new object[] { idx, para });      // ... und starten
+
+            Monitor.Exit(locker);
+         }
+
+         protected void DoWorkFrame(object para) {
+            object[] data = para as object[];
+            int freeidx = (int)data[0];
+            DoWork(data[1]);
+
+            Monitor.Enter(locker);
+
+            threadcount--;
+            EndEventIsInUse[freeidx] = false;
+            EndEvent[freeidx].Set();
+            if (threadcount == 0)
+               NothingToDo.Set(); // das war der letzte Thread
+
+            Monitor.Exit(locker);
+         }
+
+         protected virtual void DoWork(object para) { }
+
+      }
+
+      /// <summary>
+      /// Threadgruppe für die Verkettung
+      /// </summary>
+      class MyThreadgroup : Threadgroup {
+
+         public delegate void Info(string txt);
+         public event Info InfoEvent;
+
+         public MyThreadgroup(int max)
+            : base(max) { }
+
+         protected override void DoWork(object para) {
+            if (para is object[]) {
+               object[] args = para as object[];
+               if (args.Length == 1) {
+
+                  if (args[0] is Subtile) {
+                     (args[0] as Subtile).Encoding();
+                     //InfoEvent(".");
+                  }
+
+               }
+            }
+         }
+      }
+
+      /// <summary>
+      /// Lock-Objekt für das Schreiben auf die Konsole
+      /// </summary>
+      object consolewritelocker = new object();
+
+      /// <summary>
+      /// Zwischenmeldung damit der Anwender nicht nervös wird
+      /// </summary>
+      void tg_InfoEvent(string txt) {
+         lock (consolewritelocker) {
+            Console.Write(txt);
+         }
+      }
+
+      #endregion
+
    }
+
 }

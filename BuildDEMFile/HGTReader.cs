@@ -125,7 +125,7 @@ namespace BuildDEMFile {
             if (!File.Exists(filename + ".zip"))
                throw new Exception(string.Format("Weder die Datei '{0}' noch die Datei '{0}.zip' existiert.", filename));
 
-            using (FileStream zipstream = new FileStream(filename + ".zip", FileMode.Open)) {
+            using (FileStream zipstream = new FileStream(filename + ".zip", FileMode.Open, FileAccess.Read, FileShare.Read)) {
                using (ZipArchive zip = new ZipArchive(zipstream, ZipArchiveMode.Read)) {
                   filename = Path.GetFileName(filename).ToUpper();
                   ZipArchiveEntry entry = null;
