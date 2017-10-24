@@ -613,7 +613,7 @@ namespace BuildDEMFile {
                for (int x = 0; x < tiles[z].GetLength(0); x++)
                   zl[z].Subtiles.Add(tiles[z][x, y]);
 
-            zl[z].Tableitem.No = (ushort)z;
+            zl[z].Tableitem.No = (byte)z;
             zl[z].Tableitem.PointsHoriz = STDTILESIZE;
             zl[z].Tableitem.PointsVert = STDTILESIZE;
 

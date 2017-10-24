@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
-    <StartArguments>--dem="C:\Users\puf\Gps\Garmin\ms7001_D, Basis\dem/1879113872/70010090.dem" --hgtpath="d:\data\gps\data\srtm_zip" --lastcolstd --tre="C:\Users\puf\Gps\Garmin\ms7001_D, Basis\dem/1879113872/70010090.tre" --dlon=0.00027761 --overwrite</StartArguments>
+    <StartArguments>--dem=I0FD3EAE.DEM --data=dem1.txt --data=dem2.txt --data=dem3.txt --data=dem4.txt --left=10.1998963952065 --top=47.4002860486507 --dlon=0.0003 --dlon=0.0012 --dlon=0.0024 --dlon=0.0048 -O</StartArguments>
   </PropertyGroup>
   <PropertyGroup>
     <PublishUrlHistory />
