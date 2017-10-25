@@ -13,7 +13,11 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © FSofT 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
+<<<<<<< HEAD
 [assembly: AssemblyInformationalVersion("25.10.2017")]
+=======
+[assembly: AssemblyInformationalVersion("24.10.2017")]
+>>>>>>> f3803ae18292ffc8d61cd07dd46f02791ca5771c
 
 // Durch Festlegen von ComVisible auf "false" werden die Typen in dieser Assembly unsichtbar 
 // für COM-Komponenten.  Wenn Sie auf einen Typ in dieser Assembly von 
