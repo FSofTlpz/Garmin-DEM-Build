@@ -17,10 +17,6 @@ namespace BuildDEMFile {
          /// </summary>
          public string Datafile;
          /// <summary>
-         /// Pfad zu den HGT-Dateien
-         /// </summary>
-         public string HgtPath;
-         /// <summary>
          /// westliche DEM-Grenze
          /// </summary>
          public double Left;
@@ -44,38 +40,32 @@ namespace BuildDEMFile {
          /// Breite des Punktabstandes
          /// </summary>
          public double Londist;
-         /// <summary>
-         /// Ausgabedatei für HGT-Daten
-         /// </summary>
-         public string HgtOutput;
 
          /// <summary>
          /// 
          /// </summary>
          /// <param name="Datafile">Datendatei</param>
-         /// <param name="HgtPath">Pfad zu den HGT-Dateien</param>
          /// <param name="Left">westliche DEM-Grenze</param>
          /// <param name="Top">nördliche DEM-Grenze</param>
          /// <param name="Width">Breite DEM-Grenze</param>
          /// <param name="Height">Höhe DEM-Grenze</param>
          /// <param name="Latdist">Höhe des Punktabstandes</param>
          /// <param name="Londist">Breite des Punktabstandes</param>
-         /// <param name="HgtOutput">Ausgabedatei für HGT-Daten</param>
-         public Data4Zoomlevel(string Datafile, string HgtPath, double Left, double Top, double Width, double Height, double Latdist, double Londist, string HgtOutput) {
+         public Data4Zoomlevel(string Datafile, double Left, double Top, double Width, double Height, double Latdist, double Londist) {
             this.Datafile = string.IsNullOrEmpty(Datafile) ? null : Datafile.Trim();
-            this.HgtPath = string.IsNullOrEmpty(HgtPath) ? null : HgtPath.Trim();
             this.Left = Left;
             this.Top = Top;
             this.Latdist = Latdist;
             this.Londist = Londist;
             this.Width = Width;
             this.Height = Height;
-            this.HgtOutput = string.IsNullOrEmpty(HgtOutput) ? null : HgtOutput.Trim(); ;
          }
 
       }
 
       List<Data4Zoomlevel> data4Zoomlevel;
+      string HgtPath;
+      string HgtOutput;
 
 
       /// <summary>
@@ -83,25 +73,25 @@ namespace BuildDEMFile {
       /// </summary>
       /// <param name="datafile">Textdatei mit Höhendaten</param>
       /// <param name="hgtpath">Pfad zu den HGT-Dateien</param>
-      /// <param name="hgtoutput">Datei für die Ausgabe der Textdaten</param>
       /// <param name="left">Ecke links-oben</param>
       /// <param name="top">Ecke links-oben</param>
       /// <param name="width">Breite des DEM-Bereiches</param>
       /// <param name="height">Höhe des DEM-Bereiches</param>
       /// <param name="londist">Breite des Punktabstandes</param>
       /// <param name="latdist">Höhe des Punktabstandes</param>
+      /// <param name="hgtoutput">Datei für die Ausgabe der Textdaten</param>
       public FileBuilder(List<string> datafile,
-                         List<string> hgtpath,
-                         List<string> hgtoutput,
+                         string hgtpath,
                          List<double> left, List<double> top,
                          List<double> width, List<double> height,
-                         List<double> londist, List<double> latdist) {
+                         List<double> londist, List<double> latdist,
+                         string hgtoutput) {
 
          data4Zoomlevel = new List<FileBuilder.Data4Zoomlevel>();
+         HgtPath = string.IsNullOrEmpty(hgtpath) ? null : hgtpath;
+         HgtOutput = string.IsNullOrEmpty(hgtoutput) ? null : hgtoutput;
 
-         int count = Math.Min(datafile.Count, hgtpath.Count);
-         count = Math.Min(count, hgtoutput.Count);
-         count = Math.Min(count, left.Count);
+         int count = Math.Min(datafile.Count, left.Count);
          count = Math.Min(count, top.Count);
          count = Math.Min(count, londist.Count);
          count = Math.Min(count, latdist.Count);
@@ -109,16 +99,12 @@ namespace BuildDEMFile {
          count = Math.Min(count, height.Count);
 
          for (int i = 0; i < count; i++) {
-            data4Zoomlevel.Add(new Data4Zoomlevel(datafile[i], hgtpath[i], left[i], top[i], width[i], height[i], latdist[i], londist[i], hgtoutput[i]));
+            data4Zoomlevel.Add(new Data4Zoomlevel(datafile[i], left[i], top[i], width[i], height[i], latdist[i], londist[i]));
 
-            if (data4Zoomlevel[i].Datafile != null) {
-               data4Zoomlevel[i].HgtPath = null;
-               data4Zoomlevel[i].HgtOutput = null;
-            }
-            if (data4Zoomlevel[i].HgtPath != null)
+            if (HgtPath != null)
                data4Zoomlevel[i].Datafile = null;
 
-            if (data4Zoomlevel[i].HgtPath == null &&
+            if (HgtPath == null &&
                 data4Zoomlevel[i].Datafile == null)
                throw new Exception("Entweder eine Datendatei oder ein HGT-Pfad muss angegeben sein.");
 
@@ -126,7 +112,7 @@ namespace BuildDEMFile {
                 double.IsNaN(data4Zoomlevel[i].Top))
                throw new Exception("Die Position des DEM-Bereiches muss angegeben sein.");
 
-            if (data4Zoomlevel[i].HgtPath != null) {
+            if (HgtPath != null) {
                if (double.IsNaN(data4Zoomlevel[i].Width) ||
                    double.IsNaN(data4Zoomlevel[i].Height))
                   throw new Exception("Die Ausdehnung des DEM-Bereiches muss angegeben sein.");
@@ -156,14 +142,14 @@ namespace BuildDEMFile {
       /// <param name="hgtoutput">Datei für die Ausgabe der Textdaten</param>
       public FileBuilder(string hgtpath, double left, double top, double width, double height, double ptdist, string hgtoutput = null) :
          this(new List<string>() { null },
-              new List<string>() { hgtpath },
-              new List<string>() { hgtoutput },
+              hgtpath,
               new List<double>() { left },
               new List<double>() { top },
               new List<double>() { width },
               new List<double>() { height },
               new List<double>() { ptdist },
-              new List<double>() { ptdist }) { }
+              new List<double>() { ptdist },
+              hgtoutput) { }
 
       /// <summary>
       /// 
@@ -175,14 +161,14 @@ namespace BuildDEMFile {
       /// <param name="height">Höhe des DEM-Bereiches</param>
       public FileBuilder(string datafile, double left, double top, double width, double height) :
          this(new List<string>() { datafile },
-              new List<string>() { null },
-              new List<string>() { null },
+              null,
               new List<double>() { left },
               new List<double>() { top },
               new List<double>() { width },
               new List<double>() { height },
               new List<double>() { double.NaN },
-              new List<double>() { double.NaN }) { }
+              new List<double>() { double.NaN },
+              null) { }
 
       /// <summary>
       /// 
@@ -193,14 +179,14 @@ namespace BuildDEMFile {
       /// <param name="ptdist">Punktabstand</param>
       public FileBuilder(string datafile, double left, double top, double ptdist) :
          this(new List<string>() { datafile },
-              new List<string>() { null },
-              new List<string>() { null },
+              null,
               new List<double>() { left },
               new List<double>() { top },
               new List<double>() { double.NaN },
               new List<double>() { double.NaN },
               new List<double>() { ptdist },
-              new List<double>() { ptdist }) { }
+              new List<double>() { ptdist },
+              null) { }
 
 
       /// <summary>
@@ -222,26 +208,52 @@ namespace BuildDEMFile {
 
          List<Subtile[,]> tiles4zoomlevel = new List<Subtile[,]>(); // für jeden Zoomlevel ein Tile-Array
 
+
+         double mostleft = double.MaxValue;
+         double mostright = double.MinValue;
+         double mostbottom = double.MaxValue;
+         double mosttop = double.MinValue;
+         for (int z = 0; z < data4Zoomlevel.Count; z++) {
+            /* ACHTUNG
+             * Wenn die Breite des Gebiets 1 Punktabstand ist, werden 2 Punkte ermittelt, d.h.
+             * wenn die Breite des Gebiets n Punktabstände ist, werden n+1 Punkte ermittelt.
+             * Für ein Vielfaches von 64 Punkten wird also eine Breite x*64 - 1 benötigt.
+            */
+            if (lastcolstd) { // notfalls auf 64er-Breite bringen
+               double t = data4Zoomlevel[z].Width / (STDTILESIZE * data4Zoomlevel[z].Londist);
+               if ((int)t < t) {
+                  data4Zoomlevel[z].Width = (1 + (int)t) * STDTILESIZE * data4Zoomlevel[z].Londist;
+                  data4Zoomlevel[z].Width -= 1.1 * data4Zoomlevel[z].Londist;
+               }
+            }
+            mostleft = Math.Min(mostleft, data4Zoomlevel[z].Left);
+            mosttop = Math.Max(mosttop, data4Zoomlevel[z].Top);
+            mostright = Math.Max(mostright, data4Zoomlevel[z].Left + data4Zoomlevel[z].Width);
+            mostbottom = Math.Min(mostbottom, data4Zoomlevel[z].Top - data4Zoomlevel[z].Height);
+         }
+
+         DataConverter hgtconv = null;
+         if (!string.IsNullOrEmpty(HgtPath)) {  // Daten (für alle Zoomlevel) nur 1x einlesen
+            hgtconv = new DataConverter(mostleft, mosttop, mostright - mostleft, mosttop - mostbottom);
+            if (!hgtconv.ReadData(HgtPath))     // HGT-Rohdaten einlesen
+               return false;
+         }
+
          Console.WriteLine(data4Zoomlevel.Count.ToString() + " Zoomlevel");
          // Daten einlesen
          for (int z = 0; z < data4Zoomlevel.Count; z++) {
             Data2Dim rawdata;
             int minheight, maxheight;
-            if (!string.IsNullOrEmpty(data4Zoomlevel[z].HgtPath)) {
-               /* ACHTUNG
-                * Wenn die Breite des Gebiets 1 Punktabstand ist, werden 2 Punkte ermittelt, d.h.
-                * wenn die Breite des Gebiets n Punktabstände ist, werden n+1 Punkte ermittelt.
-                * Für ein Vielfaches von 64 Punkten wird also eine Breite x*64 - 1 benötigt.
-               */
-               if (lastcolstd) { // notfalls auf 64er-Breite bringen
-                  double t = data4Zoomlevel[z].Width / (STDTILESIZE * data4Zoomlevel[z].Londist);
-                  if ((int)t < t) {
-                     data4Zoomlevel[z].Width = (1 + (int)t) * STDTILESIZE * data4Zoomlevel[z].Londist;
-                     data4Zoomlevel[z].Width -= 1.1 * data4Zoomlevel[z].Londist;
-                  }
+            if (hgtconv != null) {
+
+               string txtoutput = "";
+               if (!string.IsNullOrEmpty(HgtOutput)) {
+                  string ext = Path.GetExtension(HgtOutput).ToLower();
+                  txtoutput = txtoutput.Substring(0, txtoutput.Length - ext.Length) + "_zl" + (z + 1).ToString() + ext;
                }
-               rawdata = ReadData(data4Zoomlevel[z].HgtPath,
-                                  data4Zoomlevel[z].HgtOutput,
+
+               rawdata = ReadData(hgtconv,
+                                  txtoutput,
                                   data4Zoomlevel[z].Left,
                                   data4Zoomlevel[z].Top,
                                   data4Zoomlevel[z].Width,
@@ -251,7 +263,9 @@ namespace BuildDEMFile {
                                   footflag,
                                   out minheight,
                                   out maxheight);
+
             } else {
+
                rawdata = ReadData(data4Zoomlevel[z].Datafile, out minheight, out maxheight);
 
                if (Double.IsNaN(data4Zoomlevel[z].Width)) {
@@ -384,29 +398,25 @@ namespace BuildDEMFile {
       }
 
       /// <summary>
-      /// liest die gesamten Höhendaten aus den HGT-Daten ein
+      /// liefert die interpolierten Höhendaten aus den HGT-Daten
       /// </summary>
       /// <param name="hgtpath"></param>
       /// <param name="hgtoutput"></param>
       /// <param name="left"></param>
       /// <param name="top"></param>
-      /// <param name="width"></param>
-      /// <param name="height"></param>
       /// <param name="stepwidth"></param>
       /// <param name="stepheight"></param>
       /// <param name="foot"></param>
       /// <returns></returns>
-      Data2Dim ReadData(string hgtpath, string hgtoutput,
+      Data2Dim ReadData(DataConverter conv, string hgtoutput,
                         double left, double top, double width, double height,
                         double stepwidth, double stepheight,
                         bool foot,
                         out int minheight, out int maxheight) {
          maxheight = int.MinValue;
          minheight = int.MaxValue;
-         // ---- Daten einlesen und konvertieren ----
-         DataConverter conv = new DataConverter(left, top, width, height);
-         conv.ReadData(hgtpath);
-         int[,] heights = conv.BuildHeightArray(stepwidth, stepheight, foot);
+
+         int[,] heights = conv.BuildHeightArray(left, top, width, height, stepwidth, stepheight, foot);
 
          for (int i = 0; i < heights.GetLength(0); i++)
             for (int j = 0; j < heights.GetLength(1); j++) {
@@ -415,6 +425,44 @@ namespace BuildDEMFile {
                   maxheight = Math.Max(maxheight, heights[i, j]);
             }
 
+         WriteHgtOutput(hgtoutput, heights);
+
+         return new Data2Dim(heights);
+      }
+
+      /// <summary>
+      /// liest den gesamten Text einer Textdatei oder der 1. Datei in einer ZIP-Datei
+      /// </summary>
+      /// <param name="file"></param>
+      /// <returns></returns>
+      string ReadTxt(string file) {
+         String txt = null;
+
+         if (Path.GetExtension(file).ToUpper() == ".ZIP") {
+
+            using (FileStream zipstream = new FileStream(file, FileMode.Open)) {
+               using (ZipArchive zip = new ZipArchive(zipstream, ZipArchiveMode.Read)) {
+                  if (zip.Entries.Count > 0) {
+                     ZipArchiveEntry entry = zip.Entries[0];
+                     Stream dat = entry.Open();
+                     byte[] buff = new byte[entry.Length];
+                     dat.Read(buff, 0, buff.Length);
+                     txt = System.Text.Encoding.Default.GetString(buff);
+                     dat.Close();
+                  }
+               }
+            }
+
+         } else
+
+            using (StreamReader sr = new StreamReader(file)) {
+               txt = sr.ReadToEnd();
+            }
+
+         return txt;
+      }
+
+      void WriteHgtOutput(string hgtoutput, int[,] heights) {
          if (!string.IsNullOrEmpty(hgtoutput)) {
             if (Path.GetExtension(hgtoutput).ToUpper() == ".ZIP") {
                Console.WriteLine("schreibe extrahierte HGT-Daten in die Datei '" + hgtoutput + "' ...");
@@ -450,40 +498,6 @@ namespace BuildDEMFile {
 
             }
          }
-
-         return new Data2Dim(heights);
-      }
-
-      /// <summary>
-      /// liest den gesamten Text einer Textdatei oder der 1. Datei in einer ZIP-Datei
-      /// </summary>
-      /// <param name="file"></param>
-      /// <returns></returns>
-      string ReadTxt(string file) {
-         String txt = null;
-
-         if (Path.GetExtension(file).ToUpper() == ".ZIP") {
-
-            using (FileStream zipstream = new FileStream(file, FileMode.Open)) {
-               using (ZipArchive zip = new ZipArchive(zipstream, ZipArchiveMode.Read)) {
-                  if (zip.Entries.Count > 0) {
-                     ZipArchiveEntry entry = zip.Entries[0];
-                     Stream dat = entry.Open();
-                     byte[] buff = new byte[entry.Length];
-                     dat.Read(buff, 0, buff.Length);
-                     txt = System.Text.Encoding.Default.GetString(buff);
-                     dat.Close();
-                  }
-               }
-            }
-
-         } else
-
-            using (StreamReader sr = new StreamReader(file)) {
-               txt = sr.ReadToEnd();
-            }
-
-         return txt;
       }
 
 
@@ -613,7 +627,7 @@ namespace BuildDEMFile {
                for (int x = 0; x < tiles[z].GetLength(0); x++)
                   zl[z].Subtiles.Add(tiles[z][x, y]);
 
-            zl[z].Tableitem.No = (ushort)z;
+            zl[z].Tableitem.No = (byte)z;
             zl[z].Tableitem.PointsHoriz = STDTILESIZE;
             zl[z].Tableitem.PointsVert = STDTILESIZE;
 

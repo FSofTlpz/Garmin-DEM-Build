@@ -9,9 +9,13 @@ namespace BuildDEMFile {
       const ulong DEG_UNIT_FACTOR = 1UL << 32;
 
       /// <summary>
+      /// spez. Type (i.A. 0, aber auch 1 gesehen)
+      /// </summary>
+      public byte SpecType { get; set; }
+      /// <summary>
       /// Nummer des Eintrages (0, ...)
       /// </summary>
-      public ushort No { get; set; }
+      public byte No { get; set; }
       /// <summary>
       /// Anzahl der Datenpunkte waagerecht
       /// </summary>
@@ -187,10 +191,11 @@ namespace BuildDEMFile {
 
 
       public ZoomlevelTableitem() {
+         SpecType = 0;
          No = 0;
          PointsHoriz = PointsVert = 64;
-         LastRowHeight = 35;
-         LastColWidth = 35;
+         LastRowHeight = 64;
+         LastColWidth = 64;
          Unknown12 = 0;
          MaxIdxHoriz = MaxIdxVert = 0;
          Structure = 0;
@@ -206,6 +211,7 @@ namespace BuildDEMFile {
       }
 
       public void Write(BinaryWriter w) {
+         w.Write(SpecType);
          w.Write(No);
          w.Write(PointsHoriz);
          w.Write(PointsVert);

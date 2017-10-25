@@ -25,8 +25,8 @@ namespace BuildDEMFile {
             List<double> height;
             List<double> latdist;
             List<double> londist;
-            List<string> hgtpath;
-            List<string> hgtout;
+            string hgtpath;
+            string hgtout;
             Options opt = CheckOptions(args,
                                         out datafilenames,
                                         out left,
@@ -37,7 +37,7 @@ namespace BuildDEMFile {
                                         out londist,
                                         out hgtpath,
                                         out hgtout);
-            FileBuilder fb = new FileBuilder(datafilenames, hgtpath, hgtout, left, top, width, height, latdist, londist);
+            FileBuilder fb = new FileBuilder(datafilenames, hgtpath, left, top, width, height, latdist, londist, hgtout);
 
             fb.Create(opt.DEMFilename, opt.DataInFoot, opt.LastColStd, opt.OutputOverwrite);
 
@@ -54,8 +54,8 @@ namespace BuildDEMFile {
                                   out List<double> height,
                                   out List<double> latdist,
                                   out List<double> londist,
-                                  out List<string> hgtpath,
-                                  out List<string> hgtout
+                                  out string hgtpath,
+                                  out string hgtout
          ) {
          Options opt = new Options();
          opt.Evaluate(args);
@@ -67,8 +67,6 @@ namespace BuildDEMFile {
          height = new List<double>();
          latdist = new List<double>();
          londist = new List<double>();
-         hgtpath = new List<string>();
-         hgtout = new List<string>();
 
          if (string.IsNullOrEmpty(opt.DEMFilename))
             throw new Exception("Es ist keine Zieldatei angegeben.");
@@ -128,12 +126,12 @@ namespace BuildDEMFile {
          int count = 0; // Anzahl der Zoomlevel
          if (opt.DataFilename.Count > 0) {
             count = opt.DataFilename.Count;
-            hgtpath.Add(null);
-            hgtout.Add(null);
+            hgtpath = null;
+            hgtout = null;
          } else {
             count = Math.Max(opt.PixelWidth.Count, opt.PixelHeight.Count);
-            hgtpath.Add(opt.HGTPath);
-            hgtout.Add(opt.HGTDataOutput);
+            hgtpath = opt.HGTPath;
+            hgtout = opt.HGTDataOutput;
             datafilenames.Add(null);
          }
          if (count == 0)
@@ -166,10 +164,6 @@ namespace BuildDEMFile {
             width.Add(width[0]);
          while (height.Count < count)
             height.Add(height[0]);
-         while (hgtpath.Count < count)
-            hgtpath.Add(hgtpath[0]);
-         while (hgtout.Count < count)
-            hgtout.Add(hgtout[0]);
 
          return opt;
       }

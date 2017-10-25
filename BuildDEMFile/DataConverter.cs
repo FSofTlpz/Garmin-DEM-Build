@@ -33,7 +33,8 @@ namespace BuildDEMFile {
          this.height = height;
       }
 
-      public void ReadData(string hgtpath) {
+      public bool ReadData(string hgtpath) {
+         bool ret = true;
          // Voraussetzung: Die Datendateien liegen im 1-Grad-Raster vor. In den Dateinamen ist die linke untere Ecke enthalten.
 
          int iLeft = (int)left;
@@ -61,8 +62,11 @@ namespace BuildDEMFile {
                   Console.Error.WriteLine(string.Format("Höhen für {0}° .. {1}° / {2}° .. {3}° eingelesen", lon, lon + 1, lat, lat + 1));
                } catch (Exception ex) {
                   Console.Error.WriteLine(ex.Message);
+                  ret = false;
                }
             }
+
+         return ret;
       }
 
       /// <summary>
@@ -178,13 +182,23 @@ namespace BuildDEMFile {
       }
 
       /// <summary>
-      /// 
+      /// berechnet das Array der interpolierten Höhen
       /// </summary>
+      /// <param name="left">linken Rand</param>
+      /// <param name="top">oberer Rand</param>
+      /// <param name="width">Breite</param>
+      /// <param name="height">Höhe</param>
       /// <param name="stepwidth">horizontale Schrittweite</param>
       /// <param name="stepheight">vertikale Schrittweite</param>
       /// <param name="foot">Daten in Fuß</param>
       /// <returns></returns>
-      public int[,] BuildHeightArray(double stepwidth, double stepheight, bool foot) {
+      public int[,] BuildHeightArray(double left, double top, double width, double height, double stepwidth, double stepheight, bool foot) {
+         if (left < this.left ||
+             top > this.top ||
+             left + width > this.left + this.width ||
+             top - height < this.top - this.height)
+            throw new Exception("Der gewünschte Bereich überschreitet den Bereich der eingelesenen HGT-Werte.");
+
          int iCountLon = (int)(width / stepwidth);
          if (iCountLon * stepwidth < width)
             iCountLon++;
@@ -195,15 +209,15 @@ namespace BuildDEMFile {
             iCountLat++;
          iCountLat++;
 
-         Console.Error.WriteLine(string.Format("erzeuge {0} x {1} Höhenwerte ...", iCountLon, iCountLat));
+         Console.Error.WriteLine(string.Format("erzeuge {0} x {1} interpolierte Höhenwerte für den Abstand {2}° x {3}°...", iCountLon, iCountLat, stepwidth, stepheight));
          int[,] heights = new int[iCountLon, iCountLat];
          for (int j = 0; j < iCountLat; j++) {
-            double lat = top - j * stepheight;
+            double lat = top - top - j * stepheight;
             for (int i = 0; i < iCountLon; i++) {
                double lon = left + i * stepwidth;
 
                int iHeight = UNDEF;
-               double h = GetHeight(lon, lat);
+               double h = GetHeight(lon, lat);  // interpolierte Höhe
                if (!double.IsNaN(h)) {
                   if (foot)
                      h /= FOOT;
