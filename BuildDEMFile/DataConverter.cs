@@ -212,7 +212,7 @@ namespace BuildDEMFile {
          Console.Error.WriteLine(string.Format("erzeuge {0} x {1} interpolierte Höhenwerte für den Abstand {2}° x {3}°...", iCountLon, iCountLat, stepwidth, stepheight));
          int[,] heights = new int[iCountLon, iCountLat];
          for (int j = 0; j < iCountLat; j++) {
-            double lat = top - top - j * stepheight;
+            double lat = top - j * stepheight;
             for (int i = 0; i < iCountLon; i++) {
                double lon = left + i * stepwidth;
 
