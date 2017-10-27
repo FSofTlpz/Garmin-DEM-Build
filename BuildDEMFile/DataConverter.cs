@@ -33,7 +33,7 @@ namespace BuildDEMFile {
          this.height = height;
       }
 
-      public bool ReadData(string hgtpath) {
+      public bool ReadData(string hgtpath, bool dummydataonerror) {
          bool ret = true;
          // Voraussetzung: Die Datendateien liegen im 1-Grad-Raster vor. In den Dateinamen ist die linke untere Ecke enthalten.
 
@@ -58,8 +58,12 @@ namespace BuildDEMFile {
          for (int lon = iLeft; lon < iRight; lon++)
             for (int lat = iBottom; lat < iTop; lat++) {
                try {
-                  dat[lon - iLeft, lat - iBottom] = new HGTReader(lon, lat, hgtpath);
-                  Console.Error.WriteLine(string.Format("Höhen für {0}° .. {1}° / {2}° .. {3}° eingelesen", lon, lon + 1, lat, lat + 1));
+                  HGTReader hgt = new HGTReader(lon, lat, hgtpath, dummydataonerror);
+                  dat[lon - iLeft, lat - iBottom] = hgt;
+                  Console.Error.WriteLine(string.Format("Höhen für {0}° .. {1}° / {2}° .. {3}° eingelesen {4}",
+                                                        lon, lon + 1,
+                                                        lat, lat + 1,
+                                                        hgt.Minimum == hgt.Maximum ? " (nur Dummywerte)" : ""));
                } catch (Exception ex) {
                   Console.Error.WriteLine(ex.Message);
                   ret = false;
@@ -82,8 +86,8 @@ namespace BuildDEMFile {
             for (int j = 0; j < dat.GetLength(1); j++) {
                src = dat[i, j];
                if (src != null &&
-                   src.Left <= lon && lon <= src.Left + 1 &&
-                   src.Bottom <= lat && lat <= src.Bottom + 1) {
+                   src.Left <= lon && lon < src.Left + 1 &&
+                   src.Bottom <= lat && lat < src.Bottom + 1) {
                   i = dat.GetLength(0);
                   break;
                } else
@@ -94,12 +98,12 @@ namespace BuildDEMFile {
             // 4 umgebende Punkte bestimmen
             lon -= src.Left;
             lat -= src.Bottom;
-            double stepwidth = 1.0 / (src.Columns - 1);
+            double stepwidth = 1.0 / (src.Columns - 1); // abstand zwischen 2 Punkten
             double stepheight = 1.0 / (src.Rows - 1);
             int xl = (int)(lon / stepwidth);     // x <= gesuchter lon
             int yb = (int)(lat / stepheight);    // y <= gesuchter lat
-            int xr = (xl == lon) ? xl : xl + 1;
-            int yt = (yb == lat) ? yb : yb + 1;
+            int xr = xl + 1;
+            int yt = yb + 1;
 
             // interpolieren
             if (xl == xr) {

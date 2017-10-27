@@ -106,7 +106,8 @@ namespace BuildDEMFile {
       /// <param name="left">positiv für östliche Länge, sonst negativ</param>
       /// <param name="bottom">positiv für nördliche Breite, sonst negativ</param>
       /// <param name="directory">Verzeichnis der Datendatei</param>
-      public HGTReader(int left, int bottom, string directory) {
+      /// <param name="dummydataonerror">liefert Dummy-Daten, wenn die Datei nicht ex.</param>
+      public HGTReader(int left, int bottom, string directory, bool dummydataonerror) {
          Left = left;
          Bottom = bottom;
          Maximum = Int16.MinValue;
@@ -122,24 +123,36 @@ namespace BuildDEMFile {
 
          } else {
 
-            if (!File.Exists(filename + ".zip"))
-               throw new Exception(string.Format("Weder die Datei '{0}' noch die Datei '{0}.zip' existiert.", filename));
+            if (!File.Exists(filename + ".zip")) {
 
-            using (FileStream zipstream = new FileStream(filename + ".zip", FileMode.Open, FileAccess.Read, FileShare.Read)) {
-               using (ZipArchive zip = new ZipArchive(zipstream, ZipArchiveMode.Read)) {
-                  filename = Path.GetFileName(filename).ToUpper();
-                  ZipArchiveEntry entry = null;
-                  foreach (var item in zip.Entries) {
-                     if (filename == item.Name.ToUpper()) {
-                        entry = item;
-                        break;
+               if (!dummydataonerror)
+                  throw new Exception(string.Format("Weder die Datei '{0}' noch die Datei '{0}.zip' existiert.", filename));
+               else {
+                  Minimum = Maximum = NoValue;
+                  data = new Int16[1201 * 1201];
+                  for (int i = 0; i < data.Length; i++)
+                     data[i] = NoValue;
+                  NotValid = data.Length;
+               }
+
+            } else {
+
+               using (FileStream zipstream = new FileStream(filename + ".zip", FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                  using (ZipArchive zip = new ZipArchive(zipstream, ZipArchiveMode.Read)) {
+                     filename = Path.GetFileName(filename).ToUpper();
+                     ZipArchiveEntry entry = null;
+                     foreach (var item in zip.Entries) {
+                        if (filename == item.Name.ToUpper()) {
+                           entry = item;
+                           break;
+                        }
                      }
+                     if (entry == null)
+                        throw new Exception(string.Format("Die Datei '{0}' ist nicht in der Datei '{0}.zip' enthalten.", filename));
+                     Stream dat = entry.Open();
+                     ReadFromStream(entry.Open(), (int)entry.Length);
+                     dat.Close();
                   }
-                  if (entry == null)
-                     throw new Exception(string.Format("Die Datei '{0}' ist nicht in der Datei '{0}.zip' enthalten.", filename));
-                  Stream dat = entry.Open();
-                  ReadFromStream(entry.Open(), (int)entry.Length);
-                  dat.Close();
                }
             }
 
@@ -153,9 +166,11 @@ namespace BuildDEMFile {
          NotValid = 0;
          for (int i = 0; i < data.Length; i++) {
             data[i] = (Int16)((str.ReadByte() << 8) + str.ReadByte());
-            if (Maximum < data[i]) Maximum = data[i];
+            if (Maximum < data[i])
+               Maximum = data[i];
             if (data[i] != NoValue) {
-               if (Minimum > data[i]) Minimum = data[i];
+               if (Minimum > data[i])
+                  Minimum = data[i];
             } else
                NotValid++;
          }

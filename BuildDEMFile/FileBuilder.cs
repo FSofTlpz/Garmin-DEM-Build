@@ -195,10 +195,11 @@ namespace BuildDEMFile {
       /// <param name="demfile">Name der DEM-Datei</param>
       /// <param name="footflag">Angaben in Fuß (oder Meter)</param>
       /// <param name="lastcolstd">letzte Spalte mit Standardbreite</param>
-      /// <param name="overwrite"></param>
+      /// <param name="overwrite">bestehende Dateien überschreiben</param>
+      /// <param name="dummydataonerror">liefert Dummy-Daten, wenn die Datei nicht ex.</param>
       /// <param name="maxthreads"></param>
       /// <returns></returns>
-      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, int maxthreads = 0) {
+      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, bool dummydataonerror, int maxthreads = 0) {
 
          if (!overwrite &&
              File.Exists(demfile)) {
@@ -235,7 +236,7 @@ namespace BuildDEMFile {
          DataConverter hgtconv = null;
          if (!string.IsNullOrEmpty(HgtPath)) {  // Daten (für alle Zoomlevel) nur 1x einlesen
             hgtconv = new DataConverter(mostleft, mosttop, mostright - mostleft, mosttop - mostbottom);
-            if (!hgtconv.ReadData(HgtPath))     // HGT-Rohdaten einlesen
+            if (!hgtconv.ReadData(HgtPath, dummydataonerror))     // HGT-Rohdaten einlesen
                return false;
          }
 
@@ -249,7 +250,7 @@ namespace BuildDEMFile {
                string txtoutput = "";
                if (!string.IsNullOrEmpty(HgtOutput)) {
                   string ext = Path.GetExtension(HgtOutput).ToLower();
-                  txtoutput = txtoutput.Substring(0, txtoutput.Length - ext.Length) + "_zl" + (z + 1).ToString() + ext;
+                  txtoutput = HgtOutput.Substring(0, HgtOutput.Length - ext.Length) + "_zl" + (z + 1).ToString() + ext;
                }
 
                rawdata = ReadData(hgtconv,

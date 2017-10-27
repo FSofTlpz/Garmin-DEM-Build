@@ -22,6 +22,11 @@ namespace BuildDEMFile {
       public string HGTPath { get; private set; }
 
       /// <summary>
+      /// verwendet Dummydaten wenn keine HGT-Daten ex.
+      /// </summary>
+      public bool UseDummyData { get; private set; }
+
+      /// <summary>
       /// falls HGT-Daten gelesen werden, können sie in diese Textdatei ausgegeben werden
       /// </summary>
       public string HGTDataOutput { get; private set; }
@@ -89,6 +94,7 @@ namespace BuildDEMFile {
          DataFilename,
          HGTPath,
          HGTDataOutput,
+         UseDummyData,
          DataInFoot,
          TRELeft,
          TRETop,
@@ -111,6 +117,7 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "Name der Textdatei mit den Daten", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
          cmd.DefineOption((int)MyOptions.HGTPath, "hgtpath", "", "Pfad zum HGT-Verzeichnis", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
          cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "Ausgabe der verwendeten Daten in eine Textdatei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "verwendet Dummy-Daten, wenn keine HGT-Daten vorhanden sind (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "Daten in Fuß, sonst Meter (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "linker Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "oberer Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
@@ -132,6 +139,7 @@ namespace BuildDEMFile {
          DEMFilename = "";
          DataFilename = new List<string>();
          HGTPath = "";
+         UseDummyData = false;
          DataInFoot = false;
          TRELeft =
          TRETop =
@@ -177,6 +185,13 @@ namespace BuildDEMFile {
 
                      case MyOptions.HGTDataOutput:
                         HGTDataOutput = cmd.StringValue((int)opt).Trim();
+                        break;
+
+                     case MyOptions.UseDummyData:
+                        if (cmd.ArgIsUsed((int)opt))
+                           UseDummyData = cmd.BooleanValue((int)opt);
+                        else
+                           UseDummyData = true;
                         break;
 
                      case MyOptions.TREFilename:
