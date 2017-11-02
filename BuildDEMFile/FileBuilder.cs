@@ -295,7 +295,7 @@ namespace BuildDEMFile {
                tiles4zoomlevel.Add(tiles);
             }
 
-            Console.WriteLine(string.Format("Rand links {0}°, oben {1}°", data4Zoomlevel[z].Left, data4Zoomlevel[z].Top));
+            Console.WriteLine(string.Format("Rand links {0}°, oben {1}°, {2}° breit, {3}° hoch", data4Zoomlevel[z].Left, data4Zoomlevel[z].Top, data4Zoomlevel[z].Width, data4Zoomlevel[z].Height));
             Console.WriteLine(string.Format("Pixelgröße {0}° x {1}°", data4Zoomlevel[z].Londist, data4Zoomlevel[z].Latdist));
          }
 

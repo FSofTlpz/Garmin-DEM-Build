@@ -75,7 +75,7 @@ namespace BuildDEMFile {
 
          if (!string.IsNullOrEmpty(opt.HGTPath) &&
              !string.IsNullOrEmpty(opt.HGTDataOutput) &&
-             !opt.OutputOverwrite)
+             File.Exists(opt.HGTDataOutput) && !opt.OutputOverwrite)
             throw new Exception("Die Ausgabedatei für die HGT-Daten ex. schon, darf aber nicht überschrieben werden.");
 
          if (opt.DataFilename.Count == 0 &&

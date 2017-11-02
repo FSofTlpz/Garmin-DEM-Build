@@ -214,7 +214,9 @@ namespace BuildDEMFile {
          iCountLat++;
 
          Console.Error.WriteLine(string.Format("erzeuge {0} x {1} interpolierte Höhenwerte für den Abstand {2}° x {3}°...", iCountLon, iCountLat, stepwidth, stepheight));
-         int[,] heights = new int[iCountLon, iCountLat];
+
+         int[,] heights = new int[iCountLon, iCountLat];    // Array darf nicht größer als 2GB-x werden -> 532000000 Elemente fkt. (z.B. 23065 x 23065)
+                                                            // Int16-Array benötigt leider genausoviel Speicher!!!
          for (int j = 0; j < iCountLat; j++) {
             double lat = top - j * stepheight;
             for (int i = 0; i < iCountLon; i++) {
