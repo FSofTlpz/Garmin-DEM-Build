@@ -60,6 +60,7 @@ namespace BuildDEMFile {
                case 1: Structure = (short)((Structure & 0xFFFC)); break;
                case 2: Structure = (short)((Structure & 0xFFFC) | 0x1); break;
                case 3: Structure = (short)((Structure & 0xFFFC) | 0x2); break;
+               case 4: Structure = (short)((Structure & 0xFFFC) | 0x3); break;
             }
          }
       }

@@ -52,6 +52,14 @@ namespace BuildDEMFile {
                w.Write((byte)((Offset & 0xFF00) >> 8));
                w.Write((byte)((Offset & 0xFF0000) >> 16));
                break;
+            case 4:
+               w.Write((byte)(Offset & 0xFF));
+               w.Write((byte)((Offset & 0xFF00) >> 8));
+               w.Write((byte)((Offset & 0xFF0000) >> 16));
+               w.Write((byte)((Offset & 0xFF000000) >> 24));
+               break;
+            default:
+               throw new System.Exception("Die Offsetlänge im Tabelleneintrag darf größer als 4 sein.");
          }
 
          // Basishöhe
@@ -63,6 +71,8 @@ namespace BuildDEMFile {
                w.Write((byte)(Baseheight & 0xFF));
                w.Write((byte)((Baseheight & 0xFF00) >> 8));
                break;
+            default:
+               throw new System.Exception("Die Basishöhenlänge im Tabelleneintrag darf größer als 2 sein.");
          }
 
          // Diff.
@@ -74,6 +84,8 @@ namespace BuildDEMFile {
                w.Write((byte)(Diff & 0xFF));
                w.Write((byte)((Diff & 0xFF00) >> 8));
                break;
+            default:
+               throw new System.Exception("Die Differenzhöhenlänge im Tabelleneintrag darf größer als 2 sein.");
          }
 
          // Typ

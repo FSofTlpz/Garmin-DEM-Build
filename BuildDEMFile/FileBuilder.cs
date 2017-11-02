@@ -295,7 +295,7 @@ namespace BuildDEMFile {
                tiles4zoomlevel.Add(tiles);
             }
 
-            Console.WriteLine(string.Format("Rand links {0}°, oben {1}°", data4Zoomlevel[z].Left, data4Zoomlevel[z].Top));
+            Console.WriteLine(string.Format("Rand links {0}°, oben {1}°, {2}° breit, {3}° hoch", data4Zoomlevel[z].Left, data4Zoomlevel[z].Top, data4Zoomlevel[z].Width, data4Zoomlevel[z].Height));
             Console.WriteLine(string.Format("Pixelgröße {0}° x {1}°", data4Zoomlevel[z].Londist, data4Zoomlevel[z].Latdist));
          }
 
@@ -590,12 +590,14 @@ namespace BuildDEMFile {
          zoomleveldata.Tableitem.MinHeight = (short)minbaseheight;
          zoomleveldata.Tableitem.MaxHeight = (ushort)maxheight;
 
-         if (maxoffset < 255)
+         if (maxoffset < 256)
             zoomleveldata.Tableitem.Structure_OffsetSize = 1;
-         else if (maxoffset < 65536)
+         else if (maxoffset < 256 * 256)
             zoomleveldata.Tableitem.Structure_OffsetSize = 2;
-         else
+         else if (maxoffset < 256 * 256 * 256)
             zoomleveldata.Tableitem.Structure_OffsetSize = 3;
+         else
+            zoomleveldata.Tableitem.Structure_OffsetSize = 4;
 
          // maxbaseheight kann auch negativ sein!
          if (-128 < minbaseheight && maxbaseheight < 128)
