@@ -404,7 +404,7 @@ namespace Encoder {
                         new PlateauTableItem(32,6, 'f'),
                         new PlateauTableItem(64,6, 'G'),
                         new PlateauTableItem(64,7, 'g'),
-                        //new PlateauTableItem(128,7, 'H'),
+                        new PlateauTableItem(128,8, 'H'),
                      };
             }
 
