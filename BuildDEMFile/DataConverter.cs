@@ -5,7 +5,7 @@ namespace BuildDEMFile {
    /// <summary>
    /// zum Einlesen der HGT-Daten und liefern von interpolierten Höhenwerten
    /// </summary>
-   class DataConverter {
+   class DataConverter : IDisposable {
 
       /// <summary>
       /// intern: Wert für "Höhe ist undefiniert"
@@ -185,6 +185,26 @@ namespace BuildDEMFile {
          return l1 * (h2 - h1) / (double)(l1 + l2);
       }
 
+      void preBuildHeightArray(double left, double top, double width, double height, double stepwidth, double stepheight, out int iCountLon, out int iCountLat) {
+         if (left < this.left ||
+             top > this.top ||
+             left + width > this.left + this.width ||
+             top - height < this.top - this.height)
+            throw new Exception("Der gewünschte Bereich überschreitet den Bereich der eingelesenen HGT-Werte.");
+
+         iCountLon = (int)(width / stepwidth);
+         if (iCountLon * stepwidth < width)
+            iCountLon++;
+         iCountLon++;
+
+         iCountLat = (int)(height / stepheight);
+         if (iCountLat * stepheight < height)
+            iCountLat++;
+         iCountLat++;
+
+         Console.Error.WriteLine(string.Format("erzeuge {0} x {1} interpolierte Höhenwerte für den Abstand {2}° x {3}°...", iCountLon, iCountLat, stepwidth, stepheight));
+      }
+
       /// <summary>
       /// berechnet das Array der interpolierten Höhen
       /// </summary>
@@ -197,23 +217,8 @@ namespace BuildDEMFile {
       /// <param name="foot">Daten in Fuß</param>
       /// <returns></returns>
       public int[,] BuildHeightArray(double left, double top, double width, double height, double stepwidth, double stepheight, bool foot) {
-         if (left < this.left ||
-             top > this.top ||
-             left + width > this.left + this.width ||
-             top - height < this.top - this.height)
-            throw new Exception("Der gewünschte Bereich überschreitet den Bereich der eingelesenen HGT-Werte.");
-
-         int iCountLon = (int)(width / stepwidth);
-         if (iCountLon * stepwidth < width)
-            iCountLon++;
-         iCountLon++;
-
-         int iCountLat = (int)(height / stepheight);
-         if (iCountLat * stepheight < height)
-            iCountLat++;
-         iCountLat++;
-
-         Console.Error.WriteLine(string.Format("erzeuge {0} x {1} interpolierte Höhenwerte für den Abstand {2}° x {3}°...", iCountLon, iCountLat, stepwidth, stepheight));
+         int iCountLon, iCountLat;
+         preBuildHeightArray(left, top, width, height, stepwidth, stepheight, out iCountLon, out iCountLat);
 
          int[,] heights = new int[iCountLon, iCountLat];    // Array darf nicht größer als 2GB-x werden -> 532000000 Elemente fkt. (z.B. 23065 x 23065)
                                                             // Int16-Array benötigt leider genausoviel Speicher!!!
@@ -236,9 +241,87 @@ namespace BuildDEMFile {
          return heights;
       }
 
+      /// <summary>
+      /// berechnet das Array der interpolierten Höhen
+      /// </summary>
+      /// <param name="left">linken Rand</param>
+      /// <param name="top">oberer Rand</param>
+      /// <param name="width">Breite</param>
+      /// <param name="height">Höhe</param>
+      /// <param name="stepwidth">horizontale Schrittweite</param>
+      /// <param name="stepheight">vertikale Schrittweite</param>
+      /// <param name="foot">Daten in Fuß</param>
+      /// <param name="dd"></param>
+      /// <returns></returns>
+      public Data2Dim BuildData2Dim(double left, double top, double width, double height, double stepwidth, double stepheight, bool foot) {
+         int iCountLon, iCountLat;
+         preBuildHeightArray(left, top, width, height, stepwidth, stepheight, out iCountLon, out iCountLat);
+
+         Data2Dim dd = new Data2Dim();
+         int[] line = new int[iCountLon];
+         for (int j = 0; j < iCountLat; j++) {
+            double lat = top - j * stepheight;
+            for (int i = 0; i < iCountLon; i++) {
+               double lon = left + i * stepwidth;
+
+               int iHeight = UNDEF;
+               double h = GetHeight(lon, lat);  // interpolierte Höhe
+               if (!double.IsNaN(h)) {
+                  if (foot)
+                     h /= FOOT;
+                  iHeight = (int)Math.Round(h, 0);
+               }
+               line[i] = iHeight;
+            }
+            dd.AddLine(line);
+         }
+
+         return dd;
+      }
+
       public override string ToString() {
          return string.Format("left {0}, top {1}, width {2}, height {3}, HGT-Parts {4}", left, top, width, height, dat != null ? dat.GetLength(0) * dat.GetLength(1) : 0);
       }
 
+      ~DataConverter() {
+         Dispose(false);
+      }
+
+      #region Implementierung der IDisposable-Schnittstelle
+
+      /// <summary>
+      /// true, wenn schon ein Dispose() erfolgte
+      /// </summary>
+      private bool _isdisposed = false;
+
+      /// <summary>
+      /// kann expliziet für das Objekt aufgerufen werden um interne Ressourcen frei zu geben
+      /// </summary>
+      public void Dispose() {
+         Dispose(true);
+         GC.SuppressFinalize(this);
+      }
+
+      /// <summary>
+      /// überschreibt die Standard-Methode
+      /// <para></para>
+      /// </summary>
+      /// <param name="notfromfinalizer">falls, wenn intern vom Finalizer aufgerufen</param>
+      protected virtual void Dispose(bool notfromfinalizer) {
+         if (!this._isdisposed) {            // bisher noch kein Dispose erfolgt
+            if (notfromfinalizer) {          // nur dann alle managed Ressourcen freigeben
+
+               for (int i = 0; i < dat.GetLength(0); i++)
+                  for (int j = 0; j < dat.GetLength(0); j++)
+                     dat[i, j].Dispose();
+
+            }
+            // jetzt immer alle unmanaged Ressourcen freigeben (z.B. Win32)
+
+            _isdisposed = true;        // Kennung setzen, dass Dispose erfolgt ist
+         }
+      }
+
+      #endregion
    }
 }

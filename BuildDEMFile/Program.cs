@@ -37,9 +37,9 @@ namespace BuildDEMFile {
                                         out londist,
                                         out hgtpath,
                                         out hgtout);
-            FileBuilder fb = new FileBuilder(datafilenames, hgtpath, left, top, width, height, latdist, londist, hgtout);
 
-            fb.Create(opt.DEMFilename, opt.DataInFoot, opt.LastColStd, opt.OutputOverwrite, opt.UseDummyData);
+            FileBuilder fb = new FileBuilder(datafilenames, hgtpath, left, top, width, height, latdist, londist, hgtout);
+            fb.Create(opt.DEMFilename, opt.DataInFoot, opt.LastColStd, opt.OutputOverwrite, opt.UseDummyData, opt.Multithread);
 
          } catch (Exception ex) {
             Console.Error.WriteLine(ex.Message);

@@ -10,7 +10,7 @@ namespace BuildDEMFile {
 
       const int STDSUBTILESIZE = 64;
 
-      const int SUBTILEPAKETSIZE = 20;
+      const int SUBTILEPAKETSIZE = 1;
 
 
       class Data4Zoomlevel {
@@ -207,6 +207,7 @@ namespace BuildDEMFile {
               new List<double>() { ptdist },
               null) { }
 
+
       /// <summary>
       /// Erzeugt die DEM-Datei
       /// </summary>
@@ -215,10 +216,10 @@ namespace BuildDEMFile {
       /// <param name="lastcolstd">letzte Spalte mit Standardbreite</param>
       /// <param name="overwrite">bestehende Dateien überschreiben</param>
       /// <param name="dummydataonerror">liefert Dummy-Daten, wenn die Datei nicht ex.</param>
-      /// <param name="maxthreads">wenn größer 0, dann Berechnung multithread</param>
+      /// <param name="maxthreads"></param>
       /// <returns></returns>
       public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, bool dummydataonerror, int maxthreads = 0) {
-         DateTime starttime = DateTime.Now;
+         //DateTime starttime = DateTime.Now;
 
          if (!overwrite &&
              File.Exists(demfile)) {
@@ -327,12 +328,18 @@ namespace BuildDEMFile {
          }
 
 
-         // ----- wenn min. 1 Zoomlevel ex. beginnt jetzt die Codierung
-         if (tiles4zoomlevel.Count > 0) {
-            if (maxthreads > 0)
-               Console.WriteLine("multithreaded");
 
-            CalculationThreadPoolExt calctp = maxthreads > 0 ? new CalculationThreadPoolExt(ThreadMsg) : null;
+         DateTime starttime = DateTime.Now;
+
+
+
+         // ----- wenn min. 1Zoomlevel ex. beginnt jetzt die Codierung
+         if (tiles4zoomlevel.Count > 0) {
+
+            Console.WriteLine(maxthreads == 1 ? "{0} Thread" : "{0} Threads", maxthreads);
+            MyThreadgroup tg = maxthreads > 1 ? new MyThreadgroup(maxthreads) : null;
+            if (tg != null)
+               tg.InfoEvent += new MyThreadgroup.Info(tg_InfoEvent);
 
             int count = 0;
             for (int z = 0; z < tiles4zoomlevel.Count; z++)
@@ -349,27 +356,28 @@ namespace BuildDEMFile {
                      subtilepacket.Add(tiles4zoomlevel[z][x, y]);
                      if (subtilepacket.Count >= SUBTILEPAKETSIZE) {
                         count += subtilepacket.Count;
-                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? calctp : null, hgtconv, footflag);
+                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? tg : null, hgtconv, footflag);
                      }
                   }
                }
             }
             if (subtilepacket.Count > 0) {
                count += subtilepacket.Count;
-               EncodeSubtilePaket(subtilepacket, calctp, hgtconv, footflag);
+               EncodeSubtilePaket(subtilepacket, tg, hgtconv, footflag);
             }
 
-            if (maxthreads > 0) {
-               calctp.Wait4NotWorking();
-               if (calctp.ExceptionCount > 0)
-                  return false;
-            }
+            if (maxthreads > 1)
+               tg.NothingToDo.WaitOne();
 
             Console.WriteLine();
             Console.WriteLine(count.ToString() + " Kacheln encodiert");
 
-            // ----- Codierung beendet
 
+            TimeSpan duration = DateTime.Now - starttime;
+
+
+
+            // ----- Codierung beendet
 
             Head head = new Head();
             head.Footflag = footflag ? 1 : 0;
@@ -386,7 +394,8 @@ namespace BuildDEMFile {
             using (BinaryWriter w = new BinaryWriter(File.Create(demfile)))
                WriteDEM(w, head, Zoomlevel);
 
-            Console.WriteLine("Laufzeit {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
+            //TimeSpan duration = DateTime.Now - starttime;
+            Console.WriteLine("Laufzeit {0:N1}s", duration.TotalSeconds);
 
          } else {
             Console.Error.WriteLine("zu wenig Daten");
@@ -402,8 +411,12 @@ namespace BuildDEMFile {
       /// <param name="tg">wenn null, wird ohne Multithreading encodiert</param>
       /// <param name="hgtconv">wenn null, müssen die Höhendaten in den <see cref="Subtile"/> schon vorhanden sein</param>
       /// <param name="footflag">wenn true, dann Höhendaten in Fuß, sonst Meter</param>
-      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, HgtDataConverter hgtconv, bool footflag) {
-         if (tp == null) {    // Paket direkt encodieren
+      void EncodeSubtilePaket(List<Subtile> subtilepacket, MyThreadgroup tg, HgtDataConverter hgtconv, bool footflag) {
+         if (tg != null) {    // Pakt im eigenen Thread encodieren
+
+            tg.Start(new object[] { new List<Subtile>(subtilepacket), hgtconv, footflag });  // Kopie der Liste übergeben, weil das Original gleich geleert wird
+
+         } else {             // Paktet direkt encodieren
 
             for (int i = 0; i < subtilepacket.Count; i++) {
                if (hgtconv != null) {
@@ -415,78 +428,14 @@ namespace BuildDEMFile {
                                                                        subtilepacket[i].Height,
                                                                        footflag));
                   subtilepacket[i].Encoding(dat);  // HGT-Daten müssen noch geliefert werden
-                  dat.Dispose();
                } else
                   subtilepacket[i].Encoding();     // Daten aus Textdatei sind schon vorhanden
             }
-            Console.Write(".");
-
-         } else {             // Paket im eigenen Thread encodieren
-
-            tp.Start(new object[] { new List<Subtile>(subtilepacket), hgtconv, footflag });  // Kopie der Liste übergeben, weil das Original gleich geleert wird
 
          }
          subtilepacket.Clear();
+         Console.Write(".");
       }
-
-      static void ThreadMsg(object para) {
-         if (para != null) {
-            if (para is string)
-               Console.Error.Write(para as string);
-         }
-      }
-
-      class CalculationThreadPoolExt : ThreadPoolExt {
-
-         public CalculationThreadPoolExt(WaitCallback msgfunc) : base(msgfunc, null) { }
-
-         protected override void DoWork(object para) {
-            if (ExceptionCount > 0)
-               return;
-
-            try {
-               if (para is object[]) {
-                  object[] args = para as object[];
-                  if (args.Length == 3) {
-
-                     if (args[0] is List<Subtile>) {
-                        List<Subtile> lst = args[0] as List<Subtile>;
-                        for (int i = 0; i < lst.Count; i++) {
-                           Subtile st = lst[i];
-                           if (args[1] == null) // kein HgtDataConverter
-                              st.Encoding();          // Daten aus Textdatei sind schon vorhanden
-                           else {
-                              if (args[1] is HgtDataConverter) {
-                                 HgtDataConverter hdc = args[1] as HgtDataConverter;
-                                 Data2Dim dat = new Data2Dim(hdc.BuildHeightArray(st.PlannedLeft,
-                                                                                  st.PlannedTop,
-                                                                                  st.PlannedLonDistance,
-                                                                                  st.PlannedLatDistance,
-                                                                                  st.PlannedWidth,
-                                                                                  st.PlannedHeight,
-                                                                                  (bool)args[2]));
-                                 st.Encoding(dat);    // HGT-Daten müssen noch geliefert werden
-                                 dat.Dispose();
-                              }
-                           }
-
-                        }
-                        msgfunc?.Invoke(".");
-                     }
-
-                  }
-               }
-            } catch (Exception ex) {
-               IncrementExceptionCount();
-               if (msgfunc != null)
-                  lock (msglocker) {
-                     msgfunc("FEHLER: " + ex.Message);
-                  }
-            }
-         }
-
-      }
-
 
       /// <summary>
       /// liest die gesamten Höhendaten aus einer Textdatei ein
@@ -621,7 +570,7 @@ namespace BuildDEMFile {
          int ptx = (int)(zl.Width / zl.Londist) + 1;
          int pty = (int)(zl.Height / zl.Latdist) + 1;
 
-         if (lastcolstd) {    // dann ptx auf Vielfache von tilesize vergrößern
+         if (lastcolstd) {    // dann ptx und pty auf Vielfache von tilesize vergrößern
             int remainder = ptx % subtilesize;
             if (remainder > 0)
                ptx += subtilesize - remainder;
@@ -641,8 +590,6 @@ namespace BuildDEMFile {
          pty -= subtilesy * subtilesize;
          if (pty > 0)
             subtilesy++;
-         else
-            pty = subtilesize;   // Anzahl für das unterste Subtile ist bei Rest 0 trotzdem 64
 
          Subtile[,] subtiles = new Subtile[subtilesx, subtilesy];
 
@@ -846,7 +793,176 @@ namespace BuildDEMFile {
       }
 
 
+      #region Threadgroup
 
+      abstract class Threadgroup {
+
+         /// <summary>
+         /// max. Anzahl von erlaubten Threads
+         /// </summary>
+         int max;
+         /// <summary>
+         /// Anzahl der akt. Threads
+         /// </summary>
+         int threadcount;
+         /// <summary>
+         /// Lock-Objekt für die interne Nutzung
+         /// </summary>
+         object locker;
+         /// <summary>
+         /// gesetzt, wenn kein Thread mehr läuft
+         /// </summary>
+         public ManualResetEvent NothingToDo { get; private set; }
+
+         /// <summary>
+         /// gesetzt, wenn der Thread beendet ist
+         /// </summary>
+         ManualResetEvent[] EndEvent;
+         /// <summary>
+         /// gesetzt, wenn der Thread in Nutzung ist
+         /// </summary>
+         int[] EndEventIsInUse;
+
+         /// <summary>
+         /// Jobs warten auf einen freien Thread
+         /// </summary>
+         int iJobsWaiting4FreeThread;
+
+
+         public Threadgroup(int max) {
+            this.max = max;
+            threadcount = 0;
+            NothingToDo = new ManualResetEvent(false);
+            EndEvent = new ManualResetEvent[max];
+            EndEventIsInUse = new int[max];
+            for (int i = 0; i < EndEvent.Length; i++) {
+               EndEvent[i] = new ManualResetEvent(false);
+               EndEventIsInUse[i] = 0;
+            }
+            locker = new object();
+            iJobsWaiting4FreeThread = 0;
+         }
+
+         /// <summary>
+         /// startet einen Thread (sofort, oder wenn wieder einer "frei wird")
+         /// </summary>
+         /// <param name="para"></param>
+         public void Start(object para) {
+            int idx;
+            Interlocked.Increment(ref iJobsWaiting4FreeThread);
+            NothingToDo.Reset(); // auf jeden Fall
+
+            Monitor.Enter(locker);
+
+            // Index eines freien Threadplatzes ermitteln (ev. warten bis ein Threadplatz frei wird)
+            if (threadcount >= max) {                 // z.Z. kein freier Thread
+               Monitor.Exit(locker);
+
+               idx = WaitHandle.WaitAny(EndEvent);    // wartet, bis ein Thread zu Ende ist
+               EndEvent[idx].Reset();
+
+               Monitor.Enter(locker);
+            } else {
+               for (idx = 0; idx < EndEventIsInUse.Length; idx++)
+                  if (EndEventIsInUse[idx] == 0)
+                     break;
+            }
+            EndEventIsInUse[idx]++;
+            threadcount++;
+            iJobsWaiting4FreeThread--;
+
+            Monitor.Exit(locker);
+
+            Thread t = new Thread(DoWorkFrame);       // Thread erzeugen ...
+            t.Start(new object[] { idx, para });      // ... und starten
+
+         }
+
+         protected void DoWorkFrame(object para) {
+            object[] data = para as object[];
+            int freeidx = (int)data[0];   // Index des EndEvent
+
+            DoWork(data[1]);
+
+            Monitor.Enter(locker);
+
+            threadcount--;
+            EndEventIsInUse[freeidx]--;
+            EndEvent[freeidx].Set();     // signaliseren, dass ein Thread frei wird
+            if (threadcount == 0 && iJobsWaiting4FreeThread == 0)
+               NothingToDo.Set(); // das war der letzte Thread
+
+            Monitor.Exit(locker);
+         }
+
+         protected virtual void DoWork(object para) { }
+
+      }
+
+      /// <summary>
+      /// Threadgruppe für die Verkettung
+      /// </summary>
+      class MyThreadgroup : Threadgroup {
+
+         public delegate void Info(string txt);
+         public event Info InfoEvent;
+
+         public MyThreadgroup(int max)
+            : base(max) { }
+
+         protected override void DoWork(object para) {
+            try {
+               if (para is object[]) {
+                  object[] args = para as object[];
+                  if (args.Length == 3) {
+
+                     if (args[0] is List<Subtile>) {
+                        List<Subtile> lst = args[0] as List<Subtile>;
+                        for (int i = 0; i < lst.Count; i++) {
+                           Subtile st = lst[i];
+                           if (args[1] == null) // kein HgtDataConverter
+                              st.Encoding();          // Daten aus Textdatei sind schon vorhanden
+                           else {
+                              if (args[1] is HgtDataConverter) {
+                                 HgtDataConverter hdc = args[1] as HgtDataConverter;
+                                 Data2Dim dat = new Data2Dim(hdc.BuildHeightArray(st.PlannedLeft,
+                                                                                  st.PlannedTop,
+                                                                                  st.PlannedLonDistance,
+                                                                                  st.PlannedLatDistance,
+                                                                                  st.PlannedWidth,
+                                                                                  st.PlannedHeight,
+                                                                                  (bool)args[2]));
+                                 st.Encoding(dat);    // HGT-Daten müssen noch geliefert werden
+                              }
+                           }
+
+                           //InfoEvent("");
+                        }
+                     }
+
+                  }
+               }
+            } catch (Exception ex) {
+               InfoEvent("FEHLER: " + ex.Message);
+            }
+         }
+      }
+
+      /// <summary>
+      /// Lock-Objekt für das Schreiben auf die Konsole
+      /// </summary>
+      object consolewritelocker = new object();
+
+      /// <summary>
+      /// Fehlermeldung von einem Thread
+      /// </summary>
+      void tg_InfoEvent(string txt) {
+         lock (consolewritelocker) {
+            Console.Error.Write(txt + System.Environment.NewLine);
+         }
+      }
+
+      #endregion
 
    }
 

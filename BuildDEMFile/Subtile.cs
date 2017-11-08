@@ -1,4 +1,6 @@
-﻿namespace BuildDEMFile {
+﻿using System;
+
+namespace BuildDEMFile {
    /// <summary>
    /// Hier werden die Höhendaten und die Daten des Tabelleneintrages eines Subtiles zusammengefasst.
    /// </summary>
@@ -15,12 +17,46 @@
       /// </summary>
       Data2Dim dat;
 
+      #region zusätzliche Infos (müssen nicht gesetzt sein)
+
+      /// <summary>
+      /// geplante linke geogr. Länge
+      /// </summary>
+      public double PlannedLeft { get; private set; }
+
+      /// <summary>
+      /// geplante obere geogr. Breite
+      /// </summary>
+      public double PlannedTop { get; private set; }
+
+      /// <summary>
+      /// geplanter Punktabstand als geogr. Länge
+      /// </summary>
+      public double PlannedLonDistance { get; private set; }
+
+      /// <summary>
+      /// geplanter Punktabstand als geogr. Breite
+      /// </summary>
+      public double PlannedLatDistance { get; private set; }
+
+      /// <summary>
+      /// geplanter Punktanzahl waagerecht
+      /// </summary>
+      public int PlannedWidth { get; private set; }
+
+      /// <summary>
+      /// geplanter Punktanzahl senkrecht
+      /// </summary>
+      public int PlannedHeight { get; private set; }
+
+      #endregion
+
       /// <summary>
       /// Kachelbreite
       /// </summary>
       public int Width {
          get {
-            return dat.Width;
+            return dat != null ? dat.Width : PlannedWidth;
          }
       }
 
@@ -29,7 +65,7 @@
       /// </summary>
       public int Height {
          get {
-            return dat.Height;
+            return dat != null ? dat.Height : PlannedHeight;
          }
       }
 
@@ -89,10 +125,26 @@
             Tableitem = tableitem;
       }
 
+      public Subtile(double left, double top, double londist, double latdist, int loncount, int latcount) : this(null) {
+         PlannedLeft = left;
+         PlannedTop = top;
+         PlannedLonDistance = londist;
+         PlannedLatDistance = latdist;
+         PlannedWidth = loncount;
+         PlannedHeight = latcount;
+      }
+
       /// <summary>
       /// encodiert die Daten (die Daten werden dabei verändert!)
       /// </summary>
-      public void Encoding() {
+      /// <param name="intdata">zu encodierende Daten</param>
+      public void Encoding(Data2Dim intdata = null) {
+         if (intdata != null)
+            dat = new Data2Dim(intdata);
+
+         if (dat == null)
+            throw new Exception("Keine Daten zum Encodieren im Subtile vorhanden.");
+
          int min, max;
          bool bWithIntMax = dat.GetMinMax(out min, out max);
 
@@ -128,7 +180,15 @@
       }
 
       public override string ToString() {
-         return string.Format("{0} x {1}, {2} Bytes, {3}", Width, Height, CodedData == null ? 0 : CodedData.Length, Tableitem);
+         return string.Format("{0} x {1}, {2} Bytes, {3} (geplant NW {4}/{5}, {6}x{7})",
+                              Width,
+                              Height,
+                              CodedData == null ? 0 : CodedData.Length,
+                              Tableitem,
+                              PlannedLeft,
+                              PlannedTop,
+                              Width,
+                              Height);
       }
 
    }

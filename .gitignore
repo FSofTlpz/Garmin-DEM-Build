@@ -5,6 +5,7 @@
 *.zip
 *.tre
 *.dem
+*.txt
 
 # User-specific files
 *.suo

@@ -6,7 +6,7 @@ namespace BuildDEMFile {
    /// <summary>
    /// eine Klasse für 2-dim-Integer-Arrays
    /// </summary>
-   class Data2Dim {
+   class Data2Dim : IDisposable {
 
       List<List<int>> rawdata;
 
@@ -23,15 +23,26 @@ namespace BuildDEMFile {
       }
 
 
+      /// <summary>
+      /// leeres Array erzeugen
+      /// </summary>
       public Data2Dim() {
          rawdata = new List<List<int>>();
       }
 
+      /// <summary>
+      /// Array als Kopie eines vorhandenen Arrays erzeugen
+      /// </summary>
+      /// <param name="dat"></param>
       public Data2Dim(Data2Dim dat) : this() {
          for (int i = 0; i < dat.Height; i++)
             rawdata.Add(new List<int>(dat.rawdata[i]));
       }
 
+      /// <summary>
+      /// Array aus int-Array erzeugen
+      /// </summary>
+      /// <param name="dat"></param>
       public Data2Dim(int[,] dat) : this() {
          for (int i = 0; i < dat.GetLength(1); i++) {
             List<int> row = new List<int>();
@@ -41,6 +52,11 @@ namespace BuildDEMFile {
          }
       }
 
+      /// <summary>
+      /// Array aus "linearen" Daten erzeugen
+      /// </summary>
+      /// <param name="dat"></param>
+      /// <param name="width"></param>
       public Data2Dim(List<int> dat, int width) : this() {
          int start = 0;
          while (start + width <= dat.Count) {
@@ -181,6 +197,47 @@ namespace BuildDEMFile {
       public override string ToString() {
          return string.Format("{0} x {1}", Width, Height);
       }
+
+      #region Implementierung der IDisposable-Schnittstelle
+
+      ~Data2Dim() {
+         Dispose(false);
+      }
+
+      /// <summary>
+      /// true, wenn schon ein Dispose() erfolgte
+      /// </summary>
+      private bool _isdisposed = false;
+
+      /// <summary>
+      /// kann expliziet für das Objekt aufgerufen werden um interne Ressourcen frei zu geben
+      /// </summary>
+      public void Dispose() {
+         Dispose(true);
+         GC.SuppressFinalize(this);
+      }
+
+      /// <summary>
+      /// überschreibt die Standard-Methode
+      /// <para></para>
+      /// </summary>
+      /// <param name="notfromfinalizer">falls, wenn intern vom Finalizer aufgerufen</param>
+      protected virtual void Dispose(bool notfromfinalizer) {
+         if (!this._isdisposed) {            // bisher noch kein Dispose erfolgt
+            if (notfromfinalizer) {          // nur dann alle managed Ressourcen freigeben
+
+               foreach (var item in rawdata) 
+                  item.Clear();
+               rawdata.Clear();
+
+            }
+            // jetzt immer alle unmanaged Ressourcen freigeben (z.B. Win32)
+
+            _isdisposed = true;        // Kennung setzen, dass Dispose erfolgt ist
+         }
+      }
+
+      #endregion
 
    }
 }

@@ -86,25 +86,31 @@ namespace BuildDEMFile {
       /// </summary>
       public bool OutputOverwrite { get; private set; }
 
+      /// <summary>
+      /// Berechnung multithreaded
+      /// </summary>
+      public int Multithread { get; private set; }
+
 
       FSoftUtils.CmdlineOptions cmd;
 
       enum MyOptions {
          DEMFilename,
-         DataFilename,
          HGTPath,
-         HGTDataOutput,
-         UseDummyData,
-         DataInFoot,
-         TRELeft,
-         TRETop,
          TREFilename,
          PixelWidth,
          PixelHeight,
-         DEMWidth,
-         DEMHeight,
+         UseDummyData,
          LastColStd,
          OutputOverwrite,
+         DataInFoot,
+         HGTDataOutput,
+         DataFilename,
+         TRELeft,
+         TRETop,
+         DEMWidth,
+         DEMHeight,
+         Multithread,
 
          Help,
       }
@@ -114,20 +120,21 @@ namespace BuildDEMFile {
          cmd = new FSoftUtils.CmdlineOptions();
          // Definition der Optionen
          cmd.DefineOption((int)MyOptions.DEMFilename, "dem", "d", "Name der zu erzeugenden DEM-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "Name der Textdatei mit den Daten", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
          cmd.DefineOption((int)MyOptions.HGTPath, "hgtpath", "", "Pfad zum HGT-Verzeichnis", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "Ausgabe der verwendeten Daten in eine Textdatei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "verwendet Dummy-Daten, wenn keine HGT-Daten vorhanden sind (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "Daten in Fuß, sonst Meter (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "linker Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "oberer Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "Breite eines DEM-Pixels (mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "Höhe eines DEM-Pixels (mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "Breite des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "Höhe des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "Name der TRE-Datei (zur Bestimmung der Ränder und der Pixelbreite)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "Breite eines DEM-Pixels (mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "Höhe eines DEM-Pixels (nicht nötig, wenn identisch zu dlon; mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "verwendet NODATA-Werte, wenn keine HGT-Daten vorhanden sind (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "letzte Kachelspalte hat Standardbreite (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "Ausgabeziel bei Bedarf überschreiben (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "Daten in Fuß, sonst Meter (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "Ausgabe der interpolierten Daten in eine Textdatei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "Name der Textdatei mit den Daten", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "linker Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "oberer Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "Breite des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "Höhe des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
          cmd.DefineOption((int)MyOptions.Help, "help", "?", "diese Hilfe", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
       }
@@ -150,6 +157,7 @@ namespace BuildDEMFile {
          TREFilename = "";
          LastColStd = false;
          OutputOverwrite = false;
+         Multithread = 0;
       }
 
       /// <summary>
@@ -243,6 +251,13 @@ namespace BuildDEMFile {
 
                      case MyOptions.DEMHeight:
                         DEMHeight = cmd.DoubleValue((int)opt);
+                        break;
+
+                     case MyOptions.Multithread:
+                        if (cmd.ArgIsUsed((int)opt))
+                           Multithread = cmd.BooleanValue((int)opt) ? 1 : 0;
+                        else
+                           Multithread = 1;
                         break;
 
                      case MyOptions.Help:

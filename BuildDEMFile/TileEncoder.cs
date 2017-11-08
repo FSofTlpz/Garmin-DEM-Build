@@ -2306,7 +2306,8 @@ namespace Encoder {
             } catch (Exception ex) {
                throw new Exception(string.Format("interner Fehler bei Position {0}, Höhe {1}: {2}", pos, ValidHeight(pos), ex.Message));
             }
-         }
+         } else
+            throw new Exception(string.Format("negative Daten (Pos {0}) können nicht verarbeitet werden.", pos));
          return bEnd;
       }
 

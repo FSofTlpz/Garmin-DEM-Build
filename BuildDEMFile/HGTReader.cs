@@ -37,7 +37,7 @@ using System.IO.Compression;
 namespace BuildDEMFile {
 
    /// <summary>
-   /// zum lesen der HGT-Daten:
+   /// zum Lesen der HGT-Daten:
    /// 
    /// Eine HGT-Datei enthält die Höhendaten für ein "Quadratgrad", also ein Gebiet über 1 Längen- und 1
    /// Breitengrad. Die Ausdehnung in N-S-Richtung ist also etwa 111km in O-W-Richtung je nach Breitengrad
@@ -56,12 +56,14 @@ namespace BuildDEMFile {
    /// Punkte ohne gültigen Wert haben den Wert 0x8000 (-32768).
    /// Die Reihenfolge der Daten ist zeilenweise von N nach S, innerhalb der Zeilen von W nach O.
    /// 
+   /// Die "äußeren" Punkte haben jeweils volle Grad als Koordinaten.
+   /// 
    /// z.B.
    /// http://dds.cr.usgs.gov/srtm/version2_1
    /// http://www.viewfinderpanoramas.org/dem3.html
    /// http://srtm.csi.cgiar.org/
    /// </summary>
-   public class HGTReader {
+   public class HGTReader : IDisposable {
 
       /// <summary>
       /// linker Rand in Grad
@@ -88,6 +90,10 @@ namespace BuildDEMFile {
       /// </summary>
       public int Maximum { get; private set; }
       /// <summary>
+      /// Abstand zwischen 2 Punkten
+      /// </summary>
+      public double Delta { get; private set; }
+      /// <summary>
       /// Anzahl der ungültigen Werte
       /// </summary>
       public long NotValid { get; private set; }
@@ -95,10 +101,10 @@ namespace BuildDEMFile {
       /// <summary>
       /// Kennung, wenn der Wert fehlt
       /// </summary>
-      public const int NoValue = -32768;
+      public const int NOVALUE = -32768;
 
       string filename;
-      Int16[] data;
+      short[] data;
 
       /// <summary>
       /// liest die Daten aus der entsprechenden HGT-Datei ein
@@ -110,8 +116,8 @@ namespace BuildDEMFile {
       public HGTReader(int left, int bottom, string directory, bool dummydataonerror) {
          Left = left;
          Bottom = bottom;
-         Maximum = Int16.MinValue;
-         Minimum = Int16.MaxValue;
+         Maximum = short.MinValue;
+         Minimum = short.MaxValue;
          filename = Path.Combine(directory, GetFilename());
 
          if (File.Exists(filename)) {
@@ -128,10 +134,10 @@ namespace BuildDEMFile {
                if (!dummydataonerror)
                   throw new Exception(string.Format("Weder die Datei '{0}' noch die Datei '{0}.zip' existiert.", filename));
                else {
-                  Minimum = Maximum = NoValue;
+                  Minimum = Maximum = NOVALUE;
                   data = new Int16[1201 * 1201];
                   for (int i = 0; i < data.Length; i++)
-                     data[i] = NoValue;
+                     data[i] = NOVALUE;
                   NotValid = data.Length;
                }
 
@@ -159,6 +165,7 @@ namespace BuildDEMFile {
          }
 
          Rows = Columns = (int)Math.Sqrt(data.Length);      // sollte im Normalfall immer quadratisch sein
+         Delta = 1.0 / (Rows - 1);
       }
 
       void ReadFromStream(Stream str, int length) {
@@ -168,7 +175,7 @@ namespace BuildDEMFile {
             data[i] = (Int16)((str.ReadByte() << 8) + str.ReadByte());
             if (Maximum < data[i])
                Maximum = data[i];
-            if (data[i] != NoValue) {
+            if (data[i] != NOVALUE) {
                if (Minimum > data[i])
                   Minimum = data[i];
             } else
@@ -192,7 +199,7 @@ namespace BuildDEMFile {
          for (int i = 0; i < data.Length; i++) {
             data[i] = dat[i];
             if (Maximum < data[i]) Maximum = data[i];
-            if (data[i] != NoValue) {
+            if (data[i] != NOVALUE) {
                if (Minimum > data[i]) Minimum = data[i];
             } else
                NotValid++;
@@ -202,15 +209,15 @@ namespace BuildDEMFile {
 
       protected string GetFilename() {
          string name = "";
-         if (Bottom >= 0) name += string.Format("n{0:d2}", Bottom);
-         else name += string.Format("s{0:d2}", -Bottom);
-         if (Left >= 0) name += string.Format("e{0:d3}", Left);
-         else name += string.Format("w{0:d3}", -Left);
+         if (Bottom >= 0) name += string.Format("N{0:d2}", Bottom);
+         else name += string.Format("S{0:d2}", -Bottom);
+         if (Left >= 0) name += string.Format("E{0:d3}", Left);
+         else name += string.Format("W{0:d3}", -Left);
          return name + ".hgt";
       }
 
       /// <summary>
-      /// liefert den Wert der Matrix
+      /// liefert den Wert der Matrix (Koordinatenursprung links-oben)
       /// </summary>
       /// <param name="row">Zeilennr. (0 ist die nördlichste)</param>
       /// <param name="col">Spaltennr. (0 ist die westlichste)</param>
@@ -218,20 +225,147 @@ namespace BuildDEMFile {
       public int Get(int row, int col) {
          if (row < 0 || Rows <= row ||
              col < 0 || Columns <= col)
-            throw new Exception("außerhalb des Zeilen- und/oder Spaltenbereichs");
+            throw new Exception(string.Format("({0}, {1}) außerhalb des Zeilen- und/oder Spaltenbereichs ({2}, {3})", col, row, Columns, Rows));
          return data[row * Columns + col];
       }
 
       /// <summary>
-      /// liefert den Wert der Matrix
+      /// liefert den Wert der Matrix (Koordinatenursprung links-unten)
       /// </summary>
-      /// <param name="x">0 .. unter <see cref="Columns"/></param>
-      /// <param name="y">0 .. unter <see cref="Rows"/></param>
+      /// <param name="x">0 .. unter <see cref="Columns"/> (0 ist der westlichste)</param>
+      /// <param name="y">0 .. unter <see cref="Rows"/> (0 ist die südlichste)</param>
       /// <returns></returns>
       public int Get4XY(int x, int y) {
          return Get(Rows - 1 - y, x);
       }
 
+      /// <summary>
+      /// liefert einen interpolierten Höhenwert
+      /// </summary>
+      /// <param name="lon"></param>
+      /// <param name="lat"></param>
+      /// <returns></returns>
+      public double InterpolatedHeight(double lon, double lat) {
+         double h = NOVALUE;
+         lon -= Left;
+         lat -= Bottom; // Koordinaten auf die Ecke links unten bezogen
+
+         if (0.0 <= lon && lon <= 1.0 &&
+             0.0 <= lat && lat <= 1.0) {
+            // x-y-Index des Eckpunktes links unten des umschließenden Quadrats bestimmen
+            int x = (int)(lon / Delta);
+            int y = (int)(lat / Delta);
+            if (x == Columns - 1) // liegt auf rechtem Rand
+               x--;
+            if (y == Rows - 1) // liegt auf oberem Rand
+               y--;
+
+            // lon/lat jetzt bzgl. der Ecke links-unten des umschließenden Quadrats bilden (0 .. <Delta)
+            double delta_lon = lon - x * Delta;
+            double delta_lat = lat - y * Delta;
+
+            if (delta_lon == 0) {            // linker Rand
+               if (delta_lat == 0)
+                  h = Get4XY(x, y);          // Eckpunkt links unten
+               else if (delta_lat >= Delta)
+                  h = Get4XY(x, y + 1);      // Eckpunkt links oben (eigentlich nicht möglich)
+               else
+                  h = LinearInterpolatedHeight(Get4XY(x, y),
+                                               Get4XY(x, y + 1),
+                                               delta_lat / Delta);
+            } else if (delta_lon >= Delta) { // rechter Rand (eigentlich nicht möglich)
+               if (delta_lat == 0)
+                  h = Get4XY(x + 1, y);      // Eckpunkt rechts unten
+               else if (delta_lat >= Delta)
+                  h = Get4XY(x + 1, y + 1);  // Eckpunkt rechts oben (eigentlich nicht möglich)
+               else
+                  h = LinearInterpolatedHeight(Get4XY(x + 1, y),
+                                               Get4XY(x + 1, y + 1),
+                                               delta_lat / Delta);
+            } else if (delta_lat == 0) {     // unterer Rand (außer Eckpunkt)
+               h = LinearInterpolatedHeight(Get4XY(x, y),
+                                            Get4XY(x + 1, y),
+                                            delta_lon / Delta);
+            } else if (delta_lat >= Delta) { // oberer Rand (außer Eckpunkt) (eigentlich nicht möglich)
+               h = LinearInterpolatedHeight(Get4XY(x, y + 1),
+                                            Get4XY(x + 1, y + 1),
+                                            delta_lon / Delta);
+
+            } else                           // Punkt innerhalb des Rechtecks
+               h = InterpolatedHeightInNormatedRectangle(delta_lon / Delta,
+                                                         delta_lat / Delta,
+                                                         Get4XY(x, y + 1),
+                                                         Get4XY(x + 1, y + 1),
+                                                         Get4XY(x + 1, y),
+                                                         Get4XY(x, y));
+         }
+
+         return h;
+      }
+
+      /// <summary>
+      /// die Höhe für den Punkt P im umschließenden Quadrat (Seitenlänge 1) aus 4 Eckpunkten wird interpoliert
+      /// </summary>
+      /// <param name="qx">Abstand P vom linken Rand des Quadrat (Bruchteil 0..1)</param>
+      /// <param name="qy">Abstand P vom unteren Rand des Quadrat (Bruchteil 0..1)</param>
+      /// <param name="hlt">Höhe links oben</param>
+      /// <param name="hrt">Höhe rechts oben</param>
+      /// <param name="hrb">Höhe rechts unten</param>
+      /// <param name="hlb">Höhe links unten</param>
+      /// <returns></returns>
+      double InterpolatedHeightInNormatedRectangle(double qx, double qy, int hlt, int hrt, int hrb, int hlb) {
+         if (hlb == HGTReader.NOVALUE ||
+             hrt == HGTReader.NOVALUE)
+            return HGTReader.NOVALUE; // keine Berechnung möglich
+
+         /* In welchem Dreieck liegt der Punkt? 
+          *    oben  +-/
+          *          |/
+          *          
+          *    unten  /|
+          *          /-+
+          */
+         if (qy >= qx) { // oberes Dreieck aus hlb, hrt und hlt (Anstieg py/px ist größer als height/width)
+
+            if (hlt == HGTReader.NOVALUE)
+               return HGTReader.NOVALUE;
+
+            // hlt als Koordinatenursprung normieren; mit hrt und hlb 3 Punkte einer Ebene (3-Punkt-Gleichung)
+            hrt -= hlt;
+            hlb -= hlt;
+            qy -= 1;
+
+            return hlt + qx * hrt - qy * hlb;
+
+         } else { // unteres Dreieck aus hlb, hrb und hrt
+
+            if (hrb == HGTReader.NOVALUE)
+               return HGTReader.NOVALUE;
+
+            // hrb als Koordinatenursprung normieren; mit hrt und hlb 3 Punkte einer Ebene (3-Punkt-Gleichung)
+            hrt -= hrb;
+            hlb -= hrb;
+            qx -= 1;
+
+            return hrb - qx * hlb + qy * hrt;
+         }
+      }
+
+      /// <summary>
+      /// liefert die "gewichtete" Höhe zwischen den beiden Höhen in Relation zum jeweiligen Abstand (alle 3 Höhen auf einer Linie)
+      /// </summary>
+      /// <param name="h1"></param>
+      /// <param name="l1"></param>
+      /// <param name="h2"></param>
+      /// <param name="q1"></param>
+      /// <returns></returns>
+      double LinearInterpolatedHeight(int h1, int h2, double q1) {
+         if (h1 == NOVALUE)
+            return q1 < .5 ? NOVALUE : h1; // wenn dichter am NOVALUE, dann NOVALUE sonst gleiche Höhe wie der andere Punkt
+         if (h2 == NOVALUE)
+            return q1 > .5 ? NOVALUE : h2;
+         return h1 + q1 * (h2 - h1);
+      }
 
       /// <summary>
       /// alle Werte bis auf den definierten Bereich ungültig machen
@@ -247,7 +381,7 @@ namespace BuildDEMFile {
             for (int y = 0; y < Rows; y++)
                if (!(mincol <= x && x <= maxcol &&
                      minrow <= y && y <= maxrow)) {
-                  data[y * Columns + x] = NoValue;
+                  data[y * Columns + x] = NOVALUE;
                   discard++;
                }
          Maximum = Int16.MinValue;
@@ -255,7 +389,7 @@ namespace BuildDEMFile {
          NotValid = 0;
          for (int i = 0; i < data.Length; i++) {
             if (Maximum < data[i]) Maximum = data[i];
-            if (data[i] != NoValue) {
+            if (data[i] != NOVALUE) {
                if (Minimum > data[i]) Minimum = data[i];
             } else
                NotValid++;
@@ -288,6 +422,45 @@ namespace BuildDEMFile {
             Minimum, Maximum,
             NotValid, (100.0 * NotValid) / (Rows * Columns));
       }
+
+      #region Implementierung der IDisposable-Schnittstelle
+
+      ~HGTReader() {
+         Dispose(false);
+      }
+
+      /// <summary>
+      /// true, wenn schon ein Dispose() erfolgte
+      /// </summary>
+      private bool _isdisposed = false;
+
+      /// <summary>
+      /// kann expliziet für das Objekt aufgerufen werden um interne Ressourcen frei zu geben
+      /// </summary>
+      public void Dispose() {
+         Dispose(true);
+         GC.SuppressFinalize(this);
+      }
+
+      /// <summary>
+      /// überschreibt die Standard-Methode
+      /// <para></para>
+      /// </summary>
+      /// <param name="notfromfinalizer">falls, wenn intern vom Finalizer aufgerufen</param>
+      protected virtual void Dispose(bool notfromfinalizer) {
+         if (!this._isdisposed) {            // bisher noch kein Dispose erfolgt
+            if (notfromfinalizer) {          // nur dann alle managed Ressourcen freigeben
+
+               data = null;
+
+            }
+            // jetzt immer alle unmanaged Ressourcen freigeben (z.B. Win32)
+
+            _isdisposed = true;        // Kennung setzen, dass Dispose erfolgt ist
+         }
+      }
+
+      #endregion
 
    }
 }
