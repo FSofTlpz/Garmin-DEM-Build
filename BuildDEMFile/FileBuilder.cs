@@ -332,7 +332,9 @@ namespace BuildDEMFile {
             if (maxthreads > 0)
                Console.WriteLine("multithreaded");
 
-            CalculationThreadPoolExt calctp = maxthreads > 0 ? new CalculationThreadPoolExt(ThreadMsg) : null;
+            CalculationThreadPoolExt calctp = maxthreads > 0 ? 
+                                                   new CalculationThreadPoolExt(ThreadMsg) : 
+                                                   null;
 
             int count = 0;
             for (int z = 0; z < tiles4zoomlevel.Count; z++)
@@ -435,6 +437,9 @@ namespace BuildDEMFile {
                Console.Error.Write(para as string);
          }
       }
+
+      // http://simplygenius.net/Article/FalseSharing
+
 
       class CalculationThreadPoolExt : ThreadPoolExt {
 

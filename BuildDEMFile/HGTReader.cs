@@ -240,6 +240,29 @@ namespace BuildDEMFile {
       }
 
       /// <summary>
+      /// liefert 4 benachbarte Werte
+      /// </summary>
+      /// <param name="xleft"></param>
+      /// <param name="ybottom"></param>
+      /// <param name="leftbottom"></param>
+      /// <param name="rightbottom"></param>
+      /// <param name="righttop"></param>
+      /// <param name="lefttop"></param>
+      public void Get4XYSquare(int xleft, int ybottom, out int leftbottom, out int rightbottom, out int righttop, out int lefttop) {
+         if (xleft < 0 || Rows <= xleft + 1 ||
+             ybottom < 0 || Columns <= ybottom + 1)
+            throw new Exception(string.Format("({0}, {1}) für 4 Punkte außerhalb des Zeilen- und/oder Spaltenbereichs ({2}, {3})", xleft, ybottom, Columns, Rows));
+
+         int idx = (Rows - 1 - ybottom) * Columns; // Anfang der unteren Zeile
+         idx += xleft;
+         leftbottom = data[idx++];
+         rightbottom = data[idx];
+         idx -= Columns;
+         righttop = data[idx--];
+         lefttop = data[idx];
+      }
+
+      /// <summary>
       /// liefert einen interpolierten Höhenwert
       /// </summary>
       /// <param name="lon"></param>
@@ -291,13 +314,23 @@ namespace BuildDEMFile {
                                             Get4XY(x + 1, y + 1),
                                             delta_lon / Delta);
 
-            } else                           // Punkt innerhalb des Rechtecks
+            } else {                         // Punkt innerhalb des Rechtecks
+               //h = InterpolatedHeightInNormatedRectangle(delta_lon / Delta,
+               //                                          delta_lat / Delta,
+               //                                          Get4XY(x, y + 1),
+               //                                          Get4XY(x + 1, y + 1),
+               //                                          Get4XY(x + 1, y),
+               //                                          Get4XY(x, y));
+
+               int leftbottom, rightbottom, righttop, lefttop;
+               Get4XYSquare(x, y, out leftbottom, out rightbottom, out righttop, out lefttop);  // etwas schneller als die obere Version
                h = InterpolatedHeightInNormatedRectangle(delta_lon / Delta,
                                                          delta_lat / Delta,
-                                                         Get4XY(x, y + 1),
-                                                         Get4XY(x + 1, y + 1),
-                                                         Get4XY(x + 1, y),
-                                                         Get4XY(x, y));
+                                                         lefttop,
+                                                         righttop,
+                                                         rightbottom,
+                                                         leftbottom);
+            }
          }
 
          return h;

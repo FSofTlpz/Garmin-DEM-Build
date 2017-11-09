@@ -225,7 +225,7 @@ namespace BuildDEMFile {
          double bottom = top - (latcount - 1) * stepheight;
          if (left < Left || Right < left + (loncount - 1) * stepwidth ||
              bottom < Bottom || Top < top)
-            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {0}° .. {1}° / {2}° .. {3}°.",
+            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {4}° .. {5}° / {6}° .. {7}°.",
                                               left,
                                               left + (loncount - 1) * stepwidth,
                                               bottom,
@@ -273,7 +273,7 @@ namespace BuildDEMFile {
              top > Top ||
              left + width > Right ||
              top - height < Bottom)
-            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {0}° .. {1}° / {2}° .. {3}°.",
+            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {4}° .. {5}° / {6}° .. {7}°.",
                                               left,
                                               left + width,
                                               top - height,
