@@ -6,6 +6,7 @@
 *.tre
 *.dem
 *.txt
+*.vhost.*
 
 # User-specific files
 *.suo

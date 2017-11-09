@@ -77,15 +77,15 @@ namespace BuildDEMFile {
          bool ret = true;
          // Voraussetzung: Die Datendateien liegen im 1-Grad-Raster vor. In den Dateinamen ist die linke untere Ecke enthalten.
 
-         int iLeft = (int)left;
-         int iRight = (int)right;
-         int iTop = (int)top;
-         int iBottom = (int)bottom;
+         Left = Math.Floor(left);     // "größte ganze Zahl die kleiner ist als ..." fkt. auch für negative Zahlen
+         Right = Math.Ceiling(right);
+         Top = Math.Ceiling(top);
+         Bottom = Math.Floor(bottom);
 
-         Left = iLeft;
-         Bottom = iBottom;
-         Right = iRight + 1;
-         Top = iTop + 1;
+         int iLeft = (int)Left;
+         int iBottom = (int)Bottom;
+         int iRight = (int)Right - 1;
+         int iTop = (int)Top - 1;
 
          dat = new HGTReader[iRight - iLeft + 1, iTop - iBottom + 1];
 
@@ -225,7 +225,15 @@ namespace BuildDEMFile {
          double bottom = top - (latcount - 1) * stepheight;
          if (left < Left || Right < left + (loncount - 1) * stepwidth ||
              bottom < Bottom || Top < top)
-            throw new Exception("Der gewünschte Bereich überschreitet den Bereich der eingelesenen HGT-Werte.");
+            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {0}° .. {1}° / {2}° .. {3}°.",
+                                              left,
+                                              left + (loncount - 1) * stepwidth,
+                                              bottom,
+                                              top,
+                                              Left,
+                                              Right,
+                                              Bottom,
+                                              Top));
 
          int[,] heights = new int[loncount, latcount];    // Array darf nicht größer als 2GB-x werden -> 532000000 Elemente fkt. (z.B. 23065 x 23065)
                                                           // Int16-Array benötigt leider genausoviel Speicher wie int-Array!!!
@@ -265,7 +273,15 @@ namespace BuildDEMFile {
              top > Top ||
              left + width > Right ||
              top - height < Bottom)
-            throw new Exception("Der gewünschte Bereich überschreitet den Bereich der eingelesenen HGT-Werte.");
+            throw new Exception(string.Format("Der gewünschte Bereich {0}° .. {1}° / {2}° .. {3}° überschreitet den Bereich der eingelesenen HGT-Werte {0}° .. {1}° / {2}° .. {3}°.",
+                                              left,
+                                              left + width,
+                                              top - height,
+                                              top,
+                                              Left,
+                                              Right,
+                                              Bottom,
+                                              Top));
 
          int iCountLon = (int)(width / stepwidth);
          if (iCountLon * stepwidth < width)
@@ -277,12 +293,12 @@ namespace BuildDEMFile {
             iCountLat++;
          iCountLat++;
 
-         return BuildHeightArray(left, 
-                                 top, 
-                                 stepwidth, 
-                                 stepheight, 
-                                 iCountLon, 
-                                 iCountLat, 
+         return BuildHeightArray(left,
+                                 top,
+                                 stepwidth,
+                                 stepheight,
+                                 iCountLon,
+                                 iCountLat,
                                  foot);
       }
 
