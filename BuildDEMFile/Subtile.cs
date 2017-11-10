@@ -17,7 +17,7 @@ namespace BuildDEMFile {
       /// </summary>
       Data2Dim dat;
 
-      #region zusätzliche Infos (müssen nicht gesetzt sein)
+      #region zusätzliche Infos (müssen nicht gesetzt sein, wenn die Daten im Konstruktor geliefert werden; werden nur für da "späte" Datenholen benötigt))
 
       /// <summary>
       /// geplante linke geogr. Länge

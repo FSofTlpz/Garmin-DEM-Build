@@ -13,9 +13,9 @@ namespace BuildDEMFile {
       /// </summary>
       public byte SpecType { get; set; }
       /// <summary>
-      /// Nummer des Eintrages (0, ...)
+      /// für welchen Maplevel (Nummer des Eintrages 0, ...)
       /// </summary>
-      public byte No { get; set; }
+      public byte Maplevel { get; set; }
       /// <summary>
       /// Anzahl der Datenpunkte waagerecht
       /// </summary>
@@ -193,7 +193,7 @@ namespace BuildDEMFile {
 
       public ZoomlevelTableitem() {
          SpecType = 0;
-         No = 0;
+         Maplevel = 0;
          PointsHoriz = PointsVert = 64;
          LastRowHeight = 64;
          LastColWidth = 64;
@@ -213,7 +213,7 @@ namespace BuildDEMFile {
 
       public void Write(BinaryWriter w) {
          w.Write(SpecType);
-         w.Write(No);
+         w.Write(Maplevel);
          w.Write(PointsHoriz);
          w.Write(PointsVert);
          w.Write(LastRowHeight);

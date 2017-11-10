@@ -332,8 +332,8 @@ namespace BuildDEMFile {
             if (maxthreads > 0)
                Console.WriteLine("multithreaded");
 
-            CalculationThreadPoolExt calctp = maxthreads > 0 ? 
-                                                   new CalculationThreadPoolExt(ThreadMsg) : 
+            CalculationThreadPoolExt calctp = maxthreads > 0 ?
+                                                   new CalculationThreadPoolExt(ThreadMsg) :
                                                    null;
 
             int count = 0;
@@ -438,7 +438,7 @@ namespace BuildDEMFile {
          }
       }
 
-      // http://simplygenius.net/Article/FalseSharing
+      // Threading-Problem ev. wegen: http://simplygenius.net/Article/FalseSharing
 
 
       class CalculationThreadPoolExt : ThreadPoolExt {
@@ -720,13 +720,13 @@ namespace BuildDEMFile {
       /// Tabellengröße eines Zommlevels bestimmen
       /// </summary>
       /// <param name="zoomleveldata"></param>
-      /// <param name="firstlevel"></param>
-      void FitTableSize(ZoomlevelData zoomleveldata, bool firstlevel) {
+      void FitTableSize(ZoomlevelData zoomleveldata) {
          int minbaseheight = int.MaxValue;
          int maxbaseheight = int.MinValue;
          int maxheight = int.MinValue;
          uint maxoffset = uint.MinValue;
 
+         bool bOnylType0 = true; // Werden nur Subtiles mit Typ 0 verwendet?
          uint offset = 0;
          for (int i = 0; i < zoomleveldata.Subtiles.Count; i++) {
             int baseheight = zoomleveldata.Subtiles[i].Tableitem.Baseheight;
@@ -736,6 +736,8 @@ namespace BuildDEMFile {
             zoomleveldata.Subtiles[i].Tableitem.Offset = zoomleveldata.Subtiles[i].DataLength > 0 ? offset : 0;
             offset += (uint)zoomleveldata.Subtiles[i].DataLength;
             maxoffset = Math.Max(maxoffset, zoomleveldata.Subtiles[i].Tableitem.Offset); // größter zu speichernder Zahlenwert
+            if (zoomleveldata.Subtiles[i].Tableitem.Type != 0)
+               bOnylType0 = false;
          }
 
          zoomleveldata.Tableitem.MinHeight = (short)minbaseheight;
@@ -761,7 +763,7 @@ namespace BuildDEMFile {
          else
             zoomleveldata.Tableitem.Structure_DiffSize = 2;
 
-         zoomleveldata.Tableitem.Structure_CodingtypeSize = firstlevel ? 1 : 0;
+         zoomleveldata.Tableitem.Structure_CodingtypeSize = bOnylType0 ? 0 : 1;
       }
 
       /// <summary>
@@ -789,7 +791,7 @@ namespace BuildDEMFile {
             zl[z].Tableitem.MinHeight = (short)min;
             zl[z].Tableitem.MaxHeight = (ushort)(max - min);
 
-            zl[z].Tableitem.No = (byte)z;
+            zl[z].Tableitem.Maplevel = (byte)z;
             zl[z].Tableitem.PointsHoriz = STDSUBTILESIZE;
             zl[z].Tableitem.PointsVert = STDSUBTILESIZE;
 
@@ -810,7 +812,7 @@ namespace BuildDEMFile {
 
          // Tabellengrößen festlegen und Pointer ermitteln
          for (int z = 0; z < tiles.Count; z++) {
-            FitTableSize(zl[z], z == 0);
+            FitTableSize(zl[z]);
 
             zl[z].Tableitem.PtrSubtileTable = z == 0 ?
                            head.Length :
