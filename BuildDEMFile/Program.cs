@@ -69,19 +69,18 @@ namespace BuildDEMFile {
          londist = new List<double>();
 
          if (string.IsNullOrEmpty(opt.DEMFilename))
-            throw new Exception("Es ist keine Zieldatei angegeben.");
+            throw new Exception("Need name for DEM file.");
          else if (File.Exists(opt.DEMFilename) && !opt.OutputOverwrite)
-            throw new Exception("Die DEM-Datei ex. schon, darf aber nicht überschrieben werden.");
+            throw new Exception("File '" + opt.DEMFilename + " exist.");
 
          if (!string.IsNullOrEmpty(opt.HGTPath) &&
              !string.IsNullOrEmpty(opt.HGTDataOutput) &&
              File.Exists(opt.HGTDataOutput) && !opt.OutputOverwrite)
-            throw new Exception("Die Ausgabedatei für die HGT-Daten ex. schon, darf aber nicht überschrieben werden.");
+            throw new Exception("File '"+ opt.HGTDataOutput + " exist.");
 
          if (opt.DataFilename.Count == 0 &&
              string.IsNullOrEmpty(opt.HGTPath))
-            throw new Exception("Es ist weder eine Höhendatendatei noch ein HGT-Pfad angegeben.");
-
+            throw new Exception("Need text file with data or path to HGT's.");
 
          if (!double.IsNaN(opt.TRELeft))
             left.Add(opt.TRELeft);
@@ -95,9 +94,9 @@ namespace BuildDEMFile {
          if (!string.IsNullOrEmpty(opt.TREFilename)) {
             double west, north, east, south;
             if (!TREFileHelper.ReadEdges(opt.TREFilename, out west, out north, out east, out south))
-               throw new Exception("Es konnten keine Daten aus der TRE-Datei ermittelt werden.");
+               throw new Exception("Couldn't read data from TRE file.");
 
-            Console.WriteLine("Daten aus der TRE-Datei '" + opt.TREFilename + "' gelesen");
+            Console.WriteLine("data from TRE file '" + opt.TREFilename + "'");
             if (double.IsNaN(opt.TRELeft))
                if (left.Count > 0) left[0] = west;
                else left.Add(west);
@@ -113,10 +112,10 @@ namespace BuildDEMFile {
          }
 
          if (left.Count == 0)
-            throw new Exception("Es konnte kein westlicher Rand ermittelt werden.");
+            throw new Exception("Couldn't found westerly edge.");
 
          if (top.Count == 0)
-            throw new Exception("Es konnte kein nördlicher Rand ermittelt werden.");
+            throw new Exception("Couldn't found northerly edge.");
 
          if (width.Count == 0)
             width.Add(double.NaN);
@@ -135,11 +134,11 @@ namespace BuildDEMFile {
             datafilenames.Add(null);
          }
          if (count == 0)
-            throw new Exception("Zu wenig Optionen angegeben.");
+            throw new Exception("To less options.");
 
          if (opt.PixelWidth.Count < count &&
              opt.PixelHeight.Count < count)
-            throw new Exception("Zu wenig Punktabstände angegeben.");
+            throw new Exception("To less point distances.");
 
          for (int i = 0; i < opt.PixelWidth.Count && i < count; i++)
             latdist.Add(opt.PixelWidth[i]);

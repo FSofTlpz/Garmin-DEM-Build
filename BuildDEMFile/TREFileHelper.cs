@@ -26,7 +26,7 @@ namespace BuildDEMFile {
 
             string GarminTyp = ReadString(br, 10);       // z.B. "GARMIN RGN"
             if (GarminTyp != "GARMIN TRE")
-               throw new Exception("Das ist keine Garmin-TRE-Datei.");
+               throw new Exception("It's not a valid Garmin-TRE-File.");
 
             br.ReadByte(); // Unknown_0x0C
 

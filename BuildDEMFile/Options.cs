@@ -110,7 +110,7 @@ namespace BuildDEMFile {
          TRETop,
          DEMWidth,
          DEMHeight,
-         Multithread,
+         //Multithread,
 
          Help,
       }
@@ -119,24 +119,24 @@ namespace BuildDEMFile {
          Init();
          cmd = new FSoftUtils.CmdlineOptions();
          // Definition der Optionen
-         cmd.DefineOption((int)MyOptions.DEMFilename, "dem", "d", "Name der zu erzeugenden DEM-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.HGTPath, "hgtpath", "", "Pfad zum HGT-Verzeichnis", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "Name der TRE-Datei (zur Bestimmung der Ränder und der Pixelbreite)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "Breite eines DEM-Pixels (mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "Höhe eines DEM-Pixels (nicht nötig, wenn identisch zu dlon; mehrfach verwendbar für versch. Level)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "verwendet NODATA-Werte, wenn keine HGT-Daten vorhanden sind (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "letzte Kachelspalte hat Standardbreite (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "Ausgabeziel bei Bedarf überschreiben (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "Daten in Fuß, sonst Meter (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "Ausgabe der interpolierten Daten in eine Textdatei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "Name der Textdatei mit den Daten", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "linker Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "oberer Rand der TRE-Datei", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "Breite des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "Höhe des DEM-Bereiches", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.DEMFilename, "dem", "d", "name of the new DEM-file", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.HGTPath, "hgtpath", "", "path of the HGT-files", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "name of TRE-file (with the bounding area)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "horizontal distance between DEM-points (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "vertical distance between DEM-points (multiple usage for different zoomlevel; default the same as dlon and then not necessary)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "use NODATA-values (" + short.MinValue.ToString() + ") for absent HGT's (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "last subtile column have default width (64 points) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "overwrites the  DEM file if exist (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "values in DEM in foot or else in meter (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "write interpolated data in text files (for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "read height data from text files (for test, multiple usage)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "westerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "northerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "width of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "height of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+//         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
-         cmd.DefineOption((int)MyOptions.Help, "help", "?", "diese Hilfe", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
+         cmd.DefineOption((int)MyOptions.Help, "help", "?", "this text", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
       }
 
       /// <summary>
@@ -253,12 +253,12 @@ namespace BuildDEMFile {
                         DEMHeight = cmd.DoubleValue((int)opt);
                         break;
 
-                     case MyOptions.Multithread:
-                        if (cmd.ArgIsUsed((int)opt))
-                           Multithread = cmd.BooleanValue((int)opt) ? 1 : 0;
-                        else
-                           Multithread = 1;
-                        break;
+                     //case MyOptions.Multithread:
+                     //   if (cmd.ArgIsUsed((int)opt))
+                     //      Multithread = cmd.BooleanValue((int)opt) ? 1 : 0;
+                     //   else
+                     //      Multithread = 1;
+                     //   break;
 
                      case MyOptions.Help:
                         ShowHelp();
@@ -279,12 +279,12 @@ namespace BuildDEMFile {
             }
 
             if (cmd.Parameters.Count > 0)
-               throw new Exception("Es sind keine Argumente sondern nur Optionen erlaubt.");
+               throw new Exception("args not permitted");
 
          } catch (Exception ex) {
             Console.Error.WriteLine(ex.Message);
             ShowHelp();
-            throw new Exception("Fehler beim Ermitteln oder Anwenden der Programmoptionen.");
+            throw new Exception("Error on prog-options.");
          }
       }
 
@@ -296,11 +296,10 @@ namespace BuildDEMFile {
          List<string> help = cmd.GetHelpText();
          for (int i = 0; i < help.Count; i++) Console.Error.WriteLine(help[i]);
          Console.Error.WriteLine();
-         Console.Error.WriteLine("Zusatzinfos:");
 
 
-         Console.Error.WriteLine("Für '--' darf auch '/' stehen und für '=' auch ':' oder Leerzeichen.");
-         Console.Error.WriteLine("Argumente mit ';' werden an diesen Stellen in Einzelargumente aufgetrennt.");
+         Console.Error.WriteLine("You can substitut '--' with '/' and '=' with ':' or space.");
+         Console.Error.WriteLine("Args with ';' are split to single args. If you need a ';' in arg use \"arg\".");
 
          // ...
 

@@ -10,7 +10,7 @@ namespace BuildDEMFile {
 
       const int STDSUBTILESIZE = 64;
 
-      const int SUBTILEPAKETSIZE = 20;
+      const int SUBTILEPAKETSIZE = 50;
 
 
       class Data4Zoomlevel {
@@ -125,26 +125,26 @@ namespace BuildDEMFile {
 
             if (HgtPath == null &&
                 data4Zoomlevel[i].Datafile == null)
-               throw new Exception("Entweder eine Datendatei oder ein HGT-Pfad muss angegeben sein.");
+               throw new Exception("Need text file or a HGT path.");
 
             if (double.IsNaN(data4Zoomlevel[i].Left) ||
                 double.IsNaN(data4Zoomlevel[i].Top))
-               throw new Exception("Die Position des DEM-Bereiches muss angegeben sein.");
+               throw new Exception("Found no position for DEM area.");
 
             if (HgtPath != null) {
                if (double.IsNaN(data4Zoomlevel[i].Width) ||
                    double.IsNaN(data4Zoomlevel[i].Height))
-                  throw new Exception("Die Ausdehnung des DEM-Bereiches muss angegeben sein.");
+                  throw new Exception("Found no width or height of DEM area.");
 
                if (double.IsNaN(data4Zoomlevel[i].Latdist) ||
                    double.IsNaN(data4Zoomlevel[i].Londist))
-                  throw new Exception("Die Abstände der Punkte müssen angegeben sein.");
+                  throw new Exception("Found no point distance.");
             } else {
                if ((double.IsNaN(data4Zoomlevel[i].Width) ||
                     double.IsNaN(data4Zoomlevel[i].Height)) &&
                    (double.IsNaN(data4Zoomlevel[i].Latdist) ||
                     double.IsNaN(data4Zoomlevel[i].Londist)))
-                  throw new Exception("Die Ausdehnung des DEM-Bereiches oder die Abstände der Punkte müssen angegeben sein.");
+                  throw new Exception("Need width and height of DEM area or point distance.");
             }
          }
       }
@@ -222,41 +222,51 @@ namespace BuildDEMFile {
 
          if (!overwrite &&
              File.Exists(demfile)) {
-            Console.Error.WriteLine("Die Datei '" + demfile + "' existiert schon.");
+            Console.Error.WriteLine("File '" + demfile + "' exist and must not overwritten.");
             return false;
          }
 
          List<Subtile[,]> tiles4zoomlevel = new List<Subtile[,]>(); // für jeden Zoomlevel ein Tile-Array
          HgtDataConverter hgtconv = null;
 
-         if (!string.IsNullOrEmpty(HgtPath)) {  // Daten (für alle Zoomlevel) nur 1x aus den HGT-Daten einlesen
-            // Begrenzung des Gebiets ermitteln (kann etwas größer sein, als im Zoomlevel angegeben)
+         Console.WriteLine(data4Zoomlevel.Count.ToString() + " zoomlevel");
+
+         if (!string.IsNullOrEmpty(HgtPath)) { // ------------------- Daten (für alle Zoomlevel) nur 1x aus den HGT-Daten einlesen
             double mostleft = double.MaxValue;
             double mostright = double.MinValue;
             double mostbottom = double.MaxValue;
             double mosttop = double.MinValue;
             for (int z = 0; z < data4Zoomlevel.Count; z++) {
-               /* ACHTUNG
-                * Wenn die Breite des Gebiets 1 Punktabstand ist, werden 2 Punkte ermittelt, d.h.
-                * wenn die Breite des Gebiets n Punktabstände ist, werden n+1 Punkte ermittelt.
-                * Für ein Vielfaches von 64 Punkten wird also eine Breite x*64 - 1 benötigt.
-               */
-               if (lastcolstd) { // notfalls auf 64er-Breite bringen
+               // Zoomlevel notfalls auf 64er-Breite bringen
+               if (lastcolstd) {
+                  /* ACHTUNG
+                   * Wenn die Breite des Gebiets 1 Punktabstand ist, werden 2 Punkte ermittelt, d.h.
+                   * wenn die Breite des Gebiets n Punktabstände ist, werden n+1 Punkte ermittelt.
+                   * Für ein Vielfaches von 64 Punkten wird also eine Breite x*64 - 1 benötigt.
+                  */
                   double t = data4Zoomlevel[z].Width / (STDSUBTILESIZE * data4Zoomlevel[z].Londist);
                   if ((int)t < t) {
                      data4Zoomlevel[z].Width = (1 + (int)t) * STDSUBTILESIZE * data4Zoomlevel[z].Londist;
                      data4Zoomlevel[z].Width -= 1.1 * data4Zoomlevel[z].Londist;
                   }
                }
-               mostleft = Math.Min(mostleft, data4Zoomlevel[z].Left);
-               mosttop = Math.Max(mosttop, data4Zoomlevel[z].Top);
-               mostright = Math.Max(mostright, data4Zoomlevel[z].Left + data4Zoomlevel[z].Width);
-               mostbottom = Math.Min(mostbottom, data4Zoomlevel[z].Top - data4Zoomlevel[z].Height);
+
+               Subtile[,] tiles = BuildEmptySubtileArray(data4Zoomlevel[z], lastcolstd, STDSUBTILESIZE);
+               tiles4zoomlevel.Add(tiles);
+
+               foreach (Subtile tile in tiles) {
+                  mostleft = Math.Min(mostleft, tile.PlannedLeft);
+                  mosttop = Math.Max(mosttop, tile.PlannedTop);
+                  mostright = Math.Max(mostright, tile.PlannedLeft + tile.PlannedLonDistance * tile.PlannedWidth);
+                  mostbottom = Math.Min(mostbottom, tile.PlannedTop - tile.PlannedLatDistance * tile.PlannedHeight);
+               }
+
+               ShowZoomlevelInfo(tiles, data4Zoomlevel[z], true);
             }
 
             hgtconv = new HgtDataConverter();
             if (!hgtconv.ReadData(HgtPath, mostleft, mosttop, mostright, mostbottom, dummydataonerror)) {     // HGT-Rohdaten einlesen
-               Console.Error.WriteLine("Es konnten nicht alle nötigen Höhen-Daten eingelesen werden.");
+               Console.Error.WriteLine("Can not read all necessary HGT's.");
                return false;
             }
 
@@ -272,14 +282,10 @@ namespace BuildDEMFile {
                                                           data4Zoomlevel[z].Latdist,
                                                           footflag));
             }
-         }
 
-         // Daten für jeden Zoomlevel einlesen
-         Console.WriteLine(data4Zoomlevel.Count.ToString() + " Zoomlevel");
-         for (int z = 0; z < data4Zoomlevel.Count; z++) {
-            Subtile[,] tiles = null;
+         } else { // ------------------- Daten aus Textdatei einlesen
 
-            if (hgtconv == null) {     // Daten aus Textdatei
+            for (int z = 0; z < data4Zoomlevel.Count; z++) {
                Data2Dim rawdata = ReadTextData(data4Zoomlevel[z].Datafile, out data4Zoomlevel[z].MinHeight, out data4Zoomlevel[z].MaxHeight);
 
                if (rawdata.Height > 0 && rawdata.Width > 0) {
@@ -300,32 +306,21 @@ namespace BuildDEMFile {
                   }
 
                   Console.WriteLine("Textdaten " + rawdata.ToString() + ", Min. " + data4Zoomlevel[z].MinHeight.ToString() + ", Max. " + data4Zoomlevel[z].MaxHeight.ToString() + " für Zoomlevel " + z.ToString());
-                  tiles = BuildFilledSubtileArray(rawdata, lastcolstd, STDSUBTILESIZE);
+                  Subtile[,] tiles = BuildFilledSubtileArray(rawdata, lastcolstd, STDSUBTILESIZE);
+                  tiles4zoomlevel.Add(tiles);
+
+                  ShowZoomlevelInfo(tiles, data4Zoomlevel[z], false);
 
                } else
-                  throw new Exception("Keine Textdaten eingelesen.");
+                  throw new Exception("No text files read.");
 
                rawdata.Dispose();   // Rohdaten werden nicht mehr benötigt
-
-            } else {                // Date aus HGT-Dateien
-
-               tiles = BuildEmptySubtileArray(data4Zoomlevel[z], lastcolstd, STDSUBTILESIZE);
-
             }
-
-            // tiles enthält die Subtiles des Zoomlevels mit den Rohdaten, wenn die Daten aus einer Textdatei stammen, sonst nur mit den geplanten Werten
-            tiles4zoomlevel.Add(tiles);
-
-            Console.Write("Kachelanzahl " + tiles.GetLength(0) + " x " + tiles.GetLength(1));
-            Console.Write(" (rechte Spalte ");
-            Console.Write(hgtconv == null ? tiles[tiles.GetLength(0) - 1, 0].Width.ToString() : tiles[tiles.GetLength(0) - 1, 0].PlannedWidth.ToString());
-            Console.Write(" breit, untere Zeile ");
-            Console.Write(hgtconv == null ? tiles[0, tiles.GetLength(1) - 1].Height.ToString() : tiles[0, tiles.GetLength(1) - 1].PlannedHeight.ToString());
-            Console.WriteLine(" hoch)");
-            Console.WriteLine(string.Format("Rand links {0}°, oben {1}°, {2}° breit, {3}° hoch", data4Zoomlevel[z].Left, data4Zoomlevel[z].Top, data4Zoomlevel[z].Width, data4Zoomlevel[z].Height));
-            Console.WriteLine(string.Format("Pixelgröße {0}° x {1}°", data4Zoomlevel[z].Londist, data4Zoomlevel[z].Latdist));
          }
 
+         /*    Die interne Optimierung scheint mehr zu bringen als Multithreading!!
+          *    32 Bit ist schneller als 64 Bit!
+          */
 
          // ----- wenn min. 1 Zoomlevel ex. beginnt jetzt die Codierung
          if (tiles4zoomlevel.Count > 0) {
@@ -339,7 +334,7 @@ namespace BuildDEMFile {
             int count = 0;
             for (int z = 0; z < tiles4zoomlevel.Count; z++)
                count += tiles4zoomlevel[z].GetLength(0) * tiles4zoomlevel[z].GetLength(1);
-            Console.Write("encodiere {0} Subtiles ", count);
+            Console.Write("encoding {0} Subtiles ", count);
 
             count = 0;
             List<Subtile> subtilepacket = new List<Subtile>();
@@ -368,7 +363,7 @@ namespace BuildDEMFile {
             }
 
             Console.WriteLine();
-            Console.WriteLine(count.ToString() + " Kacheln encodiert");
+            Console.WriteLine(count.ToString() + " Subtiles encoded");
 
             // ----- Codierung beendet
 
@@ -388,13 +383,24 @@ namespace BuildDEMFile {
             using (BinaryWriter w = new BinaryWriter(File.Create(demfile)))
                WriteDEM(w, head, Zoomlevel);
 
-            Console.WriteLine("Laufzeit {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
+            Console.WriteLine("runtime {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
 
          } else {
-            Console.Error.WriteLine("zu wenig Daten");
+            Console.Error.WriteLine("to less data");
             return false;
          }
          return true;
+      }
+
+      void ShowZoomlevelInfo(Subtile[,] tiles, Data4Zoomlevel zl, bool plannedvalues) {
+         Console.Write("number of subtiles " + tiles.GetLength(0) + " x " + tiles.GetLength(1));
+         Console.Write(" (most right column ");
+         Console.Write(plannedvalues ? tiles[tiles.GetLength(0) - 1, 0].PlannedWidth.ToString() : tiles[tiles.GetLength(0) - 1, 0].Width.ToString());
+         Console.Write(" width, undermost row ");
+         Console.Write(plannedvalues ? tiles[0, tiles.GetLength(1) - 1].PlannedHeight.ToString() : tiles[0, tiles.GetLength(1) - 1].Height.ToString());
+         Console.WriteLine(" height)");
+         Console.WriteLine(string.Format("left {0}°, top {1}°, width {2}°, height {3}°", zl.Left, zl.Top, zl.Width, zl.Height));
+         Console.WriteLine(string.Format("pointsize {0}° x {1}°", zl.Londist, zl.Latdist));
       }
 
       /// <summary>
@@ -406,7 +412,6 @@ namespace BuildDEMFile {
       /// <param name="footflag">wenn true, dann Höhendaten in Fuß, sonst Meter</param>
       void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, HgtDataConverter hgtconv, bool footflag) {
          if (tp == null) {    // Paket direkt encodieren
-
             for (int i = 0; i < subtilepacket.Count; i++) {
                if (hgtconv != null) {
                   Data2Dim dat = new Data2Dim(hgtconv.BuildHeightArray(subtilepacket[i].PlannedLeft,
@@ -422,7 +427,6 @@ namespace BuildDEMFile {
                   subtilepacket[i].Encoding();     // Daten aus Textdatei sind schon vorhanden
             }
             Console.Write(".");
-
          } else {             // Paket im eigenen Thread encodieren
 
             tp.Start(new object[] { new List<Subtile>(subtilepacket), hgtconv, footflag });  // Kopie der Liste übergeben, weil das Original gleich geleert wird
@@ -520,7 +524,7 @@ namespace BuildDEMFile {
                   width = sData.Length;
                else {
                   if (width != sData.Length)
-                     throw new Exception("Die Anzahl der Werte (" + sData.Length.ToString() + ") in Zeile " + (height + 1).ToString() + " ist nicht identisch zur Anzahl in der 1. Zeile (" + width.ToString() + ").");
+                     throw new Exception("Number of values (" + sData.Length.ToString() + ") in line " + (height + 1).ToString() + " are not the same with the number in 1. line (" + width.ToString() + ").");
                }
                height++;
 
@@ -533,7 +537,7 @@ namespace BuildDEMFile {
                }
             }
          } catch (Exception e) {
-            Console.Error.WriteLine("Die Daten der Datei '" + txtfile + "' konnten nicht gelesen werden:");
+            Console.Error.WriteLine("Data in file '" + txtfile + "' couldn't read:");
             Console.Error.WriteLine(e.Message);
          }
 
@@ -579,7 +583,7 @@ namespace BuildDEMFile {
       /// <param name="heights">Daten-Array</param>
       void WriteHgtOutput(string hgtoutput, int[,] heights) {
          if (!string.IsNullOrEmpty(hgtoutput)) {
-            Console.WriteLine("schreibe HGT-Daten in die Datei '" + hgtoutput + "' ...");
+            Console.WriteLine("write HGT data to '" + hgtoutput + "' ...");
 
             if (Path.GetExtension(hgtoutput).ToUpper() == ".ZIP") {
                using (FileStream zipstream = new FileStream(hgtoutput, FileMode.Create)) {
@@ -633,8 +637,11 @@ namespace BuildDEMFile {
          }
 
          int subtilesx = ptx / subtilesize;     // Anzahl der Subtiles nebeneinander
-         ptx -= subtilesx * subtilesize;        // restl. Punkte (0..63)
-         ptx += subtilesize;                    // 64..127
+         if (subtilesx > 0) {
+            ptx -= subtilesx * subtilesize;        // restl. Punkte (0..63) für eine weitere Subtile-Spalte
+            ptx += subtilesize;                    // 64..127
+         } else
+            subtilesx = 1; // bringt ev. kein sinnvolles Ergebnis, wenn nur 1 subtile-Spalte ex. die schmaler als 64 ist (?)
 
          //if (ptx > subtilesize / 2)             // waagerechte Punktanzahl für die letzte Spalte 33..63
          //   subtilesx++;
@@ -851,9 +858,6 @@ namespace BuildDEMFile {
          for (int z = 0; z < Zoomlevel.Count; z++)
             Zoomlevel[z].Tableitem.Write(w);
       }
-
-
-
 
    }
 

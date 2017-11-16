@@ -143,7 +143,7 @@ namespace BuildDEMFile {
             dat = new Data2Dim(intdata);
 
          if (dat == null)
-            throw new Exception("Keine Daten zum Encodieren im Subtile vorhanden.");
+            throw new Exception("Subtile without data for encoding.");
 
          int min, max;
          bool bWithIntMax = dat.GetMinMax(out min, out max);

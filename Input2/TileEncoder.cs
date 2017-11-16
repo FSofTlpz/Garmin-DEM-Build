@@ -1511,7 +1511,7 @@ namespace Encoder {
          public CodingType(CodingType ct) {
             maxheigthdiff = ct.maxheigthdiff;
             HunitValue = ct.HunitValue;
-            HunitExponent = ct.HunitValue;
+            HunitExponent = ct.HunitExponent;
             SumH = ct.SumH;
             SumL = ct.SumL;
             ElemCount = ct.ElemCount;
@@ -1755,7 +1755,9 @@ namespace Encoder {
          }
 
          void addValue(int data) {
+#if DEBUG
             ExtInfo4LastAdd = "";
+#endif
 
             int dh = data > 0 ? data :
                                 -data;
@@ -1801,7 +1803,9 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL++;
+#if DEBUG
                   ExtInfo4LastAdd += ";SumL++";
+#endif
                }
 
             }
@@ -1815,9 +1819,10 @@ namespace Encoder {
             else
                EncodeMode = SumL > 0 ? EncodeMode.Length1 : EncodeMode.Length0;
 
+#if DEBUG
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
-
+#endif
          }
 
       }
@@ -1837,7 +1842,9 @@ namespace Encoder {
          public CodingTypePlateauFollowerNotZero(CodingTypePlateauFollowerNotZero ct) : base(ct) { }
 
          override public void AddValue(int data) {
+#if DEBUG
             ExtInfo4LastAdd = "";
+#endif
 
             // ---- SumH aktualisieren ----
             SumH += Math.Abs(data);
@@ -1858,7 +1865,9 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL--;
+#if DEBUG
                   ExtInfo4LastAdd = ";SumL--";
+#endif
                }
             }
 
@@ -1871,8 +1880,11 @@ namespace Encoder {
             else
                EncodeMode = SumL > 0 ? EncodeMode.Length0 : EncodeMode.Length2;
 
+#if DEBUG
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
+#endif
+
          }
 
       }
@@ -1892,7 +1904,9 @@ namespace Encoder {
          public CodingTypePlateauFollowerZero(CodingTypePlateauFollowerZero ct) : base(ct) { }
 
          override public void AddValue(int data) {
+#if DEBUG
             ExtInfo4LastAdd = "";
+#endif
 
             // ---- SumH aktualisieren ----
             if (data > 0)
@@ -1915,7 +1929,9 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL++;
+#if DEBUG
                   ExtInfo4LastAdd += ";SumL++";
+#endif
                }
             }
 
@@ -1930,13 +1946,15 @@ namespace Encoder {
             else
                EncodeMode = SumL < 0 ? EncodeMode.Length0 : EncodeMode.Length1;
 
+#if DEBUG
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
+#endif
          }
 
       }
 
-      #endregion
+#endregion
 
       /// <summary>
       /// Art der Codierung
@@ -2069,12 +2087,13 @@ namespace Encoder {
       /// </summary>
       public List<HeightElement> Elements { get; private set; }
 
+#if DEBUG
       public List<string> CodingTypeStd_Info { get; private set; }
 
       public List<string> CodingTypePlateauFollowerNotZero_Info { get; private set; }
 
       public List<string> CodingTypePlateauFollowerZero_Info { get; private set; }
-
+#endif
 
       CodingTypeStd _initialHeigthUnit;
 
@@ -2163,9 +2182,11 @@ namespace Encoder {
 
          ValueWrap = new Wraparound(MaxHeigth);
 
+#if DEBUG
          CodingTypeStd_Info = new List<string>();
          CodingTypePlateauFollowerNotZero_Info = new List<string>();
          CodingTypePlateauFollowerZero_Info = new List<string>();
+#endif
       }
 
       /// <summary>
@@ -2212,6 +2233,7 @@ namespace Encoder {
          return data;
       }
 
+#if DEBUG
       /// <summary>
       /// liefert die codierte Bitfolge als Zeichenkette mit '1' und '.'
       /// </summary>
@@ -2234,6 +2256,7 @@ namespace Encoder {
          sb.Replace('0', '.');
          return sb.ToString();
       }
+#endif
 
       /// <summary>
       /// führt die Codierung der nächsten Höhe/n aus
@@ -2493,6 +2516,7 @@ namespace Encoder {
 
                ct.AddValue(data);
 
+#if DEBUG
                List<string> infolst = null;
 
                if (ct is CodingTypeStd) {
@@ -2512,6 +2536,7 @@ namespace Encoder {
                   info += "; [" + ct.ExtInfo4LastAdd + "]";
 
                infolst.Add(info);
+#endif
             }
          }
       }
@@ -2542,7 +2567,7 @@ namespace Encoder {
       }
 
 
-      #region spezielle Höhendifferenzen
+#region spezielle Höhendifferenzen
 
       /// <summary>
       /// liefert die horizontale Höhendifferenz (zur Vorgängerhöhe)
@@ -2601,9 +2626,9 @@ namespace Encoder {
          return ValidHeight(col, line - 1) - ValidHeight(col - 1, line);
       }
 
-      #endregion
+#endregion
 
-      #region Zugriff auf Höhenwerte
+#region Zugriff auf Höhenwerte
 
       /// <summary>
       /// liefert die Höhe zum Index (alle Höhen sind zeilenweise hintereinander angeordnet)
@@ -2662,9 +2687,9 @@ namespace Encoder {
          return 0;
       }
 
-      #endregion
+#endregion
 
-      #region zum Ermitteln der Bitfolgen
+#region zum Ermitteln der Bitfolgen
 
       static public List<byte> LengthCoding0(int data) {
          return new List<byte>(HeightElement.CreateHeightElement_ValueL(data, CalculationType.nothing, false, EncodeMode.Length0, int.MinValue, int.MinValue).Bits);
@@ -2694,7 +2719,7 @@ namespace Encoder {
          return new List<byte>(HeightElement.CreateHeightElement_BigValueL1(data, CalculationType.nothing, false, maxheigth, int.MinValue, int.MinValue).Bits);
       }
 
-      #endregion
+#endregion
 
       public override string ToString() {
          return string.Format("MaxHeigth={0}, Codingtype={1}, TileSize={2}x{3}, BaseHeigthUnit={4}, HeigthUnit={5}, ActualMode={6}, ActualHeigth={7}",

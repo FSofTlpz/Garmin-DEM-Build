@@ -1511,7 +1511,7 @@ namespace Encoder {
          public CodingType(CodingType ct) {
             maxheigthdiff = ct.maxheigthdiff;
             HunitValue = ct.HunitValue;
-            HunitExponent = ct.HunitValue;
+            HunitExponent = ct.HunitExponent;
             SumH = ct.SumH;
             SumL = ct.SumL;
             ElemCount = ct.ElemCount;
