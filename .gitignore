@@ -7,6 +7,7 @@
 *.dem
 *.txt
 *.vshost.*
+*.odt
 
 # User-specific files
 *.suo
