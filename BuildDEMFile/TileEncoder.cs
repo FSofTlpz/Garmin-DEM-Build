@@ -1,4 +1,10 @@
-﻿using System;
+﻿// höchstwahrscheinlich unnötige Teile
+//#define INCLUDENOTNEEDED
+
+// Funktionen nur zur "Erforschung"
+//#define EXPLORERFUNCTION
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -110,29 +116,12 @@ namespace Encoder {
             return base.GetHashCode();
          }
 
-
          public static bool operator ==(Position a, Position b) {
             return a.Equals(b);
          }
 
          public static bool operator !=(Position a, Position b) {
             return !a.Equals(b);
-         }
-
-         public static bool operator <=(Position a, Position b) {
-            return a.Idx <= b.Idx;
-         }
-
-         public static bool operator >=(Position a, Position b) {
-            return a.Idx >= b.Idx;
-         }
-
-         public static bool operator <(Position a, Position b) {
-            return a.Idx < b.Idx;
-         }
-
-         public static bool operator >(Position a, Position b) {
-            return a.Idx > b.Idx;
          }
 
 
@@ -160,32 +149,6 @@ namespace Encoder {
             }
             X = x;
             Y = y;
-            return !PositionError;
-         }
-
-         /// <summary>
-         /// Änderung der Position (automatisch begrenzt durch den "Rand")
-         /// </summary>
-         /// <param name="deltax"></param>
-         /// <param name="deltay"></param>
-         /// <returns>false, falls der Bereich überschritten würde</returns>
-         public bool Move(int deltax, int deltay) {
-            PositionError = false;
-            X += deltax;
-            if (X < 0) {
-               X = 0;
-               PositionError = true;
-            } else if (X >= Width) {
-               X = Width - 1;
-               PositionError = true;
-            }
-            if (Y < 0) {
-               Y = 0;
-               PositionError = true;
-            } else if (Y >= Height) {
-               Y = Height - 1;
-               PositionError = true;
-            }
             return !PositionError;
          }
 
@@ -219,6 +182,49 @@ namespace Encoder {
                      PositionError = true;
                   }
                   break;
+            }
+            return !PositionError;
+         }
+
+#if INCLUDENOTNEEDED
+         public static bool operator <=(Position a, Position b) {
+            return a.Idx <= b.Idx;
+         }
+
+         public static bool operator >=(Position a, Position b) {
+            return a.Idx >= b.Idx;
+         }
+
+         public static bool operator <(Position a, Position b) {
+            return a.Idx < b.Idx;
+         }
+
+         public static bool operator >(Position a, Position b) {
+            return a.Idx > b.Idx;
+         }
+
+         /// <summary>
+         /// Änderung der Position (automatisch begrenzt durch den "Rand")
+         /// </summary>
+         /// <param name="deltax"></param>
+         /// <param name="deltay"></param>
+         /// <returns>false, falls der Bereich überschritten würde</returns>
+         public bool Move(int deltax, int deltay) {
+            PositionError = false;
+            X += deltax;
+            if (X < 0) {
+               X = 0;
+               PositionError = true;
+            } else if (X >= Width) {
+               X = Width - 1;
+               PositionError = true;
+            }
+            if (Y < 0) {
+               Y = 0;
+               PositionError = true;
+            } else if (Y >= Height) {
+               Y = Height - 1;
+               PositionError = true;
             }
             return !PositionError;
          }
@@ -258,6 +264,7 @@ namespace Encoder {
             }
             return !PositionError;
          }
+#endif
 
          public override string ToString() {
             return string.Format("X={0}, Y={1}, Width={2}, Height={3}, PositionError={4}", X, Y, Width, Height, PositionError);
@@ -726,6 +733,7 @@ namespace Encoder {
 
          #endregion
 
+#if EXPLORERFUNCTION
          /// <summary>
          /// liefert die Bits als Text
          /// </summary>
@@ -745,6 +753,8 @@ namespace Encoder {
          public string GetPlateauUnitsText() {
             return new string(PlateauUnits.ToArray());
          }
+
+#endif
 
          /// <summary>
          /// codiert rein binär ohne Vorzeichen (MSB zuerst)
@@ -1137,10 +1147,12 @@ namespace Encoder {
             sb.Append(", Bits=");
             for (int i = 0; i < Bits.Count; i++)
                sb.Append(Bits[i] > 0 ? "1" : ".");
+#if EXPLORERFUNCTION
             if (this.ElementTyp == Typ.Plateau)
                sb.Append(" " + GetPlateauUnitsText());
             else if (this.ElementTyp == Typ.PlateauFollower)
                sb.Append(" ddiff=" + PlateauFollowerDdiff);
+#endif
 
             return sb.ToString();
          }
@@ -1188,6 +1200,7 @@ namespace Encoder {
          /// </summary>
          int H_wrapup;
 
+#if INCLUDENOTNEEDED
          /// <summary>
          /// oberer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping überschritten werden müssen
          /// </summary>
@@ -1196,6 +1209,7 @@ namespace Encoder {
          /// unterer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping unterschritten werden müssen
          /// </summary>
          SortedDictionary<int, int> H_wrapup_safely = new SortedDictionary<int, int>();
+#endif
 
          /// <summary>
          /// Maximalhöhe der Kachel
@@ -1241,6 +1255,7 @@ namespace Encoder {
             H_wrapdown = (maxheight + 1) / 2;
             H_wrapup = -(maxheight - 1) / 2;
 
+#if INCLUDENOTNEEDED
             H_wrapdown_safely = new SortedDictionary<int, int>();
             H_wrapdown_safely.Add(1, (maxheight + 2) / 2); // für hunit=1
             H_wrapdown_safely.Add(2, maxheight / 2 + 2);
@@ -1262,6 +1277,7 @@ namespace Encoder {
             H_wrapup_safely.Add(64, -maxheight / 2 - 64);
             H_wrapup_safely.Add(128, -maxheight / 2 - 128);
             H_wrapup_safely.Add(256, -maxheight / 2 - 256);
+#endif
          }
 
          /// <summary>
@@ -1395,6 +1411,7 @@ namespace Encoder {
             return data;
          }
 
+#if INCLUDENOTNEEDED
          /// <summary>
          /// liefert die Anzahl der nötigen 0-Bits
          /// </summary>
@@ -1408,6 +1425,7 @@ namespace Encoder {
                return -data / hunit;
             return 0;
          }
+#endif
 
          int WrapDown(int data) {
             return data -= max + 1;
@@ -1464,10 +1482,12 @@ namespace Encoder {
          /// </summary>
          public int ElemCount { get; protected set; }
 
+#if EXPLORERFUNCTION
          /// <summary>
          /// Bonus für <see cref="SumL"/> zur Entscheidung, welche Codierung verwendet wird (i.A. 0)
          /// </summary>
          public int Bonus { get; protected set; }
+#endif
 
          /// <summary>
          /// "bewerteter" Wert aus dem Datenwert für die Längencodierung
@@ -1485,7 +1505,9 @@ namespace Encoder {
             ElemCount = 0;
             HunitValue = 0;
             HunitExponent = 0;
+#if EXPLORERFUNCTION
             ExtInfo4LastAdd = "";
+#endif
          }
 
          /// <summary>
@@ -1520,10 +1542,12 @@ namespace Encoder {
 
          abstract public void AddValue(int data);
 
+#if EXPLORERFUNCTION
          /// <summary>
          /// zusätzliche Info für das letzte <see cref="AddValue(int)"/>
          /// </summary>
          public string ExtInfo4LastAdd { get; protected set; }
+#endif
 
          /// <summary>
          /// setzt die <see cref="HeightUnit"/> neu
@@ -1622,38 +1646,6 @@ namespace Encoder {
                v = 1 - oldsum + elemcount;
             }
 
-
-
-            //if (!spec64 || elemcount != 63) {
-
-            //   if (newdata < -2 - (oldsum + 3 * elemcount) / 2) {
-            //      v = -1 - oldsum - elemcount;
-            //   } else if (newdata < -(oldsum + elemcount) / 2) {
-            //      v = 2 * (newdata + elemcount) + 3;
-            //   } else if (newdata < 2 - (oldsum - elemcount) / 2) {
-            //      v = 2 * newdata - 1;
-            //   } else if (newdata < 4 - (oldsum - 3 * elemcount) / 2) {
-            //      v = 2 * (newdata - elemcount) - 5;
-            //   } else {
-            //      v = 1 - oldsum + elemcount;
-            //   }
-
-            //} else {
-
-            //   if (newdata < -2 - (oldsum + 3 * elemcount) / 2) {
-            //      v = -1 - oldsum - elemcount;
-            //   } else if (newdata < -1 - (oldsum + elemcount) / 2) {    // <- einziger Unterschied: newdata < -(oldsum + elemcount) / 2
-            //      v = 2 * (newdata + elemcount) + 3;
-            //   } else if (newdata < 2 - (oldsum - elemcount) / 2) {
-            //      v = 2 * newdata - 1;
-            //   } else if (newdata < 4 - (oldsum - 3 * elemcount) / 2) {
-            //      v = 2 * (newdata - elemcount) - 5;
-            //   } else {
-            //      v = 1 - oldsum + elemcount;
-            //   }
-
-            //}
-
             return v;
          }
 
@@ -1662,16 +1654,6 @@ namespace Encoder {
          /// </summary>
          /// <param name="hunitvalue"></param>
          protected void SetHunitValue(int hunitvalue) {
-            //hunitvalue &= 0x1FF;
-            //// höchstes 1-Bit suchen
-            //HunitValue = 0x100;
-            //HunitExponent = 8;
-            //while (HunitValue > 0 &&
-            //       (HunitValue & hunitvalue) == 0) {
-            //   HunitValue >>= 1;
-            //   HunitExponent--;
-            //}
-
             if (hunitvalue < 1) {
                HunitValue = 0;
                HunitExponent = 0;
@@ -1744,11 +1726,13 @@ namespace Encoder {
          /// <param name="maxheigthdiff">max. Höhendiff.</param>
          public CodingTypeStd(int maxheigthdiff) : base(maxheigthdiff) { }
 
+#if INCLUDENOTNEEDED
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypeStd(CodingTypeStd ct) : base(ct) { }
+#endif
 
          override public void AddValue(int data) {
             addValue(data);
@@ -1835,11 +1819,13 @@ namespace Encoder {
          /// <param name="maxheigthdiff">max. Höhendiff.</param>
          public CodingTypePlateauFollowerNotZero(int maxheigthdiff) : base(maxheigthdiff) { }
 
+#if INCLUDENOTNEEDED
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypePlateauFollowerNotZero(CodingTypePlateauFollowerNotZero ct) : base(ct) { }
+#endif
 
          override public void AddValue(int data) {
 #if DEBUG
@@ -1897,12 +1883,13 @@ namespace Encoder {
          /// <param name="maxheigthdiff">max. Höhendiff.</param>
          public CodingTypePlateauFollowerZero(int maxheigthdiff) : base(maxheigthdiff) { }
 
+#if INCLUDENOTNEEDED
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypePlateauFollowerZero(CodingTypePlateauFollowerZero ct) : base(ct) { }
-
+#endif
          override public void AddValue(int data) {
 #if DEBUG
             ExtInfo4LastAdd = "";
@@ -1954,7 +1941,7 @@ namespace Encoder {
 
       }
 
-#endregion
+      #endregion
 
       /// <summary>
       /// Art der Codierung
@@ -2008,6 +1995,9 @@ namespace Encoder {
          /// Standardberechnung
          /// </summary>
          Standard,
+
+#if INCLUDENOTNEEDED
+
          /// <summary>
          /// Standardberechnung bei großer pos. horizontale Diff.
          /// </summary>
@@ -2016,6 +2006,8 @@ namespace Encoder {
          /// Standardberechnung bei kleiner neg. horizontale Diff.
          /// </summary>
          StandardHdiffLow,
+
+#endif
 
          /// <summary>
          /// Nachfolger nach Plateau (ddiff=0)
@@ -2034,25 +2026,9 @@ namespace Encoder {
       Position nextPosition;
 
       /// <summary>
-      /// akt. Codierungs-Art (Codierung, die vom letzten <see cref="HeightElement"/> geliefert wird)
-      /// </summary>
-      public EncodeMode ActualMode {
-         get {
-            return Elements.Count > 0 ?
-                        Elements[Elements.Count - 1].Encoding :
-                        EncodeMode.notdefined;
-         }
-      }
-
-      /// <summary>
       /// max. zulässige Höhe der Kachel
       /// </summary>
       public int MaxHeigth { get; protected set; }
-
-      /// <summary>
-      /// Codiertyp (z.Z. nicht verwendet)
-      /// </summary>
-      public byte Codingtype { get; protected set; }
 
       /// <summary>
       /// Kachelbreite
@@ -2094,6 +2070,24 @@ namespace Encoder {
 
       public List<string> CodingTypePlateauFollowerZero_Info { get; private set; }
 #endif
+
+#if EXPLORERFUNCTION
+
+      /// <summary>
+      /// akt. Codierungs-Art (Codierung, die vom letzten <see cref="HeightElement"/> geliefert wird)
+      /// </summary>
+      public EncodeMode ActualMode {
+         get {
+            return Elements.Count > 0 ?
+                        Elements[Elements.Count - 1].Encoding :
+                        EncodeMode.notdefined;
+         }
+      }
+
+      /// <summary>
+      /// Codiertyp (z.Z. nicht verwendet)
+      /// </summary>
+      public byte Codingtype { get; protected set; }
 
       CodingTypeStd _initialHeigthUnit;
 
@@ -2146,6 +2140,8 @@ namespace Encoder {
          }
       }
 
+#endif
+
       /// <summary>
       /// alle Höhenwerte
       /// </summary>
@@ -2165,10 +2161,13 @@ namespace Encoder {
       /// <param name="height">Liste der Höhendaten (Anzahl normalerweise <see cref="tilesize"/> * <see cref="tilesize"/>)</param>
       public TileEncoder(int maxheigth, byte codingtyp, int tilesizehorz, int tilesizevert, IList<int> height) {
          MaxHeigth = maxheigth;
-         Codingtype = codingtyp;
          TileSizeHorz = tilesizehorz;
          TileSizeVert = tilesizevert;
+#if EXPLORERFUNCTION
+         Codingtype = codingtyp;
          StdHeigth = 0;
+         InitialHeigthUnit = MaxHeigth; // die korrekte hunit wird intern bestimmt
+#endif
          HeightValues = new List<int>(height);
          nextPosition = new Position(tilesizehorz, tilesizevert);
 
@@ -2177,8 +2176,6 @@ namespace Encoder {
          ct_ddiff4plateaufollower_notzero = new CodingTypePlateauFollowerNotZero(MaxHeigth);
 
          Elements = new List<HeightElement>();
-
-         InitialHeigthUnit = MaxHeigth; // die korrekte hunit wird intern bestimmt
 
          ValueWrap = new Wraparound(MaxHeigth);
 
@@ -2277,7 +2274,6 @@ namespace Encoder {
          return Elements.Count - elements; ;
       }
 
-
       /// <summary>
       /// 
       /// </summary>
@@ -2303,6 +2299,7 @@ namespace Encoder {
                   int hv = ValidHeight(pos, -1, 0);
                   int sgnddiff = Math.Sign(ValidHeightDDiff(pos));
 
+#if INCLUDENOTNEEDED
                   if (hdiff_up >= MaxHeigth - hv) {
 
                      data = -sgnddiff * (ValidHeight(pos) + 1);
@@ -2319,6 +2316,10 @@ namespace Encoder {
                      caltype = CalculationType.Standard;
 
                   }
+#else
+                  data = -sgnddiff * (ValidHeightHDiff(pos) - hdiff_up);
+                  caltype = CalculationType.Standard;
+#endif
 
                   AddHeightValue(data, caltype, pos, ct_std);
 
@@ -2541,33 +2542,8 @@ namespace Encoder {
          }
       }
 
-      /// <summary>
-      /// liefert das zuständige <see cref="HeightElement"/> für die gewünschte Position
-      /// </summary>
-      /// <param name="col"></param>
-      /// <param name="line"></param>
-      /// <returns></returns>
-      HeightElement GetHeightElement(int col, int line) {
-         HeightElement he = null;
-         if (Elements.Count > 0) {
-            HeightElement test;
-            for (int i = Elements.Count - 1; i >= 0; i--) {
-               test = Elements[i];
-               if (test.Line <= line) {
-                  if (test.Line == line && test.Column == col)
-                     return test;
-                  if ((test.Line == line && test.Column < col) ||  // muss eine Plateaulänge sein
-                      test.Line < line) {
-                     return Elements[i - 1]; // Vorgänger
-                  }
-               }
-            }
-         }
-         return he;
-      }
 
-
-#region spezielle Höhendifferenzen
+      #region spezielle Höhendifferenzen
 
       /// <summary>
       /// liefert die horizontale Höhendifferenz (zur Vorgängerhöhe)
@@ -2626,9 +2602,9 @@ namespace Encoder {
          return ValidHeight(col, line - 1) - ValidHeight(col - 1, line);
       }
 
-#endregion
+      #endregion
 
-#region Zugriff auf Höhenwerte
+      #region Zugriff auf Höhenwerte
 
       /// <summary>
       /// liefert die Höhe zum Index (alle Höhen sind zeilenweise hintereinander angeordnet)
@@ -2687,9 +2663,10 @@ namespace Encoder {
          return 0;
       }
 
-#endregion
+      #endregion
 
-#region zum Ermitteln der Bitfolgen
+#if EXPLORERFUNCTION
+      #region zum Ermitteln der Bitfolgen
 
       static public List<byte> LengthCoding0(int data) {
          return new List<byte>(HeightElement.CreateHeightElement_ValueL(data, CalculationType.nothing, false, EncodeMode.Length0, int.MinValue, int.MinValue).Bits);
@@ -2719,7 +2696,10 @@ namespace Encoder {
          return new List<byte>(HeightElement.CreateHeightElement_BigValueL1(data, CalculationType.nothing, false, maxheigth, int.MinValue, int.MinValue).Bits);
       }
 
-#endregion
+      #endregion
+#endif
+
+#if EXPLORERFUNCTION
 
       public override string ToString() {
          return string.Format("MaxHeigth={0}, Codingtype={1}, TileSize={2}x{3}, BaseHeigthUnit={4}, HeigthUnit={5}, ActualMode={6}, ActualHeigth={7}",
@@ -2731,6 +2711,16 @@ namespace Encoder {
                               HeigthUnit,
                               ActualMode,
                               ActualHeigth);
+#else
+
+      public override string ToString() {
+         return string.Format("MaxHeigth={0}, TileSize={1}x{2}",
+                              MaxHeigth,
+                              TileSizeHorz,
+                              TileSizeVert);
+
+#endif
+
       }
 
    }
