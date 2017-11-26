@@ -39,7 +39,7 @@ namespace BuildDEMFile {
                                         out hgtout);
 
             FileBuilder fb = new FileBuilder(datafilenames, hgtpath, left, top, width, height, latdist, londist, hgtout);
-            fb.Create(opt.DEMFilename, opt.DataInFoot, opt.LastColStd, opt.OutputOverwrite, opt.UseDummyData, opt.Multithread);
+            fb.Create(opt.DEMFilename, opt.DataInFoot, opt.LastColStd, opt.OutputOverwrite, opt.UseDummyData, opt.ChangeHGTSize, opt.Multithread);
 
          } catch (Exception ex) {
             Console.Error.WriteLine(ex.Message);
@@ -76,7 +76,7 @@ namespace BuildDEMFile {
          if (!string.IsNullOrEmpty(opt.HGTPath) &&
              !string.IsNullOrEmpty(opt.HGTDataOutput) &&
              File.Exists(opt.HGTDataOutput) && !opt.OutputOverwrite)
-            throw new Exception("File '"+ opt.HGTDataOutput + " exist.");
+            throw new Exception("File '" + opt.HGTDataOutput + " exist.");
 
          if (opt.DataFilename.Count == 0 &&
              string.IsNullOrEmpty(opt.HGTPath))

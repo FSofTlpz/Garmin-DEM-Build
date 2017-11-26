@@ -104,6 +104,9 @@ namespace BuildDEMFile {
       public const int NOVALUE = -32768;
 
       string filename;
+      /// <summary>
+      /// HGT-Daten
+      /// </summary>
       short[] data;
 
       /// <summary>
@@ -132,10 +135,10 @@ namespace BuildDEMFile {
             if (!File.Exists(filename + ".zip")) {
 
                if (!dummydataonerror)
-                  throw new Exception(string.Format("Weder die Datei '{0}' noch die Datei '{0}.zip' existiert.", filename));
+                  throw new Exception(string.Format("file '{0}' nor file '{0}.zip' exist", filename));
                else {
                   Minimum = Maximum = NOVALUE;
-                  data = new Int16[1201 * 1201];
+                  data = new short[2 * 2];   // 2, damit Delta noch einen Wert erhält
                   for (int i = 0; i < data.Length; i++)
                      data[i] = NOVALUE;
                   NotValid = data.Length;
@@ -154,7 +157,7 @@ namespace BuildDEMFile {
                         }
                      }
                      if (entry == null)
-                        throw new Exception(string.Format("Die Datei '{0}' ist nicht in der Datei '{0}.zip' enthalten.", filename));
+                        throw new Exception(string.Format("file '{0}.zip' not include file '{0}'.", filename));
                      Stream dat = entry.Open();
                      ReadFromStream(entry.Open(), (int)entry.Length);
                      dat.Close();
@@ -169,7 +172,7 @@ namespace BuildDEMFile {
       }
 
       void ReadFromStream(Stream str, int length) {
-         data = new Int16[length / 2];       // 2 Byte je Datenpunkt
+         data = new short[length / 2];       // 2 Byte je Datenpunkt
          NotValid = 0;
          for (int i = 0; i < data.Length; i++) {
             data[i] = (Int16)((str.ReadByte() << 8) + str.ReadByte());
@@ -248,7 +251,7 @@ namespace BuildDEMFile {
       /// <param name="rightbottom"></param>
       /// <param name="righttop"></param>
       /// <param name="lefttop"></param>
-      public void Get4XYSquare(int xleft, int ybottom, out int leftbottom, out int rightbottom, out int righttop, out int lefttop) {
+      protected void Get4XYSquare(int xleft, int ybottom, out int leftbottom, out int rightbottom, out int righttop, out int lefttop) {
          if (xleft < 0 || Rows <= xleft + 1 ||
              ybottom < 0 || Columns <= ybottom + 1)
             throw new Exception(string.Format("({0}, {1}) für 4 Punkte außerhalb des Zeilen- und/oder Spaltenbereichs ({2}, {3})", xleft, ybottom, Columns, Rows));
@@ -270,6 +273,10 @@ namespace BuildDEMFile {
       /// <returns></returns>
       public double InterpolatedHeight(double lon, double lat) {
          double h = NOVALUE;
+         if (Minimum == NOVALUE &&
+             Maximum == NOVALUE)
+            return NOVALUE;
+
          lon -= Left;
          lat -= Bottom; // Koordinaten auf die Ecke links unten bezogen
 
@@ -445,6 +452,40 @@ namespace BuildDEMFile {
          double lat2 = Math.Max(0.0, Math.Min(1.0, MaxLatitude - Bottom));
          return DiscardExcept((int)(lon1 * Columns), (int)((1 - lat2) * Rows),
                               (int)(lon2 * Columns), (int)((1 - lat1) * Rows));
+      }
+
+      /// <summary>
+      /// verändert die Größe der Datentabelle durch Interpolation
+      /// </summary>
+      /// <param name="newsize"></param>
+      /// <returns></returns>
+      public bool ResizeDatatable(int newsize) {
+         if (newsize < 3)
+            throw new Exception("New tablesize less 3 not permitted.");
+
+         if (newsize != Columns) {
+            NotValid = 0;
+            short[] newdata = new short[newsize * newsize];
+            double delta = 1.0 / (newsize - 1);
+            for (int row = 0; row < newsize; row++) {
+               for (int col = 0; col < newsize; col++) {
+                  short h = (short)Math.Round(InterpolatedHeight(Left + col * delta, Bottom + 1 - row * delta));
+                  if (Maximum < h)
+                     Maximum = h;
+                  if (h != NOVALUE) {
+                     if (Minimum > h)
+                        Minimum = h;
+                  } else
+                     NotValid++;
+                  newdata[row * newsize + col] = h;
+               }
+            }
+            data = newdata;
+            Columns = Rows = newsize;
+            Delta = delta;
+            return true;
+         }
+         return false;
       }
 
       public override string ToString() {

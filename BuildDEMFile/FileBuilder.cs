@@ -215,9 +215,10 @@ namespace BuildDEMFile {
       /// <param name="lastcolstd">letzte Spalte mit Standardbreite</param>
       /// <param name="overwrite">bestehende Dateien überschreiben</param>
       /// <param name="dummydataonerror">liefert Dummy-Daten, wenn die Datei nicht ex.</param>
+      /// <param name="changehgtsize">HGT-Größe anpassen, wenn größer 0</param>
       /// <param name="maxthreads">wenn größer 0, dann Berechnung multithread</param>
       /// <returns></returns>
-      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, bool dummydataonerror, int maxthreads = 0) {
+      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, bool dummydataonerror, int changehgtsize, int maxthreads = 0) {
          DateTime starttime = DateTime.Now;
 
          if (!overwrite &&
@@ -265,7 +266,7 @@ namespace BuildDEMFile {
             }
 
             hgtconv = new HgtDataConverter();
-            if (!hgtconv.ReadData(HgtPath, mostleft, mosttop, mostright, mostbottom, dummydataonerror)) {     // HGT-Rohdaten einlesen
+            if (!hgtconv.ReadData(HgtPath, mostleft, mosttop, mostright, mostbottom, dummydataonerror, changehgtsize)) {     // HGT-Rohdaten einlesen
                Console.Error.WriteLine("Can not read all necessary HGT's.");
                return false;
             }

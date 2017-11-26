@@ -70,8 +70,9 @@ namespace BuildDEMFile {
       /// <param name="right"></param>
       /// <param name="bottom"></param>
       /// <param name="dummydataonerror"></param>
+      /// <param name="changehgtsize">HGT-Größe anpassen, wenn größer 0</param>
       /// <returns></returns>
-      public bool ReadData(string hgtpath, double left, double top, double right, double bottom, bool dummydataonerror) {
+      public bool ReadData(string hgtpath, double left, double top, double right, double bottom, bool dummydataonerror, int changehgtsize) {
          DateTime starttime = DateTime.Now;
 
          bool ret = true;
@@ -91,14 +92,14 @@ namespace BuildDEMFile {
 
          ReaderThreadPoolExt readerpool = new ReaderThreadPoolExt(ReaderMessage);
 
-         Console.WriteLine("HGT-Daten lesen ...");
+         Console.WriteLine("read HGT's ...");
          for (int lon = iLeft; lon <= iRight; lon++)
             for (int lat = iBottom; lat <= iTop; lat++)
-               readerpool.Start(new object[] { lon, lat, lon - iLeft, lat - iBottom, hgtpath, dummydataonerror, dat });
+               readerpool.Start(new object[] { lon, lat, lon - iLeft, lat - iBottom, hgtpath, dummydataonerror, changehgtsize, dat });
          readerpool.Wait4NotWorking();
          ret = readerpool.ExceptionCount == 0;
 
-         Console.WriteLine("Einlesezeit {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
+         Console.WriteLine("time for read {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
 
          return ret;
       }
@@ -121,26 +122,43 @@ namespace BuildDEMFile {
             try {
                if (para != null && para is object[]) {
                   object[] args = para as object[];
-                  if (args.Length == 7) {
+                  if (args.Length == 8) {
                      int lon = (int)args[0];
                      int lat = (int)args[1];
                      int x = (int)args[2];
                      int y = (int)args[3];
                      string hgtpath = args[4] as string;
                      bool dummydataonerror = (bool)args[5];
-                     HGTReader[,] dat = args[6] as HGTReader[,];
+                     int changehgtsize = (int)args[6];
+                     HGTReader[,] dat = args[7] as HGTReader[,];
 
                      dat[x, y] = new HGTReader(lon, lat, hgtpath, dummydataonerror);
 
                      if (msgfunc != null) {
-                        string msg = string.Format("Höhen für {0}° .. {1}° / {2}° .. {3}° eingelesen, {4}",
+                        string msg = string.Format("altitudes for lon {0}° .. {1}° / lat {2}° .. {3}° read in, {4}",
                                                    dat[x, y].Left, dat[x, y].Left + 1,
                                                    dat[x, y].Bottom, dat[x, y].Bottom + 1,
-                                                   dat[x, y].Minimum == dat[x, y].Maximum ? " (nur Dummywerte)" : string.Format("Werte {0} .. {1}", dat[x, y].Minimum, dat[x, y].Maximum));
+                                                   dat[x, y].Minimum == dat[x, y].Maximum ? " (only dummyvalues)" : string.Format("values {0} .. {1}", dat[x, y].Minimum, dat[x, y].Maximum));
                         lock (msglocker) {
                            msgfunc(msg);
                         }
                      }
+
+                     if (changehgtsize > 0) {
+                        int oldtablesize = dat[x, y].Columns;
+                        if (dat[x, y].ResizeDatatable(changehgtsize))
+                           if (msgfunc != null) {
+                              string msg = string.Format("tablesize for lon {0}° .. {1}° / lat {2}° .. {3}° changed from {4} to {5}",
+                                                         dat[x, y].Left, dat[x, y].Left + 1,
+                                                         dat[x, y].Bottom, dat[x, y].Bottom + 1,
+                                                         oldtablesize,
+                                                         dat[x, y].Columns);
+                              lock (msglocker) {
+                                 msgfunc(msg);
+                              }
+                           }
+                     }
+
                   }
                }
             } catch (Exception ex) {
@@ -153,44 +171,6 @@ namespace BuildDEMFile {
          }
 
       }
-
-      //public bool ReadData(string hgtpath, double left, double top, double right, double bottom, bool dummydataonerror) {
-      //   DateTime starttime = DateTime.Now;
-
-      //   bool ret = true;
-      //   // Voraussetzung: Die Datendateien liegen im 1-Grad-Raster vor. In den Dateinamen ist die linke untere Ecke enthalten.
-
-      //   int iLeft = (int)left;
-      //   int iRight = (int)right;
-      //   int iTop = (int)top;
-      //   int iBottom = (int)bottom;
-
-      //   Left = iLeft;
-      //   Bottom = iBottom;
-      //   Right = iRight + 1;
-      //   Top = iTop + 1;
-
-      //   dat = new HGTReader[iRight - iLeft + 1, iTop - iBottom + 1];
-
-      //   for (int lon = iLeft; lon <= iRight; lon++)
-      //      for (int lat = iBottom; lat <= iTop; lat++) {
-      //         try {
-      //            HGTReader hgt = new HGTReader(lon, lat, hgtpath, dummydataonerror);
-      //            dat[lon - iLeft, lat - iBottom] = hgt;
-      //            Console.WriteLine(string.Format("Höhen für {0}° .. {1}° / {2}° .. {3}° eingelesen, {4}",
-      //                                            lon, lon + 1,
-      //                                            lat, lat + 1,
-      //                                            hgt.Minimum == hgt.Maximum ? " (nur Dummywerte)" : string.Format("Werte {0} .. {1}", hgt.Minimum, hgt.Maximum)));
-      //         } catch (Exception ex) {
-      //            Console.Error.WriteLine(ex.Message);
-      //            ret = false;
-      //         }
-      //      }
-
-      //   Console.WriteLine("Einlesezeit {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
-
-      //   return ret;
-      //}
 
       /// <summary>
       /// liefert die (interpolierte) Höhe

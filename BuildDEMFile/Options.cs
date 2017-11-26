@@ -91,6 +91,11 @@ namespace BuildDEMFile {
       /// </summary>
       public int Multithread { get; private set; }
 
+      /// <summary>
+      /// wenn größer 2, wird die Größe der HGT-Tabelle entsprechend geändert
+      /// </summary>
+      public int ChangeHGTSize { get; private set; }
+
 
       FSoftUtils.CmdlineOptions cmd;
 
@@ -101,6 +106,7 @@ namespace BuildDEMFile {
          PixelWidth,
          PixelHeight,
          UseDummyData,
+         ChangeHGTSize,
          LastColStd,
          OutputOverwrite,
          DataInFoot,
@@ -125,6 +131,7 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "horizontal distance between DEM-points (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "vertical distance between DEM-points (multiple usage for different zoomlevel; default the same as dlon and then not necessary)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "use NODATA-values (" + short.MinValue.ToString() + ") for absent HGT's (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.ChangeHGTSize, "changehgtsize", "", "change the HGT-table size (min. 3)", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
          cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "last subtile column have default width (64 points) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "overwrites the  DEM file if exist (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "values in DEM in foot or else in meter (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
@@ -134,7 +141,7 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "northerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "width of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "height of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
-//         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         //         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
          cmd.DefineOption((int)MyOptions.Help, "help", "?", "this text", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
       }
@@ -147,6 +154,7 @@ namespace BuildDEMFile {
          DataFilename = new List<string>();
          HGTPath = "";
          UseDummyData = false;
+         ChangeHGTSize = -1;
          DataInFoot = false;
          TRELeft =
          TRETop =
@@ -251,6 +259,12 @@ namespace BuildDEMFile {
 
                      case MyOptions.DEMHeight:
                         DEMHeight = cmd.DoubleValue((int)opt);
+                        break;
+
+                     case MyOptions.ChangeHGTSize:
+                        ChangeHGTSize = (int)cmd.UnsignedIntegerValue((int)opt);
+                        if (ChangeHGTSize < 3)
+                           throw new Exception("error for " + cmd.OptionName((int)opt) + ": values < 3 not permitted");
                         break;
 
                      //case MyOptions.Multithread:
