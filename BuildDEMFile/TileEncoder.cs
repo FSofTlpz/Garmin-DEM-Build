@@ -187,6 +187,7 @@ namespace Encoder {
          }
 
 #if INCLUDENOTNEEDED
+
          public static bool operator <=(Position a, Position b) {
             return a.Idx <= b.Idx;
          }
@@ -264,6 +265,7 @@ namespace Encoder {
             }
             return !PositionError;
          }
+
 #endif
 
          public override string ToString() {
@@ -734,6 +736,7 @@ namespace Encoder {
          #endregion
 
 #if EXPLORERFUNCTION
+
          /// <summary>
          /// liefert die Bits als Text
          /// </summary>
@@ -1147,11 +1150,14 @@ namespace Encoder {
             sb.Append(", Bits=");
             for (int i = 0; i < Bits.Count; i++)
                sb.Append(Bits[i] > 0 ? "1" : ".");
+
 #if EXPLORERFUNCTION
+
             if (this.ElementTyp == Typ.Plateau)
                sb.Append(" " + GetPlateauUnitsText());
             else if (this.ElementTyp == Typ.PlateauFollower)
                sb.Append(" ddiff=" + PlateauFollowerDdiff);
+
 #endif
 
             return sb.ToString();
@@ -1201,6 +1207,7 @@ namespace Encoder {
          int H_wrapup;
 
 #if INCLUDENOTNEEDED
+
          /// <summary>
          /// oberer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping überschritten werden müssen
          /// </summary>
@@ -1209,6 +1216,7 @@ namespace Encoder {
          /// unterer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping unterschritten werden müssen
          /// </summary>
          SortedDictionary<int, int> H_wrapup_safely = new SortedDictionary<int, int>();
+
 #endif
 
          /// <summary>
@@ -1256,6 +1264,7 @@ namespace Encoder {
             H_wrapup = -(maxheight - 1) / 2;
 
 #if INCLUDENOTNEEDED
+
             H_wrapdown_safely = new SortedDictionary<int, int>();
             H_wrapdown_safely.Add(1, (maxheight + 2) / 2); // für hunit=1
             H_wrapdown_safely.Add(2, maxheight / 2 + 2);
@@ -1277,6 +1286,7 @@ namespace Encoder {
             H_wrapup_safely.Add(64, -maxheight / 2 - 64);
             H_wrapup_safely.Add(128, -maxheight / 2 - 128);
             H_wrapup_safely.Add(256, -maxheight / 2 - 256);
+
 #endif
          }
 
@@ -1412,6 +1422,7 @@ namespace Encoder {
          }
 
 #if INCLUDENOTNEEDED
+
          /// <summary>
          /// liefert die Anzahl der nötigen 0-Bits
          /// </summary>
@@ -1425,6 +1436,7 @@ namespace Encoder {
                return -data / hunit;
             return 0;
          }
+
 #endif
 
          int WrapDown(int data) {
@@ -1483,10 +1495,12 @@ namespace Encoder {
          public int ElemCount { get; protected set; }
 
 #if EXPLORERFUNCTION
+
          /// <summary>
          /// Bonus für <see cref="SumL"/> zur Entscheidung, welche Codierung verwendet wird (i.A. 0)
          /// </summary>
          public int Bonus { get; protected set; }
+
 #endif
 
          /// <summary>
@@ -1505,8 +1519,11 @@ namespace Encoder {
             ElemCount = 0;
             HunitValue = 0;
             HunitExponent = 0;
+
 #if EXPLORERFUNCTION
+
             ExtInfo4LastAdd = "";
+
 #endif
          }
 
@@ -1543,10 +1560,12 @@ namespace Encoder {
          abstract public void AddValue(int data);
 
 #if EXPLORERFUNCTION
+
          /// <summary>
          /// zusätzliche Info für das letzte <see cref="AddValue(int)"/>
          /// </summary>
          public string ExtInfo4LastAdd { get; protected set; }
+
 #endif
 
          /// <summary>
@@ -1727,11 +1746,13 @@ namespace Encoder {
          public CodingTypeStd(int maxheightdiff) : base(maxheightdiff) { }
 
 #if INCLUDENOTNEEDED
+
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypeStd(CodingTypeStd ct) : base(ct) { }
+
 #endif
 
          override public void AddValue(int data) {
@@ -1739,7 +1760,9 @@ namespace Encoder {
          }
 
          void addValue(int data) {
+
 #if EXPLORERFUNCTION
+
             ExtInfo4LastAdd = "";
 #endif
 
@@ -1787,8 +1810,11 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL++;
+
 #if EXPLORERFUNCTION
+
                   ExtInfo4LastAdd += ";SumL++";
+
 #endif
                }
 
@@ -1804,8 +1830,10 @@ namespace Encoder {
                EncodeMode = SumL > 0 ? EncodeMode.Length1 : EncodeMode.Length0;
 
 #if EXPLORERFUNCTION
+
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
+
 #endif
          }
 
@@ -1820,16 +1848,21 @@ namespace Encoder {
          public CodingTypePlateauFollowerNotZero(int maxheightdiff) : base(maxheightdiff) { }
 
 #if INCLUDENOTNEEDED
+
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypePlateauFollowerNotZero(CodingTypePlateauFollowerNotZero ct) : base(ct) { }
+
 #endif
 
          override public void AddValue(int data) {
+
 #if EXPLORERFUNCTION
+
             ExtInfo4LastAdd = "";
+
 #endif
 
             // ---- SumH aktualisieren ----
@@ -1851,8 +1884,11 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL--;
+
 #if EXPLORERFUNCTION
+
                   ExtInfo4LastAdd = ";SumL--";
+
 #endif
                }
             }
@@ -1867,8 +1903,10 @@ namespace Encoder {
                EncodeMode = SumL > 0 ? EncodeMode.Length0 : EncodeMode.Length2;
 
 #if EXPLORERFUNCTION
+
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
+
 #endif
 
          }
@@ -1884,15 +1922,21 @@ namespace Encoder {
          public CodingTypePlateauFollowerZero(int maxheightdiff) : base(maxheightdiff) { }
 
 #if INCLUDENOTNEEDED
+
          /// <summary>
          /// erzeugt eine Kopie
          /// </summary>
          /// <param name="ct"></param>
          public CodingTypePlateauFollowerZero(CodingTypePlateauFollowerZero ct) : base(ct) { }
+
 #endif
+
          override public void AddValue(int data) {
+
 #if EXPLORERFUNCTION
+
             ExtInfo4LastAdd = "";
+
 #endif
 
             // ---- SumH aktualisieren ----
@@ -1916,8 +1960,11 @@ namespace Encoder {
                SumL /= 2;
                if (SumL % 2 != 0) {
                   SumL++;
+
 #if EXPLORERFUNCTION
+
                   ExtInfo4LastAdd += ";SumL++";
+
 #endif
                }
             }
@@ -1934,8 +1981,10 @@ namespace Encoder {
                EncodeMode = SumL < 0 ? EncodeMode.Length0 : EncodeMode.Length1;
 
 #if EXPLORERFUNCTION
+
             if (ExtInfo4LastAdd.Length > 0)
                ExtInfo4LastAdd = ExtInfo4LastAdd.Substring(1);
+
 #endif
          }
 
@@ -1996,8 +2045,6 @@ namespace Encoder {
          /// </summary>
          Standard,
 
-#if INCLUDENOTNEEDED
-
          /// <summary>
          /// Standardberechnung bei großer pos. horizontale Diff.
          /// </summary>
@@ -2006,8 +2053,6 @@ namespace Encoder {
          /// Standardberechnung bei kleiner neg. horizontale Diff.
          /// </summary>
          StandardHdiffLow,
-
-#endif
 
          /// <summary>
          /// Nachfolger nach Plateau (ddiff=0)
@@ -2064,11 +2109,13 @@ namespace Encoder {
       public List<HeightElement> Elements { get; private set; }
 
 #if EXPLORERFUNCTION
+
       public List<string> CodingTypeStd_Info { get; private set; }
 
       public List<string> CodingTypePlateauFollowerNotZero_Info { get; private set; }
 
       public List<string> CodingTypePlateauFollowerZero_Info { get; private set; }
+
 #endif
 
 #if EXPLORERFUNCTION
@@ -2163,11 +2210,15 @@ namespace Encoder {
          MaxHeight = maxheight;
          TileSizeHorz = tilesizehorz;
          TileSizeVert = tilesizevert;
+
 #if EXPLORERFUNCTION
+
          Codingtype = codingtyp;
          StdHeight = 0;
          InitialHeightUnit = MaxHeight; // die korrekte hunit wird intern bestimmt
+
 #endif
+
          HeightValues = new List<int>(height);
          nextPosition = new Position(tilesizehorz, tilesizevert);
 
@@ -2180,9 +2231,11 @@ namespace Encoder {
          ValueWrap = new Wraparound(MaxHeight);
 
 #if EXPLORERFUNCTION
+
          CodingTypeStd_Info = new List<string>();
          CodingTypePlateauFollowerNotZero_Info = new List<string>();
          CodingTypePlateauFollowerZero_Info = new List<string>();
+
 #endif
       }
 
@@ -2231,6 +2284,7 @@ namespace Encoder {
       }
 
 #if EXPLORERFUNCTION
+
       /// <summary>
       /// liefert die codierte Bitfolge als Zeichenkette mit '1' und '.'
       /// </summary>
@@ -2253,6 +2307,7 @@ namespace Encoder {
          sb.Replace('0', '.');
          return sb.ToString();
       }
+
 #endif
 
       /// <summary>
@@ -2299,7 +2354,6 @@ namespace Encoder {
                   int hv = ValidHeight(pos, -1, 0);
                   int sgnddiff = Math.Sign(ValidHeightDDiff(pos));
 
-#if INCLUDENOTNEEDED
                   if (hdiff_up >= MaxHeight - hv) {
 
                      data = -sgnddiff * (ValidHeight(pos) + 1);
@@ -2316,10 +2370,6 @@ namespace Encoder {
                      caltype = CalculationType.Standard;
 
                   }
-#else
-                  data = -sgnddiff * (ValidHeightHDiff(pos) - hdiff_up);
-                  caltype = CalculationType.Standard;
-#endif
 
                   AddHeightValue(data, caltype, pos, ct_std);
 
@@ -2518,6 +2568,7 @@ namespace Encoder {
                ct.AddValue(data);
 
 #if EXPLORERFUNCTION
+
                List<string> infolst = null;
 
                if (ct is CodingTypeStd) {
@@ -2537,6 +2588,7 @@ namespace Encoder {
                   info += "; [" + ct.ExtInfo4LastAdd + "]";
 
                infolst.Add(info);
+
 #endif
             }
          }
@@ -2666,6 +2718,7 @@ namespace Encoder {
       #endregion
 
 #if EXPLORERFUNCTION
+
       #region zum Ermitteln der Bitfolgen
 
       static public List<byte> LengthCoding0(int data) {
@@ -2697,6 +2750,7 @@ namespace Encoder {
       }
 
       #endregion
+
 #endif
 
 #if EXPLORERFUNCTION
