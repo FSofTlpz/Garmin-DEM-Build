@@ -704,10 +704,12 @@ namespace BuildDEMFile {
          //   ptx += subtilesize;                 // => 64..96
          //}
 
-         int subtilesy = pty / subtilesize;     // Anzahl der Subtiles untereinander
+         int subtilesy = pty / subtilesize;     // Anzahl der vollständigen Subtiles untereinander
          pty -= subtilesy * subtilesize;
          if (pty > 0)
             subtilesy++;
+         else
+            pty = 64;
 
          Subtile[,] subtiles = new Subtile[subtilesx, subtilesy];
 

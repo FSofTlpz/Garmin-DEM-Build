@@ -421,7 +421,7 @@ namespace Input2 {
                   break;
                default:
                   int hunit = (int)Math.Pow(2, listBox_SingleTest.SelectedIndex - 3);
-                  if (hunit <= 256)
+                  if (hunit <= 2048)
                      bits = Encoder.TileEncoder.HybridCoding(val, (int)numericUpDown_maxdiff.Value, hunit);
                   else if (hunit == 512)
                      bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiff.Value);

@@ -91,7 +91,7 @@ namespace Input2 {
                         case Encoder.TileEncoder.HeightElement.Typ.PlateauFollower:
                            textBox_Encoder.AppendText(string.Format("Idx={0}, PlateauFollower ActualHeigth={1}, Value={2}{3} {4} [{5}] {6}{7} ddiff={8}{9}",
                                                                      enc.Elements[i].Column,
-                                                                     enc.ActualHeigth,
+                                                                     enc.ActualHeight,
                                                                      enc.Elements[i].Data,
                                                                      enc.Elements[i].WrappedValue ? " (Wrap)" : "",
                                                                      enc.Elements[i].CalculationType,
@@ -111,7 +111,7 @@ namespace Input2 {
                         case Encoder.TileEncoder.HeightElement.Typ.Value:
                            textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1}, Value={2}{3} {4} [{5}] {6}{7}{8}",
                                                                      enc.Elements[i].Column,
-                                                                     enc.ActualHeigth,
+                                                                     enc.ActualHeight,
                                                                      enc.Elements[i].Data,
                                                                      enc.Elements[i].WrappedValue ? " (Wrap)" : "",
                                                                      enc.Elements[i].CalculationType,

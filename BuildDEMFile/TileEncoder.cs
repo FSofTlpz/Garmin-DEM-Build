@@ -1796,6 +1796,9 @@ namespace Encoder {
             Eval = EvaluateData(SumL, ElemCount, data, true);
 
             SumH += dh;
+            if (SumH + unitdelta + 1 >= 0xFFFF)
+               SumH -= 0x10000;
+
             SumL += Eval;
 
             // ---- ElemCount aktualisieren ----
@@ -1867,6 +1870,8 @@ namespace Encoder {
 
             // ---- SumH aktualisieren ----
             SumH += Math.Abs(data);
+            if (SumH + unitdelta + 1 >= 0xFFFF)
+               SumH -= 0x10000;
 
             // ---- ElemCount aktualisieren ----
             ElemCount++;
@@ -1944,6 +1949,8 @@ namespace Encoder {
                SumH += data;
             else
                SumH += 1 - data;
+            if (SumH + unitdelta + 1 >= 0xFFFF)
+               SumH -= 0x10000;
 
             Eval = data <= 0 ? -1 : 1;
             SumL += Eval;

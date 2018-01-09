@@ -442,6 +442,9 @@
             "Hybrid mit HUnit 64",
             "Hybrid mit HUnit 128",
             "Hybrid mit HUnit 256",
+            "Hybrid mit HUnit 512",
+            "Hybrid mit HUnit 1024",
+            "Hybrid mit HUnit 2048",
             "großer Wert (Hybrid)",
             "großer Wert (L0)",
             "großer Wert (L1)"});
