@@ -17,9 +17,9 @@ namespace BuildDEMFile {
       public string DEMFilename { get; private set; }
 
       /// <summary>
-      /// Pfad zu den HGT-Dateien
+      /// Pfade zu den DEM-Dateien
       /// </summary>
-      public string HGTPath { get; private set; }
+      public List<string> DemPath { get; private set; }
 
       /// <summary>
       /// verwendet Dummydaten wenn keine HGT-Daten ex.
@@ -27,9 +27,14 @@ namespace BuildDEMFile {
       public bool UseDummyData { get; private set; }
 
       /// <summary>
-      /// falls HGT-Daten gelesen werden, können sie in diese Textdatei ausgegeben werden
+      /// Pfad zu einer GMPA-Karte
       /// </summary>
-      public string HGTDataOutput { get; private set; }
+      public string GmapPath { get; private set; }
+
+      /// <summary>
+      /// falls DEM-Daten gelesen werden, können sie in eine Textdatei ausgegeben werden
+      /// </summary>
+      public bool DemDataOutput { get; private set; }
 
       /// <summary>
       /// Name der Textdatei mit den Daten
@@ -67,6 +72,16 @@ namespace BuildDEMFile {
       public List<double> PixelHeight { get; private set; }
 
       /// <summary>
+      /// Breite eines DEM-Pixels für die Overview-Karte
+      /// </summary>
+      public List<double> OverviewPixelWidth { get; private set; }
+
+      /// <summary>
+      /// Höhe eines DEM-Pixels für die Overview-Karte
+      /// </summary>
+      public List<double> OverviewPixelHeight { get; private set; }
+
+      /// <summary>
       /// Breite des DEM-Bereiches
       /// </summary>
       public double DEMWidth { get; set; }
@@ -91,26 +106,23 @@ namespace BuildDEMFile {
       /// </summary>
       public int Multithread { get; private set; }
 
-      /// <summary>
-      /// wenn größer 2, wird die Größe der HGT-Tabelle entsprechend geändert
-      /// </summary>
-      public int ChangeHGTSize { get; private set; }
-
 
       FSoftUtils.CmdlineOptions cmd;
 
       enum MyOptions {
          DEMFilename,
-         HGTPath,
+         DemPath,
+         GmapPath,
          TREFilename,
          PixelWidth,
          PixelHeight,
+         OverviewPixelWidth,
+         OverviewPixelHeight,
          UseDummyData,
-         ChangeHGTSize,
          LastColStd,
          OutputOverwrite,
          DataInFoot,
-         HGTDataOutput,
+         DemDataOutput,
          DataFilename,
          TRELeft,
          TRETop,
@@ -126,16 +138,18 @@ namespace BuildDEMFile {
          cmd = new FSoftUtils.CmdlineOptions();
          // Definition der Optionen
          cmd.DefineOption((int)MyOptions.DEMFilename, "dem", "d", "name of the new DEM-file", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.HGTPath, "hgtpath", "", "path of the HGT-files", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.DemPath, "hgtpath", "", "path of the HGT/TIF-files (multiple usage)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.GmapPath, "gmappath", "", "path of the gmap-map", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.OverviewPixelWidth, "ovdlon", "", "horizontal distance between DEM-points for verviewmap (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.OverviewPixelHeight, "ovdlat", "", "vertical distance between DEM-points for verviewmap (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "name of TRE-file (with the bounding area)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
          cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "horizontal distance between DEM-points (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "vertical distance between DEM-points (multiple usage for different zoomlevel; default the same as dlon and then not necessary)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "use NODATA-values (" + short.MinValue.ToString() + ") for absent HGT's (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.ChangeHGTSize, "changehgtsize", "", "change the HGT-table size (min. 3)", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
          cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "last subtile column have default width (64 points) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "overwrites the  DEM file if exist (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "values in DEM in foot or else in meter (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.HGTDataOutput, "hgtoutput", "", "write interpolated data in text files (for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.DemDataOutput, "hgtoutput", "", "write interpolated data in text files (for test, default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "read height data from text files (for test, multiple usage)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
          cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "westerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "northerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
@@ -152,9 +166,10 @@ namespace BuildDEMFile {
       void Init() {
          DEMFilename = "";
          DataFilename = new List<string>();
-         HGTPath = "";
+         DemPath = new List<string>();
+         DemDataOutput = false;
+         GmapPath = "";
          UseDummyData = false;
-         ChangeHGTSize = -1;
          DataInFoot = false;
          TRELeft =
          TRETop =
@@ -162,6 +177,8 @@ namespace BuildDEMFile {
          DEMHeight = double.NaN;
          PixelWidth = new List<double>();
          PixelHeight = new List<double>();
+         OverviewPixelWidth = new List<double>();
+         OverviewPixelHeight = new List<double>();
          TREFilename = "";
          LastColStd = false;
          OutputOverwrite = false;
@@ -195,12 +212,23 @@ namespace BuildDEMFile {
                         DEMFilename = cmd.StringValue((int)opt).Trim();
                         break;
 
-                     case MyOptions.HGTPath:
-                        HGTPath = cmd.StringValue((int)opt).Trim();
+                     case MyOptions.DemPath:
+                        for (int i = 0; i < optcount; i++) {
+                           string tmp = cmd.StringValue((int)opt, i).Trim();
+                           if (tmp.Length > 0)
+                              DemPath.Add(tmp);
+                        }
                         break;
 
-                     case MyOptions.HGTDataOutput:
-                        HGTDataOutput = cmd.StringValue((int)opt).Trim();
+                     case MyOptions.GmapPath:
+                        GmapPath = cmd.StringValue((int)opt).Trim();
+                        break;
+
+                     case MyOptions.DemDataOutput:
+                        if (cmd.ArgIsUsed((int)opt))
+                           DemDataOutput = cmd.BooleanValue((int)opt);
+                        else
+                           DemDataOutput = true;
                         break;
 
                      case MyOptions.UseDummyData:
@@ -253,6 +281,16 @@ namespace BuildDEMFile {
                            PixelHeight.Add(cmd.DoubleValue((int)opt, i));
                         break;
 
+                     case MyOptions.OverviewPixelWidth:
+                        for (int i = 0; i < optcount; i++)
+                           OverviewPixelWidth.Add(cmd.DoubleValue((int)opt, i));
+                        break;
+
+                     case MyOptions.OverviewPixelHeight:
+                        for (int i = 0; i < optcount; i++)
+                           OverviewPixelHeight.Add(cmd.DoubleValue((int)opt, i));
+                        break;
+
                      case MyOptions.DEMWidth:
                         DEMWidth = cmd.DoubleValue((int)opt);
                         break;
@@ -261,11 +299,6 @@ namespace BuildDEMFile {
                         DEMHeight = cmd.DoubleValue((int)opt);
                         break;
 
-                     case MyOptions.ChangeHGTSize:
-                        ChangeHGTSize = (int)cmd.UnsignedIntegerValue((int)opt);
-                        if (ChangeHGTSize < 3)
-                           throw new Exception("error for " + cmd.OptionName((int)opt) + ": values < 3 not permitted");
-                        break;
 
                      //case MyOptions.Multithread:
                      //   if (cmd.ArgIsUsed((int)opt))
@@ -290,6 +323,13 @@ namespace BuildDEMFile {
             }
             while (PixelWidth.Count < PixelHeight.Count) {
                PixelWidth.Add(PixelHeight[PixelWidth.Count]);
+            }
+
+            while (OverviewPixelHeight.Count < OverviewPixelWidth.Count) {
+               OverviewPixelHeight.Add(OverviewPixelWidth[OverviewPixelHeight.Count]);
+            }
+            while (OverviewPixelWidth.Count < OverviewPixelHeight.Count) {
+               OverviewPixelWidth.Add(OverviewPixelHeight[OverviewPixelWidth.Count]);
             }
 
             if (cmd.Parameters.Count > 0)

@@ -9,7 +9,7 @@ namespace BuildDEMFile {
       /// <summary>
       /// Werte die gleich (oder größer) sind, werden als "Höhe unbekannt" registriert
       /// </summary>
-      public const int UNDEF = short.MaxValue;
+      public const int UNDEF4ENCODER = short.MaxValue;
 
 
       /// <summary>
@@ -149,8 +149,8 @@ namespace BuildDEMFile {
          bool bWithIntMax = dat.GetMinMax(out min, out max);
 
          // Daten normieren
-         if (min >= UNDEF) { // alle Werte sind "ungültig"
-            dat.ReplaceBigValues(UNDEF, 1);
+         if (min >= UNDEF4ENCODER) { // alle Werte sind "ungültig"
+            dat.ReplaceBigValues(UNDEF4ENCODER, 1);
             Tableitem.Baseheight = 0;
             Tableitem.Diff = 1;
             Tableitem.Type = 2;
@@ -158,7 +158,7 @@ namespace BuildDEMFile {
             Tableitem.Type = 0;  // alle Werte sind gültig
             if (bWithIntMax) { // nicht alle, aber einige Werte sind "ungültig"
                Tableitem.Type = 2;
-               dat.ReplaceBigValues(UNDEF, ++max);
+               dat.ReplaceBigValues(UNDEF4ENCODER, ++max);
             }
             Tableitem.Diff = (ushort)(max - min);
             Tableitem.Baseheight = (short)min;

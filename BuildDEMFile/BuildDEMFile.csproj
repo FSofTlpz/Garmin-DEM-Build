@@ -51,13 +51,18 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="PresentationCore" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.XML" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data2Dim.cs" />
+    <Compile Include="DEM1x1.cs" />
+    <Compile Include="DEMNoValues.cs" />
+    <Compile Include="DEMTiffReader.cs" />
     <Compile Include="FileBuilder.cs" />
     <Compile Include="FSoftUtils\CmdlineOptions.cs" />
     <Compile Include="FSoftUtils\SimpleXmlDocument.cs" />
@@ -65,8 +70,8 @@
     <Compile Include="Options.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="HgtDataConverter.cs" />
-    <Compile Include="HGTReader.cs" />
+    <Compile Include="DEMDataConverter.cs" />
+    <Compile Include="DEMHGTReader.cs" />
     <Compile Include="Subtile.cs" />
     <Compile Include="SubtileTableitem.cs" />
     <Compile Include="ThreadPoolExt.cs" />

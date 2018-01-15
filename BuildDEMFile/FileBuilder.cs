@@ -12,7 +12,6 @@ namespace BuildDEMFile {
 
       const int SUBTILEPAKETSIZE = 50;
 
-
       class Data4Zoomlevel {
          /// <summary>
          /// Datendatei
@@ -73,166 +72,75 @@ namespace BuildDEMFile {
 
       }
 
-      /// <summary>
-      /// Liste der Zoomleveldaten
-      /// </summary>
-      List<Data4Zoomlevel> data4Zoomlevel;
-      /// <summary>
-      /// Pfad zu den HGT-Daten
-      /// </summary>
-      string HgtPath;
-      /// <summary>
-      /// Ausgabedatei für HGT-Daten
-      /// </summary>
-      string HgtOutput;
 
-
-      /// <summary>
-      /// 
-      /// </summary>
-      /// <param name="datafile">Textdatei mit Höhendaten</param>
-      /// <param name="hgtpath">Pfad zu den HGT-Dateien</param>
-      /// <param name="left">Ecke links-oben</param>
-      /// <param name="top">Ecke links-oben</param>
-      /// <param name="width">Breite des DEM-Bereiches</param>
-      /// <param name="height">Höhe des DEM-Bereiches</param>
-      /// <param name="londist">Breite des Punktabstandes</param>
-      /// <param name="latdist">Höhe des Punktabstandes</param>
-      /// <param name="hgtoutput">Datei für die Ausgabe der Textdaten</param>
-      public FileBuilder(List<string> datafile,
-                         string hgtpath,
-                         List<double> left, List<double> top,
-                         List<double> width, List<double> height,
-                         List<double> londist, List<double> latdist,
-                         string hgtoutput) {
-
-         data4Zoomlevel = new List<FileBuilder.Data4Zoomlevel>();
-         HgtPath = string.IsNullOrEmpty(hgtpath) ? null : hgtpath;
-         HgtOutput = string.IsNullOrEmpty(hgtoutput) ? null : hgtoutput;
-
-         int count = Math.Min(datafile.Count, left.Count);
-         count = Math.Min(count, top.Count);
-         count = Math.Min(count, londist.Count);
-         count = Math.Min(count, latdist.Count);
-         count = Math.Min(count, width.Count);
-         count = Math.Min(count, height.Count);
-
-         for (int i = 0; i < count; i++) {
-            data4Zoomlevel.Add(new Data4Zoomlevel(datafile[i], left[i], top[i], width[i], height[i], latdist[i], londist[i]));
-
-            if (HgtPath != null)
-               data4Zoomlevel[i].Datafile = null;
-
-            if (HgtPath == null &&
-                data4Zoomlevel[i].Datafile == null)
-               throw new Exception("Need text file or a HGT path.");
-
-            if (double.IsNaN(data4Zoomlevel[i].Left) ||
-                double.IsNaN(data4Zoomlevel[i].Top))
-               throw new Exception("Found no position for DEM area.");
-
-            if (HgtPath != null) {
-               if (double.IsNaN(data4Zoomlevel[i].Width) ||
-                   double.IsNaN(data4Zoomlevel[i].Height))
-                  throw new Exception("Found no width or height of DEM area.");
-
-               if (double.IsNaN(data4Zoomlevel[i].Latdist) ||
-                   double.IsNaN(data4Zoomlevel[i].Londist))
-                  throw new Exception("Found no point distance.");
-            } else {
-               if ((double.IsNaN(data4Zoomlevel[i].Width) ||
-                    double.IsNaN(data4Zoomlevel[i].Height)) &&
-                   (double.IsNaN(data4Zoomlevel[i].Latdist) ||
-                    double.IsNaN(data4Zoomlevel[i].Londist)))
-                  throw new Exception("Need width and height of DEM area or point distance.");
-            }
-         }
-      }
-
-      /// <summary>
-      /// 
-      /// </summary>
-      /// <param name="hgtpath">Pfad zu den HGT-Dateien</param>
-      /// <param name="left">Ecke links-oben</param>
-      /// <param name="top">Ecke links-oben</param>
-      /// <param name="width">Breite des DEM-Bereiches</param>
-      /// <param name="height">Höhe des DEM-Bereiches</param>
-      /// <param name="ptdist">Punktabstand</param>
-      /// <param name="hgtoutput">Datei für die Ausgabe der Textdaten</param>
-      public FileBuilder(string hgtpath, double left, double top, double width, double height, double ptdist, string hgtoutput = null) :
-         this(new List<string>() { null },
-              hgtpath,
-              new List<double>() { left },
-              new List<double>() { top },
-              new List<double>() { width },
-              new List<double>() { height },
-              new List<double>() { ptdist },
-              new List<double>() { ptdist },
-              hgtoutput) { }
-
-      /// <summary>
-      /// 
-      /// </summary>
-      /// <param name="datafile">Textdatei mit Höhendaten</param>
-      /// <param name="left">Ecke links-oben</param>
-      /// <param name="top">Ecke links-oben</param>
-      /// <param name="width">Breite des DEM-Bereiches</param>
-      /// <param name="height">Höhe des DEM-Bereiches</param>
-      public FileBuilder(string datafile, double left, double top, double width, double height) :
-         this(new List<string>() { datafile },
-              null,
-              new List<double>() { left },
-              new List<double>() { top },
-              new List<double>() { width },
-              new List<double>() { height },
-              new List<double>() { double.NaN },
-              new List<double>() { double.NaN },
-              null) { }
-
-      /// <summary>
-      /// 
-      /// </summary>
-      /// <param name="datafile">Textdatei mit Höhendaten</param>
-      /// <param name="left">Ecke links-oben</param>
-      /// <param name="top">Ecke links-oben</param>
-      /// <param name="ptdist">Punktabstand</param>
-      public FileBuilder(string datafile, double left, double top, double ptdist) :
-         this(new List<string>() { datafile },
-              null,
-              new List<double>() { left },
-              new List<double>() { top },
-              new List<double>() { double.NaN },
-              new List<double>() { double.NaN },
-              new List<double>() { ptdist },
-              new List<double>() { ptdist },
-              null) { }
+      public FileBuilder() { }
 
       /// <summary>
       /// Erzeugt die DEM-Datei
       /// </summary>
-      /// <param name="demfile">Name der DEM-Datei</param>
-      /// <param name="footflag">Angaben in Fuß (oder Meter)</param>
-      /// <param name="lastcolstd">letzte Spalte mit Standardbreite</param>
-      /// <param name="overwrite">bestehende Dateien überschreiben</param>
-      /// <param name="dummydataonerror">liefert Dummy-Daten, wenn die Datei nicht ex.</param>
-      /// <param name="changehgtsize">HGT-Größe anpassen, wenn größer 0</param>
-      /// <param name="maxthreads">wenn größer 0, dann Berechnung multithread</param>
+      /// <param name="DemDataPaths">Pfade zu den DEM-Dateien</param>
+      /// <param name="DemDataFile">einzelne DEM-Datendateien (1 je Zoomlevel)</param>
+      /// <param name="DemFile">zu erzeugende Garmin-DEM-Datei</param>
+      /// <param name="Left">linker Rand des Gebietes</param>
+      /// <param name="Top">oberer Rand des Gebietes</param>
+      /// <param name="Width">Breite des Gebietes</param>
+      /// <param name="Height">Höhe des Gebietes</param>
+      /// <param name="LonDistance">Punktabstabstand waagerecht</param>
+      /// <param name="LatDistance">Punktabstabstand senkrecht</param>
+      /// <param name="DemOutFile">Input für Encoder als Textdatei ausgeben</param>
+      /// <param name="footflag">Daten in Fuß</param>
+      /// <param name="lastcolstd">letzte 64x64 Spalte mit Standardbreite</param>
+      /// <param name="overwrite">Zieldatei/en ev. überschreiben</param>
+      /// <param name="dummydataonerror">Dummywerte falls keine DEM Daten ex.</param>
+      /// <param name="maxthreads"></param>
       /// <returns></returns>
-      public bool Create(string demfile, bool footflag, bool lastcolstd, bool overwrite, bool dummydataonerror, int changehgtsize, int maxthreads = 0) {
+      public bool Create(List<string> DemDataPaths,
+                          List<string> DemDataFile,
+                          string DemFile,
+                          double Left,
+                          double Top,
+                          double Width,
+                          double Height,
+                          List<double> LonDistance,
+                          List<double> LatDistance,
+                          bool DemOutFile,
+                          bool footflag,
+                          bool lastcolstd,
+                          bool overwrite,
+                          bool dummydataonerror,
+                          int maxthreads = 0) {
          DateTime starttime = DateTime.Now;
 
          if (!overwrite &&
-             File.Exists(demfile)) {
-            Console.Error.WriteLine("File '" + demfile + "' exist and must not overwritten.");
+             File.Exists(DemFile)) {
+            Console.Error.WriteLine("File '" + DemFile + "' exist and must not overwritten.");
             return false;
          }
+         Console.WriteLine("create '" + DemFile + "' ...");
 
-         List<Subtile[,]> tiles4zoomlevel = new List<Subtile[,]>(); // für jeden Zoomlevel ein Tile-Array
-         HgtDataConverter hgtconv = null;
+         if (LonDistance.Count != LatDistance.Count)
+            throw new Exception("number of 'LonDistance' unequal number of 'LatDistance' (is number of Zoomlevels)");
+         if (DemDataFile.Count > 0 && DemDataFile.Count != LatDistance.Count)
+            throw new Exception("number of 'DemDataFile' unequal number of 'LatDistance' (is number of Zoomlevels)");
+         if (DemDataFile.Count == 0 && DemDataPaths.Count == 0)
+            throw new Exception("no dem source given");
+
+         List<Data4Zoomlevel> data4Zoomlevel = new List<Data4Zoomlevel>();
+         for (int i = 0; i < LonDistance.Count; i++)
+            data4Zoomlevel.Add(new Data4Zoomlevel(DemDataFile.Count == LonDistance.Count ? DemDataFile[i] : "",
+                                                  Left,
+                                                  Top,
+                                                  Width,
+                                                  Height,
+                                                  LatDistance[i],
+                                                  LonDistance[i]));
 
          Console.WriteLine(data4Zoomlevel.Count.ToString() + " zoomlevel");
 
-         if (!string.IsNullOrEmpty(HgtPath)) { // ------------------- Daten (für alle Zoomlevel) nur 1x aus den HGT-Daten einlesen
+         List<Subtile[,]> tiles4zoomlevel = new List<Subtile[,]>(); // für jeden Zoomlevel ein Tile-Array
+         DEMDataConverter demconverter = null;
+
+         if (DemDataPaths.Count > 0) { // ------------------- Daten (für alle Zoomlevel) nur 1x aus den DEM-Daten einlesen
             double mostleft = double.MaxValue;
             double mostright = double.MinValue;
             double mostbottom = double.MaxValue;
@@ -265,23 +173,10 @@ namespace BuildDEMFile {
                ShowZoomlevelInfo(tiles, data4Zoomlevel[z], true);
             }
 
-            hgtconv = new HgtDataConverter();
-            if (!hgtconv.ReadData(HgtPath, mostleft, mosttop, mostright, mostbottom, dummydataonerror, changehgtsize)) {     // HGT-Rohdaten einlesen
-               Console.Error.WriteLine("Can not read all necessary HGT's.");
+            demconverter = new DEMDataConverter();
+            if (!demconverter.ReadData(DemDataPaths, mostleft, mosttop, mostright, mostbottom, dummydataonerror)) {     // DEM-Rohdaten einlesen
+               Console.Error.WriteLine("Can not read all necessary DEM's.");
                return false;
-            }
-
-            if (!string.IsNullOrEmpty(HgtOutput)) {   // HGT-Daten ausgeben
-               string ext = Path.GetExtension(HgtOutput).ToLower();
-               for (int z = 0; z < data4Zoomlevel.Count; z++)
-                  WriteHgtOutput(HgtOutput.Substring(0, HgtOutput.Length - ext.Length) + "_zl" + (z + 1).ToString() + ext,
-                                 hgtconv.BuildHeightArray(data4Zoomlevel[z].Left,
-                                                          data4Zoomlevel[z].Top,
-                                                          data4Zoomlevel[z].Width,
-                                                          data4Zoomlevel[z].Height,
-                                                          data4Zoomlevel[z].Londist,
-                                                          data4Zoomlevel[z].Latdist,
-                                                          footflag));
             }
 
          } else { // ------------------- Daten aus Textdatei einlesen
@@ -319,9 +214,32 @@ namespace BuildDEMFile {
             }
          }
 
+         if (DemOutFile) {   // DEM-Daten als Textdatei ausgeben
+            string outfile = DemFile.Substring(0, DemFile.Length - Path.GetExtension(DemFile).Length);
+            for (int z = 0; z < data4Zoomlevel.Count; z++) {
+               outfile += "_zl" + (z + 1).ToString() + ".txt";
+               if (!overwrite &&
+                   File.Exists(outfile)) {
+                  Console.Error.WriteLine("File '" + outfile + "' exist and must not overwritten.");
+                  return false;
+               }
+               WriteHgtOutput(outfile,
+                              demconverter.BuildHeightArray(data4Zoomlevel[z].Left,
+                                                             data4Zoomlevel[z].Top,
+                                                             data4Zoomlevel[z].Width,
+                                                             data4Zoomlevel[z].Height,
+                                                             data4Zoomlevel[z].Londist,
+                                                             data4Zoomlevel[z].Latdist,
+                                                             footflag));
+            }
+         }
+
+
+
          /*    Die interne Optimierung scheint mehr zu bringen als Multithreading!!
           *    32 Bit ist schneller als 64 Bit!
           */
+         //maxthreads = 4;
 
          // ----- wenn min. 1 Zoomlevel ex. beginnt jetzt die Codierung
          if (tiles4zoomlevel.Count > 0) {
@@ -347,14 +265,14 @@ namespace BuildDEMFile {
                      subtilepacket.Add(tiles4zoomlevel[z][x, y]);
                      if (subtilepacket.Count >= SUBTILEPAKETSIZE) {
                         count += subtilepacket.Count;
-                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? calctp : null, hgtconv, footflag);
+                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? calctp : null, demconverter, footflag);
                      }
                   }
                }
             }
             if (subtilepacket.Count > 0) {
                count += subtilepacket.Count;
-               EncodeSubtilePaket(subtilepacket, calctp, hgtconv, footflag);
+               EncodeSubtilePaket(subtilepacket, calctp, demconverter, footflag);
             }
 
             if (maxthreads > 0) {
@@ -374,22 +292,25 @@ namespace BuildDEMFile {
             head.Unknown1B = 0;
             head.Unknown25 = 1;
             head.Zoomlevel = (ushort)tiles4zoomlevel.Count;
-            List<ZoomlevelData> Zoomlevel = CreateZoomlevel(tiles4zoomlevel, head);
+            List<ZoomlevelData> Zoomlevel = CreateZoomlevel(data4Zoomlevel, tiles4zoomlevel, head);
 
             head.PtrZoomlevelTable = head.Length;
             for (int z = 0; z < Zoomlevel.Count; z++)
                head.PtrZoomlevelTable += Zoomlevel[z].GetTableAreaSize() + Zoomlevel[z].GetHeightDataAreaSize();
 
             // Jetzt sollten alle Daten gesetzt sein und die Datei kann geschrieben werden.
-            using (BinaryWriter w = new BinaryWriter(File.Create(demfile)))
+            using (BinaryWriter w = new BinaryWriter(File.Create(DemFile))) {
                WriteDEM(w, head, Zoomlevel);
+               Console.WriteLine(string.Format(DemFile + ", {0} bytes", w.BaseStream.Length));
+            }
 
-            Console.WriteLine("runtime {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
+            Console.WriteLine("runtime {0:N3}s", (DateTime.Now - starttime).TotalSeconds);
 
          } else {
             Console.Error.WriteLine("to less data");
             return false;
          }
+
          return true;
       }
 
@@ -411,7 +332,7 @@ namespace BuildDEMFile {
       /// <param name="tg">wenn null, wird ohne Multithreading encodiert</param>
       /// <param name="hgtconv">wenn null, müssen die Höhendaten in den <see cref="Subtile"/> schon vorhanden sein</param>
       /// <param name="footflag">wenn true, dann Höhendaten in Fuß, sonst Meter</param>
-      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, HgtDataConverter hgtconv, bool footflag) {
+      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, DEMDataConverter hgtconv, bool footflag) {
          if (tp == null) {    // Paket direkt encodieren
             for (int i = 0; i < subtilepacket.Count; i++) {
                if (hgtconv != null) {
@@ -466,8 +387,8 @@ namespace BuildDEMFile {
                            if (args[1] == null) // kein HgtDataConverter
                               st.Encoding();          // Daten aus Textdatei sind schon vorhanden
                            else {
-                              if (args[1] is HgtDataConverter) {
-                                 HgtDataConverter hdc = args[1] as HgtDataConverter;
+                              if (args[1] is DEMDataConverter) {
+                                 DEMDataConverter hdc = args[1] as DEMDataConverter;
                                  Data2Dim dat = new Data2Dim(hdc.BuildHeightArray(st.PlannedLeft,
                                                                                   st.PlannedTop,
                                                                                   st.PlannedLonDistance,
@@ -531,8 +452,12 @@ namespace BuildDEMFile {
 
                for (int i = 0; i < sData.Length; i++) {
                   int val = Convert.ToInt32(sData[i].Trim());
+                  if (val == DEM1x1.NOVALUE ||
+                      val > Subtile.UNDEF4ENCODER)    // 2 verschiedene Varianten für "nodata"
+                     val = Subtile.UNDEF4ENCODER;
+
                   minheight = Math.Min(minheight, val);
-                  if (val < Subtile.UNDEF)
+                  if (val == Subtile.UNDEF4ENCODER)
                      maxheight = Math.Max(maxheight, val);
                   heights.Add(val);
                }
@@ -734,6 +659,7 @@ namespace BuildDEMFile {
          int minbaseheight = int.MaxValue;
          int maxbaseheight = int.MinValue;
          int maxheight = int.MinValue;
+         int maxdiff = int.MinValue;
          uint maxoffset = uint.MinValue;
 
          bool bOnylType0 = true; // Werden nur Subtiles mit Typ 0 verwendet?
@@ -743,6 +669,7 @@ namespace BuildDEMFile {
             minbaseheight = Math.Min(minbaseheight, baseheight);
             maxbaseheight = Math.Max(maxbaseheight, baseheight);
             maxheight = Math.Max(maxheight, baseheight + zoomleveldata.Subtiles[i].Tableitem.Diff);
+            maxdiff = Math.Max(maxdiff, zoomleveldata.Subtiles[i].Tableitem.Diff);
             zoomleveldata.Subtiles[i].Tableitem.Offset = zoomleveldata.Subtiles[i].DataLength > 0 ? offset : 0;
             offset += (uint)zoomleveldata.Subtiles[i].DataLength;
             maxoffset = Math.Max(maxoffset, zoomleveldata.Subtiles[i].Tableitem.Offset); // größter zu speichernder Zahlenwert
@@ -768,7 +695,7 @@ namespace BuildDEMFile {
          else
             zoomleveldata.Tableitem.Structure_BaseheightSize = 2;
 
-         if (maxheight < 255)
+         if (maxdiff < 255)
             zoomleveldata.Tableitem.Structure_DiffSize = 1;
          else
             zoomleveldata.Tableitem.Structure_DiffSize = 2;
@@ -782,7 +709,7 @@ namespace BuildDEMFile {
       /// <param name="tiles">Subtiles je Zoomlevel</param>
       /// <param name="head">Header der erzeugt wird</param>
       /// <returns></returns>
-      List<ZoomlevelData> CreateZoomlevel(List<Subtile[,]> tiles, Head head) {
+      List<ZoomlevelData> CreateZoomlevel(List<Data4Zoomlevel> data4Zoomlevel, List<Subtile[,]> tiles, Head head) {
          List<ZoomlevelData> zl = new List<ZoomlevelData>();
 
          for (int z = 0; z < tiles.Count; z++) {
