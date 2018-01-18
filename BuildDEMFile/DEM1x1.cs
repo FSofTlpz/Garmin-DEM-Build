@@ -195,8 +195,16 @@ namespace BuildDEMFile {
 
             } else {                         // Punkt innerhalb des Rechtecks
 
-               int leftbottom, rightbottom, righttop, lefttop;
-               Get4XYSquare(x, y, out leftbottom, out rightbottom, out righttop, out lefttop);  // etwas schneller als die obere Version
+               //int leftbottom, rightbottom, righttop, lefttop;
+               //Get4XYSquare(x, y, out leftbottom, out rightbottom, out righttop, out lefttop);  // etwas schneller als die obere Version
+
+               int idx = (Rows - 1 - y) * Columns; // Anfang der unteren Zeile
+               idx += x;
+               int leftbottom = data[idx++];
+               int rightbottom = data[idx];
+               idx -= Columns;
+               int righttop = data[idx--];
+               int lefttop = data[idx];
                h = InterpolatedHeightInNormatedRectangle_New(delta_lon / DeltaX,
                                                              delta_lat / DeltaY,
                                                              lefttop,
@@ -208,6 +216,20 @@ namespace BuildDEMFile {
 
          return h;
       }
+
+      //protected void Get4XYSquare1(int x, int y,
+      //                            out int leftbottom, out int rightbottom, out int righttop, out int lefttop) {
+      //   //if (xleft < 0 || Columns <= xleft + 1 ||
+      //   //    ybottom < 0 || Rows <= ybottom + 1)
+      //   //   throw new Exception(string.Format("({0}, {1}) is out of area ({2}x{3})", xleft, ybottom, Columns, Rows));
+      //   int idx = (Rows - 1 - y) * Columns; // Anfang der unteren Zeile
+      //   idx += x;
+      //   leftbottom = data[idx++];
+      //   rightbottom = data[idx];
+      //   idx -= Columns;
+      //   righttop = data[idx--];
+      //   lefttop = data[idx];
+      //}
 
       /// <summary>
       /// resize the internal datatable
@@ -250,7 +272,6 @@ namespace BuildDEMFile {
          return false;
       }
 
-
       /// <summary>
       /// get surrounding 4 point
       /// </summary>
@@ -262,10 +283,9 @@ namespace BuildDEMFile {
       /// <param name="lefttop"></param>
       protected void Get4XYSquare(int xleft, int ybottom,
                                   out int leftbottom, out int rightbottom, out int righttop, out int lefttop) {
-         if (xleft < 0 || Columns <= xleft + 1 ||
-             ybottom < 0 || Rows <= ybottom + 1)
-            throw new Exception(string.Format("({0}, {1}) is out of area ({2}x{3})", xleft, ybottom, Columns, Rows));
-
+         //if (xleft < 0 || Columns <= xleft + 1 ||
+         //    ybottom < 0 || Rows <= ybottom + 1)
+         //   throw new Exception(string.Format("({0}, {1}) is out of area ({2}x{3})", xleft, ybottom, Columns, Rows));
          int idx = (Rows - 1 - ybottom) * Columns; // Anfang der unteren Zeile
          idx += xleft;
          leftbottom = data[idx++];
@@ -319,23 +339,27 @@ namespace BuildDEMFile {
             case 1:
                if (hlb == NOVALUE) {            //    valid triangle \|
 
-                  // z = z1 + (1 - nx) * (z3 - z1) + (1 - ny) * (z2 - z1)
-                  return hrt + (1 - qx) * (hlt - hrt) + (1 - qy) * (hrb - hrt);
+                  if (qx >= 1 - qy)
+                     // z = z1 + (1 - nx) * (z3 - z1) + (1 - ny) * (z2 - z1)
+                     return hrt + (1 - qx) * (hlt - hrt) + (1 - qy) * (hrb - hrt);
 
                } else if (hlt == NOVALUE) {     //    valid triangle /|
 
-                  // z = z1 + (1 - nx) * (z2 - z1) + ny * (z3 - z1)
-                  return hrb + (1 - qx) * (hlb - hrb) + qy * (hrt - hrb);
+                  if (qx <= qy)
+                     // z = z1 + (1 - nx) * (z2 - z1) + ny * (z3 - z1)
+                     return hrb + (1 - qx) * (hlb - hrb) + qy * (hrt - hrb);
 
                } else if (hrt == NOVALUE) {     //    valid triangle |\
 
-                  //z = z1 + nx * (z3 - z1) + ny * (z2 - z1)
-                  return hlb + qx * (hrb - hlb) + qy * (hlt - hlb);
+                  if (qx <= 1 - qy)
+                     //z = z1 + nx * (z3 - z1) + ny * (z2 - z1)
+                     return hlb + qx * (hrb - hlb) + qy * (hlt - hlb);
 
                } else if (hrb == NOVALUE) {     //    valid triangle |/
 
-                  // z = z1 + nx * (z2 - z1) + (1 - ny) * (z3 - z1)
-                  return hlt + qx * (hrt - hlt) + (1 - qy) * (hlb - hlt);
+                  if (qx <= qy)
+                     // z = z1 + nx * (z2 - z1) + (1 - ny) * (z3 - z1)
+                     return hlt + qx * (hrt - hlt) + (1 - qy) * (hlb - hlt);
 
                }
                break;

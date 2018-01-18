@@ -76,6 +76,7 @@
     <Compile Include="SubtileTableitem.cs" />
     <Compile Include="ThreadPoolExt.cs" />
     <Compile Include="TileEncoder.cs" />
+    <Compile Include="TileEncoderProd.cs" />
     <Compile Include="TREFileHelper.cs" />
     <Compile Include="ZoomlevelData.cs" />
     <Compile Include="ZoomlevelTableitem.cs" />

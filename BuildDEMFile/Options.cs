@@ -102,6 +102,11 @@ namespace BuildDEMFile {
       public bool OutputOverwrite { get; private set; }
 
       /// <summary>
+      /// den ursprünglichen Testencoder verwenden (langsam!)
+      /// </summary>
+      public bool UseTestEncoder { get; private set; }
+
+      /// <summary>
       /// Berechnung multithreaded
       /// </summary>
       public int Multithread { get; private set; }
@@ -128,6 +133,7 @@ namespace BuildDEMFile {
          TRETop,
          DEMWidth,
          DEMHeight,
+         UseTestEncoder,
          //Multithread,
 
          Help,
@@ -155,6 +161,7 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "northerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "width of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "height of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.UseTestEncoder, "testencoder", "", "use testencoder (slow!) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          //         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
          cmd.DefineOption((int)MyOptions.Help, "help", "?", "this text", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
@@ -182,6 +189,7 @@ namespace BuildDEMFile {
          TREFilename = "";
          LastColStd = false;
          OutputOverwrite = false;
+         UseTestEncoder = false;
          Multithread = 0;
       }
 
@@ -297,6 +305,13 @@ namespace BuildDEMFile {
 
                      case MyOptions.DEMHeight:
                         DEMHeight = cmd.DoubleValue((int)opt);
+                        break;
+
+                     case MyOptions.UseTestEncoder:
+                        if (cmd.ArgIsUsed((int)opt))
+                           UseTestEncoder = cmd.BooleanValue((int)opt);
+                        else
+                           UseTestEncoder = true;
                         break;
 
 

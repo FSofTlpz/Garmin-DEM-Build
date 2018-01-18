@@ -235,6 +235,7 @@ namespace BuildDEMFile {
                         opt.LastColStd,
                         opt.OutputOverwrite,
                         opt.UseDummyData,
+                        opt.UseTestEncoder,
                         opt.Multithread);
 
          } catch (Exception ex) {

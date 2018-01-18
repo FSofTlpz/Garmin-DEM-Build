@@ -137,8 +137,9 @@ namespace BuildDEMFile {
       /// <summary>
       /// encodiert die Daten (die Daten werden dabei verändert!)
       /// </summary>
+      /// <param name="usetestencoder"></param>
       /// <param name="intdata">zu encodierende Daten</param>
-      public void Encoding(Data2Dim intdata = null) {
+      public void Encoding(bool usetestencoder, Data2Dim intdata = null) {
          if (intdata != null)
             dat = new Data2Dim(intdata);
 
@@ -169,12 +170,15 @@ namespace BuildDEMFile {
             CodedData = new byte[0];
          } else {
 
-            Encoder.TileEncoder enc = new Encoder.TileEncoder(MaxDiffHeight, Codingtype, Width, Height, dat.GetAll());
-            bool bTileIsFull;
-            do {
-               enc.ComputeNext(out bTileIsFull);
-            } while (!bTileIsFull);
-            CodedData = enc.GetCodedBytes();
+            if (usetestencoder) {
+               Encoder.TileEncoder enc = new Encoder.TileEncoder(MaxDiffHeight, Codingtype, Width, Height, dat.GetAll());
+               bool bTileIsFull;
+               do {
+                  enc.ComputeNext(out bTileIsFull);
+               } while (!bTileIsFull);
+               CodedData = enc.GetCodedBytes();
+            } else
+               CodedData = new Encoder.TileEncoderProd(MaxDiffHeight, Width, Height, dat.GetAll()).Encode();
 
          }
       }

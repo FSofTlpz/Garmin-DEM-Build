@@ -407,7 +407,26 @@ namespace Input2 {
       private void button_SingleTest_Click(object sender, EventArgs e) {
          int val = (int)numericUpDown_SingleTest.Value;
          List<byte> bits = new List<byte>();
-
+         /*
+            0     Längencodierung L0
+            1     Längencodierung L1
+            2     Längencodierung L2
+            3     Hybrid mit HUnit 1
+            4     Hybrid mit HUnit 2
+                  Hybrid mit HUnit 4
+                  Hybrid mit HUnit 8
+                  Hybrid mit HUnit 16
+                  Hybrid mit HUnit 32
+                  Hybrid mit HUnit 64
+                  Hybrid mit HUnit 128
+                  Hybrid mit HUnit 256
+                  Hybrid mit HUnit 512
+                  Hybrid mit HUnit 1024
+            14    Hybrid mit HUnit 2048
+            15    großer Wert (Hybrid)
+            16    großer Wert (L0)
+            17    großer Wert (L1)
+         */
          try {
             switch (listBox_SingleTest.SelectedIndex) {
                case 0:
@@ -419,17 +438,22 @@ namespace Input2 {
                case 2:
                   bits = Encoder.TileEncoder.LengthCoding2(val);
                   break;
+
+               case 15:
+                  bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiff.Value);
+                  break;
+               case 16:
+                  bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiff.Value);
+                  break;
+               case 17:
+                  bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiff.Value);
+                  break;
+
                default:
                   int hunit = (int)Math.Pow(2, listBox_SingleTest.SelectedIndex - 3);
                   if (hunit <= 2048)
                      bits = Encoder.TileEncoder.HybridCoding(val, (int)numericUpDown_maxdiff.Value, hunit);
-                  else if (hunit == 512)
-                     bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiff.Value);
-                  else if (hunit == 1024)
-                     bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiff.Value);
-                  else
-                     bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiff.Value);
-                  break;
+                 break;
             }
          } catch (Exception ex) {
             MessageBox.Show("Fehler: " + ex.Message, "Fehler");
@@ -533,5 +557,6 @@ namespace Input2 {
          if (checkBox_Normalized.Checked) // nicht beide gleichzeitig true
             checkBoxMinMaxAuto.Checked = false;
       }
+
    }
 }

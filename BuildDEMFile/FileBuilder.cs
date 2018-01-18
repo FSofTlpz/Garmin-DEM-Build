@@ -10,7 +10,7 @@ namespace BuildDEMFile {
 
       const int STDSUBTILESIZE = 64;
 
-      const int SUBTILEPAKETSIZE = 50;
+      const int SUBTILEPAKETSIZE = 200;
 
       class Data4Zoomlevel {
          /// <summary>
@@ -92,6 +92,7 @@ namespace BuildDEMFile {
       /// <param name="lastcolstd">letzte 64x64 Spalte mit Standardbreite</param>
       /// <param name="overwrite">Zieldatei/en ev. überschreiben</param>
       /// <param name="dummydataonerror">Dummywerte falls keine DEM Daten ex.</param>
+      /// <param name="usetestencoder">Testencoder verwenden</param>
       /// <param name="maxthreads"></param>
       /// <returns></returns>
       public bool Create(List<string> DemDataPaths,
@@ -108,6 +109,7 @@ namespace BuildDEMFile {
                           bool lastcolstd,
                           bool overwrite,
                           bool dummydataonerror,
+                          bool usetestencoder,
                           int maxthreads = 0) {
          DateTime starttime = DateTime.Now;
 
@@ -265,14 +267,14 @@ namespace BuildDEMFile {
                      subtilepacket.Add(tiles4zoomlevel[z][x, y]);
                      if (subtilepacket.Count >= SUBTILEPAKETSIZE) {
                         count += subtilepacket.Count;
-                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? calctp : null, demconverter, footflag);
+                        EncodeSubtilePaket(subtilepacket, maxthreads > 1 ? calctp : null, demconverter, footflag, usetestencoder);
                      }
                   }
                }
             }
             if (subtilepacket.Count > 0) {
                count += subtilepacket.Count;
-               EncodeSubtilePaket(subtilepacket, calctp, demconverter, footflag);
+               EncodeSubtilePaket(subtilepacket, calctp, demconverter, footflag, usetestencoder);
             }
 
             if (maxthreads > 0) {
@@ -332,7 +334,7 @@ namespace BuildDEMFile {
       /// <param name="tg">wenn null, wird ohne Multithreading encodiert</param>
       /// <param name="hgtconv">wenn null, müssen die Höhendaten in den <see cref="Subtile"/> schon vorhanden sein</param>
       /// <param name="footflag">wenn true, dann Höhendaten in Fuß, sonst Meter</param>
-      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, DEMDataConverter hgtconv, bool footflag) {
+      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, DEMDataConverter hgtconv, bool footflag, bool usetestencoder) {
          if (tp == null) {    // Paket direkt encodieren
             for (int i = 0; i < subtilepacket.Count; i++) {
                if (hgtconv != null) {
@@ -343,15 +345,15 @@ namespace BuildDEMFile {
                                                                        subtilepacket[i].Width,
                                                                        subtilepacket[i].Height,
                                                                        footflag));
-                  subtilepacket[i].Encoding(dat);  // HGT-Daten müssen noch geliefert werden
+                  subtilepacket[i].Encoding(usetestencoder, dat);  // HGT-Daten müssen noch geliefert werden
                   dat.Dispose();
                } else
-                  subtilepacket[i].Encoding();     // Daten aus Textdatei sind schon vorhanden
+                  subtilepacket[i].Encoding(usetestencoder);     // Daten aus Textdatei sind schon vorhanden
             }
             Console.Write(".");
          } else {             // Paket im eigenen Thread encodieren
 
-            tp.Start(new object[] { new List<Subtile>(subtilepacket), hgtconv, footflag });  // Kopie der Liste übergeben, weil das Original gleich geleert wird
+            tp.Start(new CalculationParam(subtilepacket, hgtconv, footflag, usetestencoder));
 
          }
          subtilepacket.Clear();
@@ -366,6 +368,19 @@ namespace BuildDEMFile {
 
       // Threading-Problem ev. wegen: http://simplygenius.net/Article/FalseSharing
 
+      class CalculationParam {
+         public List<Subtile> subtilelist;
+         public DEMDataConverter dataconverter;
+         public bool footflag;
+         public bool usetestencoder;
+
+         public CalculationParam(List<Subtile> subtilelist, DEMDataConverter dataconverter, bool footflag, bool usetestencoder) {
+            this.subtilelist = new List<Subtile>(subtilelist);    // Kopie der Liste übernehmen, weil das Original gleich geleert wird
+            this.dataconverter = dataconverter;
+            this.footflag = footflag;
+            this.usetestencoder = usetestencoder;
+         }
+      }
 
       class CalculationThreadPoolExt : ThreadPoolExt {
 
@@ -376,36 +391,27 @@ namespace BuildDEMFile {
                return;
 
             try {
-               if (para is object[]) {
-                  object[] args = para as object[];
-                  if (args.Length == 3) {
-
-                     if (args[0] is List<Subtile>) {
-                        List<Subtile> lst = args[0] as List<Subtile>;
-                        for (int i = 0; i < lst.Count; i++) {
-                           Subtile st = lst[i];
-                           if (args[1] == null) // kein HgtDataConverter
-                              st.Encoding();          // Daten aus Textdatei sind schon vorhanden
-                           else {
-                              if (args[1] is DEMDataConverter) {
-                                 DEMDataConverter hdc = args[1] as DEMDataConverter;
-                                 Data2Dim dat = new Data2Dim(hdc.BuildHeightArray(st.PlannedLeft,
-                                                                                  st.PlannedTop,
-                                                                                  st.PlannedLonDistance,
-                                                                                  st.PlannedLatDistance,
-                                                                                  st.PlannedWidth,
-                                                                                  st.PlannedHeight,
-                                                                                  (bool)args[2]));
-                                 st.Encoding(dat);    // HGT-Daten müssen noch geliefert werden
-                                 dat.Dispose();
-                              }
-                           }
-
-                        }
-                        msgfunc?.Invoke(".");
+               if (para is CalculationParam) {
+                  CalculationParam cp = para as CalculationParam;
+                  for (int i = 0; i < cp.subtilelist.Count; i++) {
+                     Subtile st = cp.subtilelist[i];
+                     if (cp.dataconverter == null)             // kein DEMDataConverter
+                        st.Encoding(cp.usetestencoder);        // Daten aus Textdatei sind schon vorhanden
+                     else {
+                        Data2Dim dat = new Data2Dim(cp.dataconverter.BuildHeightArray(
+                                                                         st.PlannedLeft,
+                                                                         st.PlannedTop,
+                                                                         st.PlannedLonDistance,
+                                                                         st.PlannedLatDistance,
+                                                                         st.PlannedWidth,
+                                                                         st.PlannedHeight,
+                                                                         cp.footflag));
+                        st.Encoding(cp.usetestencoder, dat);    // HGT-Daten müssen noch geliefert werden
+                        dat.Dispose();
                      }
 
                   }
+                  msgfunc?.Invoke(".");
                }
             } catch (Exception ex) {
                IncrementExceptionCount();

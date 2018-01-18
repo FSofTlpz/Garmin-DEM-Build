@@ -1228,40 +1228,58 @@ namespace Encoder {
          public Wraparound(int maxheight) {
             max = maxheight;
 
-            // L0: z.B.  9 -> -4 .. +5 (max. 9 Bit)
-            //          10 -> -5 .. +5 (max. 10 Bit)
-            if (maxheight % 2 == 0) {
-               L0_wrapdown = maxheight / 2;
-               L0_wrapup = -maxheight / 2;
-            } else {
-               L0_wrapdown = (maxheight + 1) / 2;
-               L0_wrapup = -(maxheight - 1) / 2;
-            }
+            max = maxheight;
 
-            // L1: z.B.  9 -> -4 .. +5 (max. 9 Bit)
-            //          10 -> -5 .. +6 (max. 10 Bit)
-            if (maxheight % 2 == 0) {
-               L1_wrapdown = (maxheight + 2) / 2;
-               L1_wrapup = -maxheight / 2;
-            } else {
-               L1_wrapdown = (maxheight + 1) / 2;
-               L1_wrapup = -(maxheight - 1) / 2;
-            }
+            // Wrapping lohnt sich NICHT, wenn: L0   -(2 * maxheight + 1) / 4 <= v <= (2 * maxheight + 3) / 4
+            L0_wrapup = -((2 * maxheight + 1) / 4);
+            L0_wrapdown = (2 * maxheight + 3) / 4;
 
-            // L2: z.B.  9 -> -5 .. +4 (max. 9 Bit)
-            //          10 -> -5 .. +5 (max. 10 Bit)
-            if (maxheight % 2 == 0) {
-               L2_wrapdown = maxheight / 2;
-               L2_wrapup = -maxheight / 2;
-            } else {
-               L2_wrapdown = (maxheight - 1) / 2;
-               L2_wrapup = -(maxheight + 1) / 2;
-            }
-            //L2_wrapdown /= 4;
-            //L2_wrapup /= 4;
+            // Wrapping lohnt sich NICHT, wenn: L1   -(2 * maxheight - 1) / 4 <= v <= (2 * maxheight + 5) / 4
+            L1_wrapup = -((2 * maxheight - 1) / 4);
+            L1_wrapdown = (2 * maxheight + 5) / 4;
+
+            // Wrapping lohnt sich NICHT, wenn: L2   -(2 * maxheight + 3) / 4 <= v <= (2 * maxheight + 1) / 4
+            L2_wrapup = -((2 * maxheight + 3) / 4);
+            L2_wrapdown = (2 * maxheight + 1) / 4;
 
             H_wrapdown = (maxheight + 1) / 2;
-            H_wrapup = -(maxheight - 1) / 2;
+            H_wrapup = -((maxheight - 1) / 2);
+
+
+            //// L0: z.B.  9 -> -4 .. +5 (max. 9 Bit)
+            ////          10 -> -5 .. +5 (max. 10 Bit)
+            //if (maxheight % 2 == 0) {
+            //   L0_wrapdown = maxheight / 2;
+            //   L0_wrapup = -maxheight / 2;
+            //} else {
+            //   L0_wrapdown = (maxheight + 1) / 2;
+            //   L0_wrapup = -(maxheight - 1) / 2;
+            //}
+
+            //// L1: z.B.  9 -> -4 .. +5 (max. 9 Bit)
+            ////          10 -> -5 .. +6 (max. 10 Bit)
+            //if (maxheight % 2 == 0) {
+            //   L1_wrapdown = (maxheight + 2) / 2;
+            //   L1_wrapup = -maxheight / 2;
+            //} else {
+            //   L1_wrapdown = (maxheight + 1) / 2;
+            //   L1_wrapup = -(maxheight - 1) / 2;
+            //}
+
+            //// L2: z.B.  9 -> -5 .. +4 (max. 9 Bit)
+            ////          10 -> -5 .. +5 (max. 10 Bit)
+            //if (maxheight % 2 == 0) {
+            //   L2_wrapdown = maxheight / 2;
+            //   L2_wrapup = -maxheight / 2;
+            //} else {
+            //   L2_wrapdown = (maxheight - 1) / 2;
+            //   L2_wrapup = -(maxheight + 1) / 2;
+            //}
+            ////L2_wrapdown /= 4;
+            ////L2_wrapup /= 4;
+
+            //H_wrapdown = (maxheight + 1) / 2;
+            //H_wrapup = -(maxheight - 1) / 2;
 
 #if INCLUDENOTNEEDED
 
@@ -1303,6 +1321,156 @@ namespace Encoder {
             int minval, maxval;
             wrapped = false;
             int datawrapped = int.MinValue;
+            bool changed2BigBin = false;
+
+            switch (em) {
+               case EncodeMode.Hybrid:
+                  if (data > H_wrapdown)
+                     datawrapped = WrapDown(data);
+                  else if (data < H_wrapup)
+                     datawrapped = WrapUp(data);
+
+                  HeightElement.GetValueRangeHybrid(hunit, max, out minval, out maxval, iPlateauLengthBinBits);
+                  if (datawrapped != int.MinValue) {
+                     if (datawrapped < minval || maxval < datawrapped) {
+                        em = EncodeMode.BigBinary;
+                        changed2BigBin = true;
+                     }
+                  } else {
+                     if (data < minval || maxval < data) {
+                        em = EncodeMode.BigBinary;
+                        changed2BigBin = true;
+                     }
+                  }
+                  break;
+
+               case EncodeMode.Length0:
+                  if (data > L0_wrapdown)
+                     datawrapped = WrapDown(data);
+                  else if (data < L0_wrapup)
+                     datawrapped = WrapUp(data);
+
+                  HeightElement.GetValueRangeLength0(max, out minval, out maxval, iPlateauLengthBinBits);
+                  if (datawrapped != int.MinValue) {
+                     if (datawrapped < minval || maxval < datawrapped) {
+                        em = EncodeMode.BigBinary;
+                        changed2BigBin = true;
+                     }
+                  } else {
+                     if (data < minval || maxval < data) {
+                        em = EncodeMode.BigBinary;
+                        changed2BigBin = true;
+                     }
+                  }
+                  break;
+
+               case EncodeMode.Length1:
+                  if (data > L1_wrapdown)
+                     datawrapped = WrapDown(data);
+                  else if (data < L1_wrapup)
+                     datawrapped = WrapUp(data);
+
+                  HeightElement.GetValueRangeLength1(max, out minval, out maxval, iPlateauLengthBinBits);
+                  if (datawrapped != int.MinValue) {
+                     if (datawrapped < minval || maxval < datawrapped) {
+                        em = EncodeMode.BigBinaryL1;
+                        changed2BigBin = true;
+                     }
+                  } else {
+                     if (data < minval || maxval < data) {
+                        em = EncodeMode.BigBinaryL1;
+                        changed2BigBin = true;
+                     }
+                  }
+                  break;
+
+               case EncodeMode.Length2:
+                  if (data > L2_wrapdown)
+                     datawrapped = WrapDown(data);
+                  else if (data < L2_wrapup)
+                     datawrapped = WrapUp(data);
+
+                  HeightElement.GetValueRangeLength2(max, out minval, out maxval, iPlateauLengthBinBits);
+                  if (datawrapped != int.MinValue) {
+                     if (datawrapped < minval || maxval < datawrapped) {
+                        em = EncodeMode.BigBinaryL2;
+                        changed2BigBin = true;
+                     }
+                  } else {
+                     if (data < minval || maxval < data) {
+                        em = EncodeMode.BigBinaryL2;
+                        changed2BigBin = true;
+                     }
+                  }
+                  break;
+            }
+
+            if (!changed2BigBin) // sonst sollte BigBin immer i.O. sein
+               switch (em) {
+                  case EncodeMode.BigBinary:
+                  case EncodeMode.BigBinaryL2:
+                     HeightElement.GetValueRangeBigBin(max, out minval, out maxval);
+                     if (datawrapped != int.MinValue) {
+                        if (datawrapped < minval || maxval < datawrapped) {
+                           if (data > maxval)
+                              datawrapped = WrapDown(datawrapped);
+                           else if (data < minval)
+                              datawrapped = WrapUp(datawrapped);
+                        }
+                     } else {
+                        if (data < minval || maxval < data) {
+                           if (data > maxval)
+                              datawrapped = WrapDown(data);
+                           else if (data < minval)
+                              datawrapped = WrapUp(data);
+                        }
+                     }
+                     break;
+
+                  case EncodeMode.BigBinaryL1:
+                     HeightElement.GetValueRangeBigBinL1(max, out minval, out maxval);
+                     if (datawrapped != int.MinValue) {
+                        if (datawrapped < minval || maxval < datawrapped) {
+                           if (data > maxval)
+                              datawrapped = WrapDown(datawrapped);
+                           else if (data < minval)
+                              datawrapped = WrapUp(datawrapped);
+                        }
+                     } else {
+                        if (data < minval || maxval < data) {
+                           if (data > maxval)
+                              datawrapped = WrapDown(data);
+                           else if (data < minval)
+                              datawrapped = WrapUp(data);
+                        }
+                     }
+                     break;
+               }
+
+            wrapped = datawrapped != int.MinValue;
+
+            return wrapped ? datawrapped : data;
+         }
+
+
+         public int WrapAlt(int data, out bool wrapped, ref EncodeMode em, int hunit, int iPlateauLengthBinBits) {
+            int minval, maxval;
+            wrapped = false;
+            int datawrapped = int.MinValue;
+
+            wrapped = false;
+            if (data > 0) {
+               if (2 * data > max + 1) {
+                  data = WrapDown(data);
+                  wrapped = true;
+               }
+            } else if (data < 0) {
+               if (2 * data < -(max + 1)) {
+                  data = WrapUp(data);
+                  wrapped = true;
+               }
+            }
+
 
             switch (em) {
                case EncodeMode.Length0:
@@ -1397,28 +1565,6 @@ namespace Encoder {
             wrapped = datawrapped != int.MinValue;
 
             return wrapped ? datawrapped : data;
-         }
-
-         /// <summary>
-         /// ein Wrap erfolgt, wenn der Betrag des neuen Wertes kleiner als der Originalwert ist
-         /// </summary>
-         /// <param name="data"></param>
-         /// <param name="wrapped">gesetzt, wenn ein gewrapter Wert geliefert wird</param>
-         /// <returns></returns>
-         public int SimpleWrap(int data, out bool wrapped) {
-            wrapped = false;
-            if (data > 0) {
-               if (2 * data > max + 1) {
-                  data = WrapDown(data);
-                  wrapped = true;
-               }
-            } else if (data < 0) {
-               if (2 * data < -(max + 1)) {
-                  data = WrapUp(data);
-                  wrapped = true;
-               }
-            }
-            return data;
          }
 
 #if INCLUDENOTNEEDED
@@ -2438,14 +2584,12 @@ namespace Encoder {
                   if (follower_ddiff > 0)
                      data = -data;
 
-                  data = ValueWrap.SimpleWrap(data, out wrapped);
                   data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, he.PlateauBinBits);
 
                } else {
 
                   caltyp2 = CalculationType.PlateauFollower0;
 
-                  data = ValueWrap.SimpleWrap(data, out wrapped);
                   data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, he.PlateauBinBits);
                   if (data < 0)
                      data++;
@@ -2540,7 +2684,6 @@ namespace Encoder {
 
             default: {
                   EncodeMode em = ct.EncodeMode; // wird ev. verändert auf BigBin
-                  data = ValueWrap.SimpleWrap(data, out wrapped);
                   data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, -1);
 
                   //Debug.Write(string.Format("[{0},{1}], ", pos.X, pos.Y));
