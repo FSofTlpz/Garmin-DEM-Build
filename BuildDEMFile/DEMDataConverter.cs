@@ -219,14 +219,15 @@ namespace BuildDEMFile {
       /// </summary>
       /// <param name="lon"></param>
       /// <param name="lat"></param>
+      /// <param name="intpol"></param>
       /// <returns></returns>
-      double GetHeight(double lon, double lat) {
+      double GetHeight(double lon, double lat, DEM1x1.InterpolationType intpol) {
          // Quell-Gebiet bestimmen
          int x = (int)(lon - Left);
          int y = (int)(lat - Bottom);
          if (0 <= x && x < dat.GetLength(0) &&
              0 <= y && y < dat.GetLength(1)) {
-            return dat[x, y].InterpolatedHeight(lon, lat);
+            return dat[x, y].InterpolatedHeight(lon, lat, intpol);
          }
          return DEM1x1.NOVALUED;
       }
@@ -240,9 +241,11 @@ namespace BuildDEMFile {
       /// <param name="stepheight">vertikale Schrittweite</param>
       /// <param name="loncount">Datenwerte waagerecht</param>
       /// <param name="latcount">Datenwerte senkrecht</param>
+      /// <param name="shrink">ungerader Verkleinerungsfaktor</param>
       /// <param name="foot">Daten in Fuß</param>
+      /// <param name="intpol"></param>
       /// <returns></returns>
-      public int[,] BuildHeightArray(double left, double top, double stepwidth, double stepheight, int loncount, int latcount, bool foot) {
+      public int[,] BuildHeightArray(double left, double top, double stepwidth, double stepheight, int loncount, int latcount, int shrink, bool foot, DEM1x1.InterpolationType intpol) {
          double bottom = top - (latcount - 1) * stepheight;
          if (left < Left || Right < left + (loncount - 1) * stepwidth ||
              bottom < Bottom || Top < top)
@@ -264,11 +267,14 @@ namespace BuildDEMFile {
             for (int x = 0; x < loncount; x++) {
                double lon = left + x * stepwidth;
 
-               double h = GetHeight(lon, lat);  // interpolierte Höhe
+               double h = GetHeight(lon, lat, intpol);  // interpolierte Höhe
                if (h != DEM1x1.NOVALUED) {
                   if (foot)
                      h /= DEM1x1.FOOT;
-                  heights[x, y] = (int)Math.Round(h, 0);
+                  if (shrink == 1)
+                     heights[x, y] = (int)Math.Round(h, 0);
+                  else
+                     heights[x, y] = (int)Math.Round(h / shrink, 0);
                } else
                   heights[x, y] = Subtile.UNDEF4ENCODER;
             }
@@ -286,9 +292,11 @@ namespace BuildDEMFile {
       /// <param name="height">Höhe</param>
       /// <param name="stepwidth">horizontale Schrittweite</param>
       /// <param name="stepheight">vertikale Schrittweite</param>
+      /// <param name="shrink">ungerader Verkleinerungsfaktor</param>
       /// <param name="foot">Daten in Fuß</param>
+      /// <param name="intpol"></param>
       /// <returns></returns>
-      public int[,] BuildHeightArray(double left, double top, double width, double height, double stepwidth, double stepheight, bool foot) {
+      public int[,] BuildHeightArray(double left, double top, double width, double height, double stepwidth, double stepheight, int shrink, bool foot, DEM1x1.InterpolationType intpol) {
          if (left < Left ||
              top > Top ||
              left + width > Right ||
@@ -319,7 +327,9 @@ namespace BuildDEMFile {
                                  stepheight,
                                  iCountLon,
                                  iCountLat,
-                                 foot);
+                                 shrink,
+                                 foot,
+                                 intpol);
       }
 
       public override string ToString() {

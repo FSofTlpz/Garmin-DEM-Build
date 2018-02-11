@@ -43,7 +43,7 @@ namespace Input2 {
       /// </summary>
       public ulong BaseHeightAdr { get; private set; }
       /// <summary>
-      /// max. Höhendifferenz
+      /// max. Höhendifferenz für TabItem
       /// </summary>
       public uint MaxHeightDiff { get; private set; }
       /// <summary>
@@ -66,6 +66,19 @@ namespace Input2 {
       /// <see cref="BaseHeight"/> und <see cref="MaxHeightDiff"/> automatisch aus den Höhendaten ermitteln
       /// </summary>
       public bool BaseDiffAuto { get; private set; }
+      /// <summary>
+      /// max. Höhendifferenz
+      /// </summary>
+      public uint MaxDiffEncoder { get; private set; }
+      /// <summary>
+      /// Shrink-Wert (normal 0)
+      /// </summary>
+      public uint Shrink { get; private set; }
+      /// <summary>
+      /// Adresse von <see cref="Shrink"/>
+      /// </summary>
+      public ulong ShrinkAdr { get; private set; }
+
 
       /// <summary>
       /// Kachelbreite
@@ -113,6 +126,9 @@ namespace Input2 {
          CodingtypeAdr,
          RealHeights,
          BaseDiffAuto,
+         MaxDiffEncoder,
+         Shrink,
+         ShrinkAdr,
 
          TileWidth,
          TileHeight,
@@ -135,12 +151,15 @@ namespace Input2 {
          cmd.DefineOption((int)MyOptions.BinInit, "bits", "", "Init-Bits", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
          cmd.DefineOption((int)MyOptions.BaseHeight, "base", "b", "Basishöhe der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.Integer);
          cmd.DefineOption((int)MyOptions.BaseHeightAdr, "baseadr", "", "Adresse der Basishöhe der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedLong);
-         cmd.DefineOption((int)MyOptions.MaxHeightDiff, "maxdiff", "m", "max. Höhendiff. der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
+         cmd.DefineOption((int)MyOptions.MaxHeightDiff, "maxdiff", "m", "max. Höhendiff. der DEM-Kachel für TabItem", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
          cmd.DefineOption((int)MyOptions.MaxHeightDiffAdr, "maxdiffadr", "", "Adresse der max. Höhendiff. der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedLong);
          cmd.DefineOption((int)MyOptions.Codingtype, "codingtyp", "", "Codiertyp der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.Integer);
          cmd.DefineOption((int)MyOptions.CodingtypeAdr, "codingtypadr", "", "Adresse des Codiertyps der DEM-Kachel", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedLong);
          cmd.DefineOption((int)MyOptions.BaseDiffAuto, "basediffauto", "", "Basishöhe und max. Differenz automatisch aus den Höhenangaben ermitteln (ohne Argument 'true', Standard 'true')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.RealHeights, "realheights", "", "reale Höhenangaben oder auf Basishöhe bezogen (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.MaxDiffEncoder, "maxdiffenc", "", "max. Höhendiff. der DEM-Kachel für Encoder", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
+         cmd.DefineOption((int)MyOptions.Shrink, "shrink", "", "shrinkwert (normal 0)", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
+         cmd.DefineOption((int)MyOptions.ShrinkAdr, "shrinkadr", "", "Adresse von shrink", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedLong);
          cmd.DefineOption((int)MyOptions.TileHeight, "tileheight", "", "Höhe der DEM-Kachel (Standard 64)", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
          cmd.DefineOption((int)MyOptions.TileWidth, "tilewidth", "", "Breite der DEM-Kachel (Standard 64)", FSoftUtils.CmdlineOptions.OptionArgumentType.UnsignedInteger);
          cmd.DefineOption((int)MyOptions.ProtFilename, "prot", "p", "Name der Protokolldatei", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
@@ -162,6 +181,9 @@ namespace Input2 {
          CodingtypeAdr = 0;
          RealHeights = false;
          BaseDiffAuto = true;
+         MaxDiffEncoder = MaxHeightDiff;
+         Shrink = 0;
+         ShrinkAdr = 0;
 
          TileHeight = TileWidth = 64;
 
@@ -246,7 +268,19 @@ namespace Input2 {
                         else
                            BaseDiffAuto = true;
                         break;
-                       
+
+                     case MyOptions.MaxDiffEncoder:
+                        MaxDiffEncoder = cmd.UnsignedIntegerValue((int)opt);
+                        break;
+
+                     case MyOptions.Shrink:
+                        Shrink = cmd.UnsignedIntegerValue((int)opt);
+                        break;
+
+                     case MyOptions.ShrinkAdr:
+                        ShrinkAdr = cmd.UnsignedLongValue((int)opt);
+                        break;
+
 
                      case MyOptions.TileHeight:
                         TileHeight = cmd.UnsignedIntegerValue((int)opt);

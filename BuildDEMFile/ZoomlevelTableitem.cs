@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace BuildDEMFile {
    /// <summary>
@@ -33,9 +34,9 @@ namespace BuildDEMFile {
       /// </summary>
       public int LastColWidth { get; set; }
       /// <summary>
-      /// unbekannt auf 0x12
+      /// Verkleinerungsfaktor (2*k+1)
       /// </summary>
-      public short Unknown12 { get; set; }
+      public short Shrink { get; set; }
       /// <summary>
       /// größter Subtile-Index waagerecht (Anzahl -1)
       /// </summary>
@@ -123,55 +124,55 @@ namespace BuildDEMFile {
       /// </summary>
       public uint PtrHeightdata { get; set; }
 
-      int _West = 0;
+      public int IntWest = 0;
       /// <summary>
       /// westliche Grenze der Kachel
       /// </summary>
       public double West {
          get {
-            return Unit2Degree(_West);
+            return Unit2Degree(IntWest);
          }
          set {
-            _West = Degree2Unit(value);
+            IntWest = Degree2Unit(value);
          }
       }
 
-      int _North = 0;
+      public int IntNorth = 0;
       /// <summary>
       /// nördliche Grenze der Kachel
       /// </summary>
       public double North {
          get {
-            return Unit2Degree(_North);
+            return Unit2Degree(IntNorth);
          }
          set {
-            _North = Degree2Unit(value);
+            IntNorth = Degree2Unit(value);
          }
       }
 
-      int _PointDistanceHoriz = 0;
+      public int IntPointDistanceHoriz = 0;
       /// <summary>
       /// waagerechter Abstand zwischen den Datenpunkten
       /// </summary>
       public double PointDistanceHoriz {
          get {
-            return Unit2Degree(_PointDistanceHoriz);
+            return Unit2Degree(IntPointDistanceHoriz);
          }
          set {
-            _PointDistanceHoriz = Degree2Unit(value);
+            IntPointDistanceHoriz = Degree2Unit(value);
          }
       }
 
-      int _PointDistanceVert = 0;
+      public int IntPointDistanceVert = 0;
       /// <summary>
       /// senkrechter Abstand zwischen den Datenpunkten
       /// </summary>
       public double PointDistanceVert {
          get {
-            return Unit2Degree(_PointDistanceVert);
+            return Unit2Degree(IntPointDistanceVert);
          }
          set {
-            _PointDistanceVert = Degree2Unit(value);
+            IntPointDistanceVert = Degree2Unit(value);
          }
       }
 
@@ -197,7 +198,7 @@ namespace BuildDEMFile {
          PointsHoriz = PointsVert = 64;
          LastRowHeight = 64;
          LastColWidth = 64;
-         Unknown12 = 0;
+         Shrink = 0;
          MaxIdxHoriz = MaxIdxVert = 0;
          Structure = 0;
          Structure_OffsetSize = 3;
@@ -218,23 +219,23 @@ namespace BuildDEMFile {
          w.Write(PointsVert);
          w.Write(LastRowHeight);
          w.Write(LastColWidth);
-         w.Write(Unknown12);
+         w.Write(Shrink);
          w.Write(MaxIdxHoriz);
          w.Write(MaxIdxVert);
          w.Write(Structure);
          w.Write(SubtileTableitemSize);
          w.Write(PtrSubtileTable);
          w.Write(PtrHeightdata);
-         w.Write(_West);
-         w.Write(_North);
-         w.Write(_PointDistanceVert);
-         w.Write(_PointDistanceHoriz);
+         w.Write(IntWest);
+         w.Write(IntNorth);
+         w.Write(IntPointDistanceVert);
+         w.Write(IntPointDistanceHoriz);
          w.Write(MinHeight);
          w.Write(MaxHeight);
       }
 
       public static int Degree2Unit(double degree) {
-         return (int)(degree / 360.0 * DEG_UNIT_FACTOR);
+         return double.IsNaN(degree) ? int.MinValue : (int)Math.Round(degree / 360.0 * DEG_UNIT_FACTOR);
       }
 
       public static double Unit2Degree(int unit) {

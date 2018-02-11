@@ -116,6 +116,23 @@ namespace BuildDEMFile {
       }
 
 
+      int _shrink;
+      /// <summary>
+      /// ungerader Verkleinerungsfaktor 1, 3, 5, ..
+      /// </summary>
+      public int Shrink {
+         get {
+            return _shrink;
+         }
+         set {
+            if (value < 1 || value % 2 != 1)
+               throw new Exception("For Shrink is only 1, 3, 5, ... allowed.");
+            _shrink = value;
+         }
+      }
+
+
+
       public Subtile(Data2Dim intdata, SubtileTableitem tableitem = null) {
          CodedData = null;
          dat = intdata;
@@ -123,6 +140,7 @@ namespace BuildDEMFile {
             Tableitem = new SubtileTableitem();
          else
             Tableitem = tableitem;
+         Shrink = 1;
       }
 
       public Subtile(double left, double top, double londist, double latdist, int loncount, int latcount) : this(null) {
@@ -161,9 +179,9 @@ namespace BuildDEMFile {
                Tableitem.Type = 2;
                dat.ReplaceBigValues(UNDEF4ENCODER, ++max);
             }
-            Tableitem.Diff = (ushort)(max - min);
-            Tableitem.Baseheight = (short)min;
-            dat.AddValue(-BaseHeight);
+            Tableitem.Diff = (ushort)((max - min) * Shrink);
+            Tableitem.Baseheight = (short)(min * Shrink);
+            dat.AddValue(-min);
          }
 
          if (max == min) { // eine Ebene ist i.A. ohne Daten (MaxDiffHeight == 0)
@@ -171,14 +189,20 @@ namespace BuildDEMFile {
          } else {
 
             if (usetestencoder) {
-               Encoder.TileEncoder enc = new Encoder.TileEncoder(MaxDiffHeight, Codingtype, Width, Height, dat.GetAll());
+               Encoder.TileEncoder enc = new Encoder.TileEncoder(MaxDiffHeight, 
+                                                                 0, //Encoder.TileEncoder.MaxEncoderHeight4Shrink(Shrink, MaxDiffHeight), 
+                                                                 Codingtype, 
+                                                                 Shrink, 
+                                                                 Width, 
+                                                                 Height, 
+                                                                 dat.GetAll());
                bool bTileIsFull;
                do {
                   enc.ComputeNext(out bTileIsFull);
                } while (!bTileIsFull);
                CodedData = enc.GetCodedBytes();
             } else
-               CodedData = new Encoder.TileEncoderProd(MaxDiffHeight, Width, Height, dat.GetAll()).Encode();
+               CodedData = new Encoder.TileEncoderProd(MaxDiffHeight, Shrink, Width, Height, dat.GetAll()).Encode();
 
          }
       }

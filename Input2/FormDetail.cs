@@ -15,9 +15,19 @@ namespace Input2 {
       public int HeightDiff;
 
       /// <summary>
-      /// z.Z. nicht verwendet
+      /// max. Höhendiff. für Encoder
+      /// </summary>
+      public int HeightDiffEncoder;
+
+      /// <summary>
+      /// 
       /// </summary>
       public byte Codingtype;
+
+      /// <summary>
+      /// 
+      /// </summary>
+      public int Shrink;
 
       /// <summary>
       /// Kachelbreite (i.a. 64)
@@ -39,7 +49,7 @@ namespace Input2 {
 
          this.KeyPreview = true;
 
-         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightDiff, Codingtype, TileSizeHorz, TileSizeVert, HeightData);
+         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightDiff, HeightDiffEncoder, Codingtype, Shrink, TileSizeHorz, TileSizeVert, HeightData);
          textBox_Encoder.AppendText(string.Format("{0}{1}", enc, Environment.NewLine));
 
          textBox_Encoder.Visible = false;

@@ -49,10 +49,20 @@ namespace Input2 {
 
          numericUpDown_Min.Value = opt.BaseHeight;
          textBox_BaseHeightAdr.Text = opt.BaseHeightAdr.ToString("x");
-         numericUpDown_maxdiff.Value = opt.MaxHeightDiff;
+         numericUpDown_maxdiffTabItem.Value = opt.MaxHeightDiff;
          textBox_MaxHeightDiffAdr.Text = opt.MaxHeightDiffAdr.ToString("x");
          numericUpDown_Codingtype.Value = opt.Codingtype;
          textBox_CodingtypeAdr.Text = opt.CodingtypeAdr.ToString("x");
+
+         if (opt.MaxDiffEncoder > 0 && opt.Shrink > 0) {
+            numericUpDown_maxdiffEncoder.Value = opt.MaxDiffEncoder;
+            numericUpDown_Shrink.Value = opt.Shrink;
+         } else if (opt.Shrink > 0) {
+            numericUpDown_maxdiffEncoder.Value = (int)Math.Round(opt.MaxHeightDiff / (2 * opt.Shrink + 1.0));
+            numericUpDown_Shrink.Value = opt.Shrink;
+         } else
+            numericUpDown_maxdiffEncoder.Value = opt.MaxHeightDiff;
+         textBox_ShrinkAdr.Text = opt.ShrinkAdr.ToString("x");
 
          checkBox_Normalized.Checked = !opt.RealHeights;
          checkBoxMinMaxAuto.Checked = opt.BaseDiffAuto;
@@ -87,6 +97,7 @@ namespace Input2 {
          bool bOutBin = checkBox_ProtBin.Checked;
          bool bOutNL = checkBox_ProtNewline.Checked;
          bool bFillBitsTrue = checkBox_FillBits.Checked;
+         string sPatchAddressShrink = textBox_ShrinkAdr.Text.Trim();
 
          List<bool> binlst = new List<bool>(bin);
          binlst.AddRange(postbin);
@@ -144,7 +155,7 @@ namespace Input2 {
                         address = ReadHexAs31Int(sPatchAddressMaxdiff);
                         if (address < bw.BaseStream.Length) {
                            bw.Seek(address, SeekOrigin.Begin);
-                           UInt16 val = Convert.ToUInt16(numericUpDown_maxdiff.Value);
+                           UInt16 val = Convert.ToUInt16(numericUpDown_maxdiffTabItem.Value);
                            bw.Write(val); // wenn in Wirklichkeit nur ein 1-Byte-Wert, wird zwar der Codingtype überschrieben, aber das mach ja nichts ...
                         }
                      }
@@ -157,6 +168,16 @@ namespace Input2 {
                            bw.Write(val);
                         }
                      }
+
+                     if (sPatchAddressShrink.Length > 0) {
+                        address = ReadHexAs31Int(sPatchAddressShrink);
+                        if (address < bw.BaseStream.Length) {
+                           bw.Seek(address, SeekOrigin.Begin);
+                           byte val = Convert.ToByte(numericUpDown_Shrink.Value);
+                           bw.Write(val);
+                        }
+                     }
+
                   }
                } catch (Exception ex) {
                   MessageBox.Show("Fehler beim Patchen: " + ex.Message);
@@ -367,8 +388,10 @@ namespace Input2 {
 
       private void button_dec2bin_Click(object sender, EventArgs e) {
          List<int> v = GetDecimalHeights();
-         Encoder.TileEncoder enc = new Encoder.TileEncoder((int)numericUpDown_maxdiff.Value,
+         Encoder.TileEncoder enc = new Encoder.TileEncoder((int)numericUpDown_maxdiffTabItem.Value,
+                                                           (int)numericUpDown_maxdiffEncoder.Value,
                                                            (byte)numericUpDown_Codingtype.Value,
+                                                           2 * (int)numericUpDown_Shrink.Value + 1,
                                                            (int)numericUpDown_TilesizeHoriz.Value,
                                                            (int)numericUpDown_TilesizeVert.Value,
                                                            v);
@@ -397,8 +420,10 @@ namespace Input2 {
       private void button_Detail_Click(object sender, EventArgs e) {
          FormDetail dlg = new FormDetail();
          dlg.HeightData = GetDecimalHeights();
-         dlg.HeightDiff = (int)numericUpDown_maxdiff.Value;
+         dlg.HeightDiff = (int)numericUpDown_maxdiffTabItem.Value;
+         dlg.HeightDiffEncoder = (int)numericUpDown_maxdiffEncoder.Value;
          dlg.Codingtype = (byte)numericUpDown_Codingtype.Value;
+         dlg.Shrink = 2 * (int)numericUpDown_Shrink.Value + 1;
          dlg.TileSizeHorz = (int)numericUpDown_TilesizeHoriz.Value;
          dlg.TileSizeVert = (int)numericUpDown_TilesizeVert.Value;
          dlg.ShowDialog();
@@ -440,20 +465,20 @@ namespace Input2 {
                   break;
 
                case 15:
-                  bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiff.Value);
+                  bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
                case 16:
-                  bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiff.Value);
+                  bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
                case 17:
-                  bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiff.Value);
+                  bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
 
                default:
                   int hunit = (int)Math.Pow(2, listBox_SingleTest.SelectedIndex - 3);
                   if (hunit <= 2048)
-                     bits = Encoder.TileEncoder.HybridCoding(val, (int)numericUpDown_maxdiff.Value, hunit);
-                 break;
+                     bits = Encoder.TileEncoder.HybridCoding(val, (int)numericUpDown_maxdiffEncoder.Value, hunit);
+                  break;
             }
          } catch (Exception ex) {
             MessageBox.Show("Fehler: " + ex.Message, "Fehler");
@@ -507,7 +532,8 @@ namespace Input2 {
 
          if (checkBoxMinMaxAuto.Checked) {
             numericUpDown_Min.Value = min;
-            numericUpDown_maxdiff.Value = max - min;
+            numericUpDown_maxdiffEncoder.Value =
+            numericUpDown_maxdiffTabItem.Value = max - min;
          }
 
          if (!checkBox_Normalized.Checked)
@@ -547,7 +573,7 @@ namespace Input2 {
 
       private void checkBoxMinMaxAuto_CheckedChanged(object sender, EventArgs e) {
          numericUpDown_Min.Enabled =
-         numericUpDown_maxdiff.Enabled = !checkBoxMinMaxAuto.Checked;
+         numericUpDown_maxdiffTabItem.Enabled = !checkBoxMinMaxAuto.Checked;
          if (checkBoxMinMaxAuto.Checked) // nicht beide gleichzeitig true
             checkBox_Normalized.Checked = false;
       }
@@ -558,5 +584,16 @@ namespace Input2 {
             checkBoxMinMaxAuto.Checked = false;
       }
 
+      private void numericUpDown_MinBytes_ValueChanged(object sender, EventArgs e) {
+         richTextBox_Bin.BackColor = col_bin_error;
+      }
+
+      private void numericUpDown_Shrink_ValueChanged(object sender, EventArgs e) {
+         richTextBox_Bin.BackColor = col_bin_error;
+      }
+
+      private void numericUpDown_maxdiffEncoder_ValueChanged(object sender, EventArgs e) {
+         richTextBox_Bin.BackColor = col_bin_error;
+      }
    }
 }

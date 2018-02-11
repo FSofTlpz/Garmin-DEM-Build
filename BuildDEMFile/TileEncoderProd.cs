@@ -161,10 +161,10 @@ namespace Encoder {
          ValueRanges valrange;
 
 
-         public BitEncoding(int maxheight, BitStream bits) {
+         public BitEncoding(int maxheight, BitStream bits, ValueRanges valrange) {
             this.maxheight = maxheight;
             this.bits = bits;
-            valrange = new ValueRanges(maxheight);
+            this.valrange = valrange;
          }
 
          /// <summary>
@@ -383,9 +383,11 @@ namespace Encoder {
       /// <summary>
       /// liefert gültige Wertebereiche für verschiedene Codierungen
       /// </summary>
-      class ValueRanges {
+      public class ValueRanges {
 
-         int maxheight;
+         int maxencoderheight;
+         int maxrealheight;
+         int shrink;
 
          /// <summary>
          /// liefert die max. mögliche Anzahl 0-Bits für die Hybrid- oder Längencodierung
@@ -435,9 +437,12 @@ namespace Encoder {
          public int[] StdMaxH { get; private set; }
 
 
-         public ValueRanges(int maxheight) {
-            this.maxheight = maxheight;
-            MaxLengthZeroBits = GetMaxLengthZeroBits();
+         public ValueRanges(int maxencoderheight, int maxrealheight, int shrink) {
+            this.maxencoderheight = maxencoderheight;
+            this.maxrealheight = maxrealheight;
+            this.shrink = shrink;
+
+            InitMax0Bits();
             BigBinBits = GetBigBinBits();
 
             int min, max;
@@ -473,39 +478,71 @@ namespace Encoder {
          }
 
          /// <summary>
-         /// liefert die max. mögliche Anzahl 0-Bits für die Hybrid- oder Längencodierung
+         /// init. die max. mögliche Anzahl 0-Bits für die Hybrid- oder Längencodierung
          /// </summary>
          /// <returns></returns>
-         int GetMaxLengthZeroBits() {
-            if (maxheight < 0x0002)
-               return 15;
-            if (maxheight < 0x0004)
-               return 16;
-            if (maxheight < 0x0008)
-               return 17;
-            if (maxheight < 0x0010)
-               return 18;
-            if (maxheight < 0x0020)
-               return 19;
-            if (maxheight < 0x0040)
-               return 20;
-            if (maxheight < 0x0080)
-               return 21;
-            if (maxheight < 0x0100)
-               return 22;
-            if (maxheight < 0x0200)
-               return 25;
-            if (maxheight < 0x0400)
-               return 28;
-            if (maxheight < 0x0800)
-               return 31;
-            if (maxheight < 0x1000)
-               return 34;
-            if (maxheight < 0x2000)
-               return 37;
-            if (maxheight < 0x4000)
-               return 40;
-            return 43;
+         void InitMax0Bits() {
+            if (shrink == 1) {
+
+               if (maxencoderheight < 0x0002) MaxLengthZeroBits = 15;
+               else if (maxencoderheight < 0x0004) MaxLengthZeroBits = 16;
+               else if (maxencoderheight < 0x0008) MaxLengthZeroBits = 17;
+               else if (maxencoderheight < 0x0010) MaxLengthZeroBits = 18;
+               else if (maxencoderheight < 0x0020) MaxLengthZeroBits = 19;
+               else if (maxencoderheight < 0x0040) MaxLengthZeroBits = 20;
+               else if (maxencoderheight < 0x0080) MaxLengthZeroBits = 21;
+               else if (maxencoderheight < 0x0100) MaxLengthZeroBits = 22;
+               else if (maxencoderheight < 0x0200) MaxLengthZeroBits = 25;
+               else if (maxencoderheight < 0x0400) MaxLengthZeroBits = 28;
+               else if (maxencoderheight < 0x0800) MaxLengthZeroBits = 31;
+               else if (maxencoderheight < 0x1000) MaxLengthZeroBits = 34;
+               else if (maxencoderheight < 0x2000) MaxLengthZeroBits = 37;
+               else if (maxencoderheight < 0x4000) MaxLengthZeroBits = 40;
+               else MaxLengthZeroBits = 43;
+
+            } else {
+               if (maxrealheight > 0) {
+                  SortedDictionary<int, int> tmp = new SortedDictionary<int, int>();
+
+                  int s = int_ld((shrink - 1) / 2);
+                  for (int i = 0; i < 16; i++) {
+                     int v = 3 * (i + 1) + s;
+                     int k = (int)Math.Pow(2, i);
+                     tmp.Add(k, v);
+                  }
+
+                  for (int i = 1; i < 16; i++) {
+                     int k = shrink * ((int)Math.Pow(2, i) - 1) + 1;
+                     if (k >= 65536)
+                        break;
+                     if (tmp.ContainsKey(k)) {
+                        //int v = tmp[k];
+                        //tmp.Remove(k);
+                        //tmp.Add(k + 1, v);
+                        tmp[k]--;
+                     } else
+                        tmp.Add(k, -1);
+                  }
+
+                  int[] keys = new int[tmp.Count];
+                  tmp.Keys.CopyTo(keys, 0);
+                  for (int i = keys.Length - 1; i >= 0; i--) {
+                     if (maxrealheight >= keys[i]) {
+                        if (tmp[keys[i]] > 0)
+                           MaxLengthZeroBits = tmp[keys[i]];
+                        else {
+                           // 1 kleiner als der Vorgänger
+                           MaxLengthZeroBits = tmp[keys[i - 1]] - 1;
+                        }
+                        break;
+                     }
+                  }
+               }
+            }
+         }
+
+         int int_ld(int v) {
+            return (int)Math.Floor(Math.Log(v) / Math.Log(2));
          }
 
          /// <summary>
@@ -513,33 +550,33 @@ namespace Encoder {
          /// </summary>
          /// <returns></returns>
          int GetBigBinBits() {
-            if (maxheight < 0x0002)
+            if (maxencoderheight < 0x0002)
                return 1;
-            else if (maxheight < 0x0004)
+            else if (maxencoderheight < 0x0004)
                return 2;
-            else if (maxheight < 0x0008)
+            else if (maxencoderheight < 0x0008)
                return 3;
-            else if (maxheight < 0x0010)
+            else if (maxencoderheight < 0x0010)
                return 4;
-            else if (maxheight < 0x0020)
+            else if (maxencoderheight < 0x0020)
                return 5;
-            else if (maxheight < 0x0040)
+            else if (maxencoderheight < 0x0040)
                return 6;
-            else if (maxheight < 0x0080)
+            else if (maxencoderheight < 0x0080)
                return 7;
-            else if (maxheight < 0x0100)
+            else if (maxencoderheight < 0x0100)
                return 8;
-            else if (maxheight < 0x0200)
+            else if (maxencoderheight < 0x0200)
                return 9;
-            else if (maxheight < 0x0400)
+            else if (maxencoderheight < 0x0400)
                return 10;
-            else if (maxheight < 0x0800)
+            else if (maxencoderheight < 0x0800)
                return 11;
-            else if (maxheight < 0x1000)
+            else if (maxencoderheight < 0x1000)
                return 12;
-            else if (maxheight < 0x2000)
+            else if (maxencoderheight < 0x2000)
                return 13;
-            else if (maxheight < 0x4000)
+            else if (maxencoderheight < 0x4000)
                return 14;
             else
                return 15;
@@ -751,7 +788,7 @@ namespace Encoder {
 
 
          public override string ToString() {
-            return string.Format("maxheight={0}, MinBigBin={1}, MaxBigBin={2}", maxheight, MinBigBin, MaxBigBin);
+            return string.Format("maxheight={0}, MinBigBin={1}, MaxBigBin={2}", maxencoderheight, MinBigBin, MaxBigBin);
          }
 
       }
@@ -808,8 +845,8 @@ namespace Encoder {
          ValueRanges vr;
 
 
-         public ValueFitting(int maxheight) {
-            vr = new ValueRanges(maxheight);
+         public ValueFitting(int maxheight, ValueRanges valuerange) {
+            vr = valuerange;
 
             max = maxheight;
 
@@ -984,17 +1021,21 @@ namespace Encoder {
          /// </summary>
          protected int UnitDelta;
 
+         protected bool WhithoutL1;
+
 
          /// <summary>
          /// bildet <see cref="CodingTypeStd"/> für die Hybridcodierung
          /// </summary>
          /// <param name="maxheightdiff">max. Höhendiff.</param>
-         public CodingTypeStd(int maxheightdiff) {
+         /// <param name="whithoutL1">wenn true, dann ohne L1-Codierung</param>
+         public CodingTypeStd(int maxheightdiff, bool whithoutL1) {
             if (maxheightdiff < 0)
                throw new Exception("Der Wert von maxHeightdiff kann nicht kleiner 0 sein.");
 
             EncodeMode = EncodeMode.Hybrid;
             MaxheightDiff = maxheightdiff;
+            WhithoutL1 = whithoutL1;
             HunitValue = GetHunit4MaxHeight(maxheightdiff);
             UnitDelta = GetHunitDelta(maxheightdiff);
             ElemCount = 0;
@@ -1062,7 +1103,7 @@ namespace Encoder {
             if (HunitValue > 0)
                EncodeMode = EncodeMode.Hybrid;
             else
-               EncodeMode = SumL > 0 ? EncodeMode.Length1 : EncodeMode.Length0;
+               EncodeMode = SumL > 0 && !WhithoutL1 ? EncodeMode.Length1 : EncodeMode.Length0;
 
          }
 
@@ -1234,7 +1275,7 @@ namespace Encoder {
          /// bildet <see cref="CodingTypeStd"/> für die Codierung der Plateaufollower mit ddiff ungleich 0
          /// </summary>
          /// <param name="maxheightdiff">max. Höhendiff.</param>
-         public CodingTypePlateauFollowerNotZero(int maxheightdiff) : base(maxheightdiff) { }
+         public CodingTypePlateauFollowerNotZero(int maxheightdiff) : base(maxheightdiff, false) { }
 
          override public void AddValue(int data) {
 
@@ -1280,7 +1321,7 @@ namespace Encoder {
          /// bildet <see cref="CodingTypeStd"/> für die Codierung der Plateaufollower mit ddiff=0
          /// </summary>
          /// <param name="maxheighdiff">max. Höhendiff.</param>
-         public CodingTypePlateauFollowerZero(int maxheightdiff) : base(maxheightdiff) { }
+         public CodingTypePlateauFollowerZero(int maxheightdiff) : base(maxheightdiff, false) { }
 
          override public void AddValue(int data) {
 
@@ -1482,6 +1523,14 @@ namespace Encoder {
       /// </summary>
       BitStream bits;
 
+      /// <summary>
+      /// Encodierung für Kachel mit verkleinerten Werten
+      /// </summary>
+      int shrink;
+
+      ValueRanges valrange;
+
+
 
       /// <summary>
       /// erzeugt einen Encoder für eine Kachel
@@ -1490,11 +1539,13 @@ namespace Encoder {
       /// </para>
       /// </summary>
       /// <param name="maxheight">max. Höhe</param>
+      /// <param name="shrink"></param>
       /// <param name="width">Breite der Kachel</param>
-      /// <param name="tilesizevert">Höhe der Kachel</param>
+      /// <param name="height">Höhe der Kachel</param>
       /// <param name="normalizedheight">Liste der Höhendaten (Anzahl normalerweise <see cref="tilesize"/> * <see cref="tilesize"/>)</param>
-      public TileEncoderProd(int maxheight, int width, int height, IList<int> normalizedheight) {
+      public TileEncoderProd(int maxheight, int shrink, int width, int height, IList<int> normalizedheight) {
          MaxHeight = maxheight;
+         this.shrink = shrink;
          Width = width;
          Height = height;
 
@@ -1503,13 +1554,18 @@ namespace Encoder {
 
       public byte[] Encode() {
          bits = new BitStream();
-         BitEnc = new BitEncoding(MaxHeight, bits);
 
-         ct_std = new CodingTypeStd(MaxHeight);
+         int maxrealheight = MaxHeight;
+         MaxHeight = MaxHeight / shrink + (MaxHeight % shrink > 0 ? 1 : 0);
+
+         valrange = new ValueRanges(MaxHeight, maxrealheight, shrink);
+         BitEnc = new BitEncoding(MaxHeight, bits, valrange);
+
+         ct_std = new CodingTypeStd(MaxHeight, shrink > 1);
          ct_pf_0 = new CodingTypePlateauFollowerZero(MaxHeight);
          ct_pf_not0 = new CodingTypePlateauFollowerNotZero(MaxHeight);
 
-         ValueWrap = new ValueFitting(MaxHeight);
+         ValueWrap = new ValueFitting(MaxHeight, valrange);
 
          int col = 0;
          int row = 0;

@@ -23,6 +23,12 @@ namespace BuildDEMFile {
       /// </summary>
       public const double FOOT = 0.3048;
 
+      public enum InterpolationType {
+         standard,
+         bicubic_catmull_rom,
+      }
+
+
       /// <summary>
       /// left border
       /// </summary>
@@ -145,73 +151,122 @@ namespace BuildDEMFile {
       /// </summary>
       /// <param name="lon"></param>
       /// <param name="lat"></param>
+      /// <param name="intpol"></param>
       /// <returns></returns>
-      public double InterpolatedHeight(double lon, double lat) {
+      public double InterpolatedHeight(double lon, double lat, InterpolationType intpol) {
          double h = NOVALUED;
 
          lon -= Left;
          lat -= Bottom; // Koordinaten auf die Ecke links unten bezogen
 
-         if (0.0 <= lon && lon <= 1.0 &&
-             0.0 <= lat && lat <= 1.0) {
-            // x-y-Index des Eckpunktes links unten des umschließenden Quadrats bestimmen
-            int x = (int)(lon / DeltaX);
-            int y = (int)(lat / DeltaY);
-            if (x == Columns - 1) // liegt auf rechtem Rand
-               x--;
-            if (y == Rows - 1) // liegt auf oberem Rand
-               y--;
+         switch (intpol) {
+            case InterpolationType.standard:
+               if (0.0 <= lon && lon <= 1.0 &&
+                   0.0 <= lat && lat <= 1.0) {
+                  // x-y-Index des Eckpunktes links unten des umschließenden Quadrats bestimmen
+                  int x = (int)(lon / DeltaX);
+                  int y = (int)(lat / DeltaY);
+                  if (x == Columns - 1) // liegt auf rechtem Rand
+                     x--;
+                  if (y == Rows - 1) // liegt auf oberem Rand
+                     y--;
 
-            // lon/lat jetzt bzgl. der Ecke links-unten des umschließenden Quadrats bilden (0 .. <Delta)
-            double delta_lon = lon - x * DeltaX;
-            double delta_lat = lat - y * DeltaY;
+                  // lon/lat jetzt bzgl. der Ecke links-unten des umschließenden Quadrats bilden (0 .. <Delta)
+                  double delta_lon = lon - x * DeltaX;
+                  double delta_lat = lat - y * DeltaY;
 
-            if (delta_lon == 0) {            // linker Rand
-               if (delta_lat == 0)
-                  h = Get4XY(x, y);          // Eckpunkt links unten
-               else if (delta_lat >= DeltaY)
-                  h = Get4XY(x, y + 1);      // Eckpunkt links oben (eigentlich nicht möglich)
-               else
-                  h = LinearInterpolatedHeight(Get4XY(x, y),
-                                               Get4XY(x, y + 1),
-                                               delta_lat / DeltaY);
-            } else if (delta_lon >= DeltaX) { // rechter Rand (eigentlich nicht möglich)
-               if (delta_lat == 0)
-                  h = Get4XY(x + 1, y);      // Eckpunkt rechts unten
-               else if (delta_lat >= DeltaY)
-                  h = Get4XY(x + 1, y + 1);  // Eckpunkt rechts oben (eigentlich nicht möglich)
-               else
-                  h = LinearInterpolatedHeight(Get4XY(x + 1, y),
-                                               Get4XY(x + 1, y + 1),
-                                               delta_lat / DeltaY);
-            } else if (delta_lat == 0) {     // unterer Rand (außer Eckpunkt)
-               h = LinearInterpolatedHeight(Get4XY(x, y),
-                                            Get4XY(x + 1, y),
-                                            delta_lon / DeltaX);
-            } else if (delta_lat >= DeltaY) { // oberer Rand (außer Eckpunkt) (eigentlich nicht möglich)
-               h = LinearInterpolatedHeight(Get4XY(x, y + 1),
-                                            Get4XY(x + 1, y + 1),
-                                            delta_lon / DeltaX);
+                  if (delta_lon == 0) {            // linker Rand
+                     if (delta_lat == 0)
+                        h = Get4XY(x, y);          // Eckpunkt links unten
+                     else if (delta_lat >= DeltaY)
+                        h = Get4XY(x, y + 1);      // Eckpunkt links oben (eigentlich nicht möglich)
+                     else
+                        h = LinearInterpolatedHeight(Get4XY(x, y),
+                                                     Get4XY(x, y + 1),
+                                                     delta_lat / DeltaY);
+                  } else if (delta_lon >= DeltaX) { // rechter Rand (eigentlich nicht möglich)
+                     if (delta_lat == 0)
+                        h = Get4XY(x + 1, y);      // Eckpunkt rechts unten
+                     else if (delta_lat >= DeltaY)
+                        h = Get4XY(x + 1, y + 1);  // Eckpunkt rechts oben (eigentlich nicht möglich)
+                     else
+                        h = LinearInterpolatedHeight(Get4XY(x + 1, y),
+                                                     Get4XY(x + 1, y + 1),
+                                                     delta_lat / DeltaY);
+                  } else if (delta_lat == 0) {     // unterer Rand (außer Eckpunkt)
+                     h = LinearInterpolatedHeight(Get4XY(x, y),
+                                                  Get4XY(x + 1, y),
+                                                  delta_lon / DeltaX);
+                  } else if (delta_lat >= DeltaY) { // oberer Rand (außer Eckpunkt) (eigentlich nicht möglich)
+                     h = LinearInterpolatedHeight(Get4XY(x, y + 1),
+                                                  Get4XY(x + 1, y + 1),
+                                                  delta_lon / DeltaX);
 
-            } else {                         // Punkt innerhalb des Rechtecks
+                  } else {                         // Punkt innerhalb des Rechtecks
 
-               //int leftbottom, rightbottom, righttop, lefttop;
-               //Get4XYSquare(x, y, out leftbottom, out rightbottom, out righttop, out lefttop);  // etwas schneller als die obere Version
+                     //int leftbottom, rightbottom, righttop, lefttop;
+                     //Get4XYSquare(x, y, out leftbottom, out rightbottom, out righttop, out lefttop);  // etwas schneller als die obere Version
 
-               int idx = (Rows - 1 - y) * Columns; // Anfang der unteren Zeile
-               idx += x;
-               int leftbottom = data[idx++];
-               int rightbottom = data[idx];
-               idx -= Columns;
-               int righttop = data[idx--];
-               int lefttop = data[idx];
-               h = InterpolatedHeightInNormatedRectangle_New(delta_lon / DeltaX,
-                                                             delta_lat / DeltaY,
-                                                             lefttop,
-                                                             righttop,
-                                                             rightbottom,
-                                                             leftbottom);
-            }
+                     int idx = (Rows - 1 - y) * Columns; // Anfang der unteren Zeile
+                     idx += x;
+                     int leftbottom = data[idx++];
+                     int rightbottom = data[idx];
+                     idx -= Columns;
+                     int righttop = data[idx--];
+                     int lefttop = data[idx];
+                     h = InterpolatedHeightInNormatedRectangle_New(delta_lon / DeltaX,
+                                                                   delta_lat / DeltaY,
+                                                                   lefttop,
+                                                                   righttop,
+                                                                   rightbottom,
+                                                                   leftbottom);
+                  }
+               }
+               break;
+
+            case InterpolationType.bicubic_catmull_rom:
+               if (0.0 <= lon && lon <= 1.0 &&
+                   0.0 <= lat && lat <= 1.0) {
+
+                  if (Columns >= 4 && Rows >= 4) {
+                     // x-y-Index des Punktes link-unterhalb bestimmen
+                     int x = (int)(lon / DeltaX);
+                     int y = (int)(lat / DeltaY);
+                     // x-y-Index des Punktes link-unterhalb dieses Punktes bestimmen
+                     x--;
+                     y--;
+                     if (x < 0)
+                        x = 0;
+                     else if (x >= Columns - 4)
+                        x = Columns - 4;
+                     if (y < 0)
+                        y = 0;
+                     else if (y >= Rows - 4)
+                        y = Rows - 4;
+
+                     double[][] p = new double[4][];
+                     for (int i = 0; i < 4; i++)
+                        p[i] = new double[] {   Get4XY(x, y + 3-i),
+                                             Get4XY(x + 1, y + 3-i),
+                                             Get4XY(x + 2, y + 3-i),
+                                             Get4XY(x + 3, y + 3-i) };
+
+                     bool allvalid = true;
+                     for (int i = 0; i < 4; i++)
+                        for (int j = 0; j < 4; j++)
+                           if (p[i][j] == NOVALUE) {
+                              allvalid = false;
+                              i = j = 5;
+                           }
+
+                     if (allvalid)
+                        h = Dim2CubicInterpolation(p, lon / DeltaX - x, lat / DeltaY - y);
+                     else
+                        h = InterpolatedHeight(lon + Left, lat + Bottom, InterpolationType.standard);
+                  } else
+                     h = InterpolatedHeight(lon + Left, lat + Bottom, InterpolationType.standard);
+               }
+               break;
          }
 
          return h;
@@ -236,8 +291,9 @@ namespace BuildDEMFile {
       /// </summary>
       /// <param name="newcols"></param>
       /// <param name="newrows"></param>
+      /// <param name="intpol"></param>
       /// <returns></returns>
-      public bool ResizeDatatable(int newcols, int newrows) {
+      public bool ResizeDatatable(int newcols, int newrows, InterpolationType intpol) {
          if (newcols < 3 || newrows < 3)
             throw new Exception("New tablesize less 3 not permitted.");
 
@@ -250,7 +306,7 @@ namespace BuildDEMFile {
 
             for (int row = 0; row < newrows; row++) {
                for (int col = 0; col < newcols; col++) {
-                  double hi = InterpolatedHeight(Left + col * deltax, Bottom + 1 - row * deltay);
+                  double hi = InterpolatedHeight(Left + col * deltax, Bottom + 1 - row * deltay, intpol);
                   if (hi == NOVALUED) {
                      NotValid++;
                      newdata[row * newcols + col] = NOVALUE;
@@ -271,6 +327,8 @@ namespace BuildDEMFile {
          }
          return false;
       }
+
+      #region Bilinear Interpolation
 
       /// <summary>
       /// get surrounding 4 point
@@ -305,9 +363,11 @@ namespace BuildDEMFile {
       /// <returns></returns>
       double LinearInterpolatedHeight(int h1, int h2, double q1) {
          if (h1 == NOVALUE)
-            return q1 < .5 ? NOVALUED : h1; // wenn dichter am NOVALUE, dann NOVALUE sonst gleiche Höhe wie der andere Punkt
+            return q1 < .5 ? NOVALUED : // wenn dichter am NOVALUE, dann NOVALUE sonst gleiche Höhe wie der andere Punkt
+                     h2 == NOVALUE ? NOVALUED : h2;
          if (h2 == NOVALUE)
-            return q1 > .5 ? NOVALUED : h2;
+            return q1 > .5 ? NOVALUED :
+                     h1 == NOVALUE ? NOVALUED : h1;
          return h1 + q1 * (h2 - h1);
       }
 
@@ -415,6 +475,65 @@ namespace BuildDEMFile {
             return hrb - qx * hlb + qy * hrt;
          }
       }
+
+      #endregion
+
+      #region Cubic Interpolation (Catmull–Rom spline)
+
+      /// <summary>
+      /// 1-dimensionale kubische Interpolation mit Catmull–Rom Spline
+      /// <para>
+      /// Die Gleichung vereinfacht nur den folgenden Zusammenhang:
+      /// 
+      /// p0  p1   p2    p3
+      /// -------------------------
+      /// 0    1    0     0     q^0 
+      /// -t   0    t     0     q^1 
+      /// 2t  t-3  3-2t  -t     q^2 
+      /// -t  2-t  t-2    t     q^3
+      /// 
+      /// üblich mit t=0.5 (auch mit 1 gesehen)
+      /// 
+      /// q^3 * (-0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3) +
+      /// q^2 * (     p0 - 1.5*p1 + 2.5*p2 - 0.5*p3) +
+      /// q^1 * (-0.5*p0          + 0.5*p2         ) +
+      ///                      p1
+      /// </para>
+      /// </summary>
+      /// <param name="p">4 Werte (bekannte Stützpunkte), die den Spline definieren (abgesehen von t).</param>
+      /// <param name="q">Für diesen Wert (als Faktor 0..1) zwischen den Stützpunkten ist der Funktionswert gesucht.</param>
+      /// <returns></returns>
+      static double Dim1CubicInterpolation(double[] p, double q) {
+         return p[1] + 0.5 * q * (p[2] - p[0] + q * (2 * p[0] - 5 * p[1] + 4 * p[2] - p[3] + q * (3 * (p[1] - p[2]) + p[3] - p[0])));
+      }
+
+      /// <summary>
+      /// 2-dimensionale (bi)kubische Interpolation mit Catmull–Rom Spline
+      /// </summary>
+      /// <param name="p">4x4 Stützpunkte</param>
+      /// <param name="qx">Faktor 0..1 des x-Wertes der Position der gesuchten Höhe</param>
+      /// <param name="qy">Faktor 0..1 des y-Wertes der Position der gesuchten Höhe</param>
+      /// <returns></returns>
+      static double Dim2CubicInterpolation(double[][] p, double qx, double qy) {
+         return Dim1CubicInterpolation(new double[] {
+                                          Dim1CubicInterpolation(p[0], qy),   // Array der y-Werte für x=0
+                                          Dim1CubicInterpolation(p[1], qy),
+                                          Dim1CubicInterpolation(p[2], qy),
+                                          Dim1CubicInterpolation(p[3], qy)},  // Array der y-Werte für x=1
+                                       qx);
+      }
+
+      //double BiCubicInterpolation(int x, int y, double qx, double qy) {
+      double BiCubicInterpolation(double lon, double lat) {
+         double[][] p = new double[4][];
+
+
+         return 0; // Dim2CubicInterpolation(p, qx, qy);
+      }
+
+
+
+      #endregion
 
       /// <summary>
       /// get the standard basefilename for this object with upper chars (without extension)

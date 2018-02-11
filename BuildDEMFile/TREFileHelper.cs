@@ -18,7 +18,22 @@ namespace BuildDEMFile {
       const double DEGREE_FACTOR = 360.0 / MAPUNITS360DEGREE;
 
 
-      public static bool ReadEdges(string filename, out double west, out double north, out double east, out double south) {
+      /// <summary>
+      /// liefert die Boundingbox der TRE-Datei
+      /// </summary>
+      /// <param name="filename"></param>
+      /// <param name="west"></param>
+      /// <param name="north"></param>
+      /// <param name="east"></param>
+      /// <param name="south"></param>
+      /// <param name="iwest"></param>
+      /// <param name="inorth"></param>
+      /// <param name="ieast"></param>
+      /// <param name="isouth"></param>
+      /// <returns></returns>
+      public static bool ReadEdges(string filename, 
+                                   out double west, out double north, out double east, out double south,
+                                   out int iwest, out int inorth, out int ieast, out int isouth) {
          bool ret = false;
          west = north = east = south = 0;
          using (BinaryReader br = new BinaryReader(File.OpenRead(filename))) {
@@ -37,10 +52,15 @@ namespace BuildDEMFile {
             br.ReadInt16();
             br.ReadByte();
 
-            north = MapUnits2Degree(Read3Byte(br)); // 0x15
-            east = MapUnits2Degree(Read3Byte(br));
-            south = MapUnits2Degree(Read3Byte(br));
-            west = MapUnits2Degree(Read3Byte(br));
+            inorth = Read3Byte(br);
+            ieast = Read3Byte(br);
+            isouth = Read3Byte(br);
+            iwest = Read3Byte(br);
+
+            north = MapUnits2Degree(inorth); // 0x15
+            east = MapUnits2Degree(ieast);
+            south = MapUnits2Degree(isouth);
+            west = MapUnits2Degree(iwest);
 
             ret = true;
          }

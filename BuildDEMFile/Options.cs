@@ -72,6 +72,11 @@ namespace BuildDEMFile {
       public List<double> PixelHeight { get; private set; }
 
       /// <summary>
+      /// Pixelabstand
+      /// </summary>
+      public List<int> PixelDistance { get; private set; }
+
+      /// <summary>
       /// Breite eines DEM-Pixels für die Overview-Karte
       /// </summary>
       public List<double> OverviewPixelWidth { get; private set; }
@@ -80,6 +85,16 @@ namespace BuildDEMFile {
       /// Höhe eines DEM-Pixels für die Overview-Karte
       /// </summary>
       public List<double> OverviewPixelHeight { get; private set; }
+
+      /// <summary>
+      /// Pixelabstand für die Overview-Karte
+      /// </summary>
+      public List<int> OverviewPixelDistance { get; private set; }
+
+      /// <summary>
+      /// ungerade Verkleinerungsfaktoren
+      /// </summary>
+      public List<int> OverviewShrink { get; private set; }
 
       /// <summary>
       /// Breite des DEM-Bereiches
@@ -102,6 +117,16 @@ namespace BuildDEMFile {
       public bool OutputOverwrite { get; private set; }
 
       /// <summary>
+      /// mit oder ohne "Einrasten" der DEM-Ecke links-oben
+      /// </summary>
+      public bool NoSnapLeftTop { get; private set; }
+
+      /// <summary>
+      /// Standard oder Bikubisch
+      /// </summary>
+      public bool StdInterpolation { get; private set; }
+
+      /// <summary>
       /// den ursprünglichen Testencoder verwenden (langsam!)
       /// </summary>
       public bool UseTestEncoder { get; private set; }
@@ -119,21 +144,28 @@ namespace BuildDEMFile {
          DemPath,
          GmapPath,
          TREFilename,
+         PixelDistance,
          PixelWidth,
          PixelHeight,
+         OverviewPixelDistance,
          OverviewPixelWidth,
          OverviewPixelHeight,
+         OverviewShrink,
          UseDummyData,
-         LastColStd,
+         StdInterpolation,
          OutputOverwrite,
          DataInFoot,
+
          DemDataOutput,
          DataFilename,
          TRELeft,
          TRETop,
          DEMWidth,
          DEMHeight,
+         LastColStd,
+         NoSnapLeftTop,
          UseTestEncoder,
+
          //Multithread,
 
          Help,
@@ -146,22 +178,31 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.DEMFilename, "dem", "d", "name of the new DEM-file", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
          cmd.DefineOption((int)MyOptions.DemPath, "hgtpath", "", "path of the HGT/TIF-files (multiple usage)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
          cmd.DefineOption((int)MyOptions.GmapPath, "gmappath", "", "path of the gmap-map", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "name of TRE-file (with the bounding area)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
+         cmd.DefineOption((int)MyOptions.PixelDistance, "dist", "", "distance between DEM-points (multiple usage for different zoomlevel; priority over dlon/dlat)", FSoftUtils.CmdlineOptions.OptionArgumentType.PositivInteger, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "horizontal distance between DEM-points (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "vertical distance between DEM-points (multiple usage for different zoomlevel;" + Environment.NewLine +
+                                                                   "default the same as dlon and then not necessary)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.OverviewPixelDistance, "ovdist", "", "distance between DEM-points for verviewmap (multiple usage for different zoomlevel;" + Environment.NewLine +
+                                                                              "priority over ovdlon/ovdlat)", FSoftUtils.CmdlineOptions.OptionArgumentType.PositivInteger, int.MaxValue);
          cmd.DefineOption((int)MyOptions.OverviewPixelWidth, "ovdlon", "", "horizontal distance between DEM-points for verviewmap (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
          cmd.DefineOption((int)MyOptions.OverviewPixelHeight, "ovdlat", "", "vertical distance between DEM-points for verviewmap (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.TREFilename, "tre", "", "name of TRE-file (with the bounding area)", FSoftUtils.CmdlineOptions.OptionArgumentType.String);
-         cmd.DefineOption((int)MyOptions.PixelWidth, "dlon", "o", "horizontal distance between DEM-points (multiple usage for different zoomlevel)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
-         cmd.DefineOption((int)MyOptions.PixelHeight, "dlat", "a", "vertical distance between DEM-points (multiple usage for different zoomlevel; default the same as dlon and then not necessary)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double, int.MaxValue);
+         cmd.DefineOption((int)MyOptions.OverviewShrink, "ovshrink", "", "uneven shrinkvalue (multiple usage for different zoomlevel, default 1)", FSoftUtils.CmdlineOptions.OptionArgumentType.PositivInteger, int.MaxValue);
          cmd.DefineOption((int)MyOptions.UseDummyData, "usedummydata", "", "use NODATA-values (" + short.MinValue.ToString() + ") for absent HGT's (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "last subtile column have default width (64 points) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.OutputOverwrite, "overwrite", "O", "overwrites the  DEM file if exist (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.StdInterpolation, "extintpol", "", "standard or extended (bicubic) interpolation (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.DataInFoot, "foot", "f", "values in DEM in foot or else in meter (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.DemDataOutput, "hgtoutput", "", "write interpolated data in text files (for test, default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
-         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "read height data from text files (for test, multiple usage)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
+
+         cmd.DefineOption((int)MyOptions.DemDataOutput, "hgtoutput", "", "write interpolated data in text files (default 'false'; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.DataFilename, "data", "i", "read height data from text files (multiple usage; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.String, int.MaxValue);
          cmd.DefineOption((int)MyOptions.TRELeft, "left", "l", "westerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.TRETop, "top", "t", "northerly border of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMWidth, "width", "w", "width of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
          cmd.DefineOption((int)MyOptions.DEMHeight, "height", "h", "height of the area (alternatively for --tre; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.Double);
+         cmd.DefineOption((int)MyOptions.LastColStd, "lastcolstd", "", "last subtile column have default width (64 points) (without arg 'true', default 'false'; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.NoSnapLeftTop, "lefttopnosnap", "", "without snapping for left-top dem-corner (without arg 'false', default 'true'; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.UseTestEncoder, "testencoder", "", "use testencoder (slow!) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+
          //         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
          cmd.DefineOption((int)MyOptions.Help, "help", "?", "this text", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
@@ -182,13 +223,18 @@ namespace BuildDEMFile {
          TRETop =
          DEMWidth =
          DEMHeight = double.NaN;
+         PixelDistance = new List<int>();
          PixelWidth = new List<double>();
          PixelHeight = new List<double>();
+         OverviewPixelDistance = new List<int>();
          OverviewPixelWidth = new List<double>();
          OverviewPixelHeight = new List<double>();
+         OverviewShrink = new List<int>();
          TREFilename = "";
+         StdInterpolation = true;
          LastColStd = false;
          OutputOverwrite = false;
+         NoSnapLeftTop = false;
          UseTestEncoder = false;
          Multithread = 0;
       }
@@ -289,6 +335,11 @@ namespace BuildDEMFile {
                            PixelHeight.Add(cmd.DoubleValue((int)opt, i));
                         break;
 
+                     case MyOptions.PixelDistance:
+                        for (int i = 0; i < optcount; i++)
+                           PixelDistance.Add((int)cmd.PositivIntegerValue((int)opt, i));
+                        break;
+
                      case MyOptions.OverviewPixelWidth:
                         for (int i = 0; i < optcount; i++)
                            OverviewPixelWidth.Add(cmd.DoubleValue((int)opt, i));
@@ -299,12 +350,40 @@ namespace BuildDEMFile {
                            OverviewPixelHeight.Add(cmd.DoubleValue((int)opt, i));
                         break;
 
+                     case MyOptions.OverviewPixelDistance:
+                        for (int i = 0; i < optcount; i++)
+                           OverviewPixelDistance.Add((int)cmd.PositivIntegerValue((int)opt, i));
+                        break;
+
+                     case MyOptions.OverviewShrink:
+                        for (int i = 0; i < optcount; i++) {
+                           uint v = cmd.PositivIntegerValue((int)opt, i);
+                           if (v % 2 != 1)
+                              throw new Exception("only uneven values for shrink permitted");
+                           OverviewShrink.Add((int)v);
+                        }
+                        break;
+
                      case MyOptions.DEMWidth:
                         DEMWidth = cmd.DoubleValue((int)opt);
                         break;
 
                      case MyOptions.DEMHeight:
                         DEMHeight = cmd.DoubleValue((int)opt);
+                        break;
+
+                     case MyOptions.NoSnapLeftTop:
+                        if (cmd.ArgIsUsed((int)opt))
+                           NoSnapLeftTop = cmd.BooleanValue((int)opt);
+                        else
+                           NoSnapLeftTop = true;
+                        break;
+
+                     case MyOptions.StdInterpolation:
+                        if (cmd.ArgIsUsed((int)opt))
+                           StdInterpolation = cmd.BooleanValue((int)opt);
+                        else
+                           StdInterpolation = false;
                         break;
 
                      case MyOptions.UseTestEncoder:
@@ -333,22 +412,35 @@ namespace BuildDEMFile {
             //cmd.Parameters.CopyTo(TestParameter);
 
             // für gleiche Anzahl Höhen und Breiten sorgen
-            while (PixelHeight.Count < PixelWidth.Count) {
-               PixelHeight.Add(PixelWidth[PixelHeight.Count]);
-            }
-            while (PixelWidth.Count < PixelHeight.Count) {
-               PixelWidth.Add(PixelHeight[PixelWidth.Count]);
+            if (PixelDistance.Count > 0) {
+               PixelHeight.Clear();
+               PixelWidth.Clear();
+            } else {
+               while (PixelHeight.Count < PixelWidth.Count) {
+                  PixelHeight.Add(PixelWidth[PixelHeight.Count]);
+               }
+               while (PixelWidth.Count < PixelHeight.Count) {
+                  PixelWidth.Add(PixelHeight[PixelWidth.Count]);
+               }
             }
 
-            while (OverviewPixelHeight.Count < OverviewPixelWidth.Count) {
-               OverviewPixelHeight.Add(OverviewPixelWidth[OverviewPixelHeight.Count]);
+            if (OverviewPixelDistance.Count > 0) {
+               OverviewPixelHeight.Clear();
+               OverviewPixelWidth.Clear();
+            } else {
+               while (OverviewPixelHeight.Count < OverviewPixelWidth.Count) {
+                  OverviewPixelHeight.Add(OverviewPixelWidth[OverviewPixelHeight.Count]);
+               }
+               while (OverviewPixelWidth.Count < OverviewPixelHeight.Count) {
+                  OverviewPixelWidth.Add(OverviewPixelHeight[OverviewPixelWidth.Count]);
+               }
             }
-            while (OverviewPixelWidth.Count < OverviewPixelHeight.Count) {
-               OverviewPixelWidth.Add(OverviewPixelHeight[OverviewPixelWidth.Count]);
+            while (OverviewShrink.Count < Math.Max(OverviewPixelDistance.Count, OverviewPixelHeight.Count)) {
+               OverviewShrink.Add(1);
             }
 
             if (cmd.Parameters.Count > 0)
-               throw new Exception("args not permitted");
+               throw new Exception(string.Format("args not permitted ({0})", cmd.Parameters[0]));
 
          } catch (Exception ex) {
             Console.Error.WriteLine(ex.Message);
