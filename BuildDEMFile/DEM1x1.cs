@@ -11,7 +11,7 @@ namespace BuildDEMFile {
       /// <summary>
       /// int value for "no data"
       /// </summary>
-      public const int NOVALUE = -32768;
+      public const int DEMNOVALUE = -32768;
 
       /// <summary>
       /// double value for "no data" (from interpolation)
@@ -143,7 +143,7 @@ namespace BuildDEMFile {
       /// </summary>
       /// <returns></returns>
       public bool HasValidValues() {
-         return (Minimum != NOVALUE || Maximum != NOVALUE);
+         return (Minimum != DEMNOVALUE || Maximum != DEMNOVALUE);
       }
 
       /// <summary>
@@ -177,18 +177,18 @@ namespace BuildDEMFile {
 
                   if (delta_lon == 0) {            // linker Rand
                      if (delta_lat == 0)
-                        h = Get4XY(x, y);          // Eckpunkt links unten
+                        h = GetHeight4XY(x, y);          // Eckpunkt links unten
                      else if (delta_lat >= DeltaY)
-                        h = Get4XY(x, y + 1);      // Eckpunkt links oben (eigentlich nicht möglich)
+                        h = GetHeight4XY(x, y + 1);      // Eckpunkt links oben (eigentlich nicht möglich)
                      else
                         h = LinearInterpolatedHeight(Get4XY(x, y),
                                                      Get4XY(x, y + 1),
                                                      delta_lat / DeltaY);
                   } else if (delta_lon >= DeltaX) { // rechter Rand (eigentlich nicht möglich)
                      if (delta_lat == 0)
-                        h = Get4XY(x + 1, y);      // Eckpunkt rechts unten
+                        h = GetHeight4XY(x + 1, y);      // Eckpunkt rechts unten
                      else if (delta_lat >= DeltaY)
-                        h = Get4XY(x + 1, y + 1);  // Eckpunkt rechts oben (eigentlich nicht möglich)
+                        h = GetHeight4XY(x + 1, y + 1);  // Eckpunkt rechts oben (eigentlich nicht möglich)
                      else
                         h = LinearInterpolatedHeight(Get4XY(x + 1, y),
                                                      Get4XY(x + 1, y + 1),
@@ -246,15 +246,15 @@ namespace BuildDEMFile {
 
                      double[][] p = new double[4][];
                      for (int i = 0; i < 4; i++)
-                        p[i] = new double[] {   Get4XY(x, y + 3-i),
-                                             Get4XY(x + 1, y + 3-i),
-                                             Get4XY(x + 2, y + 3-i),
-                                             Get4XY(x + 3, y + 3-i) };
+                        p[i] = new double[] { Get4XY(x, y + 3-i),
+                                              Get4XY(x + 1, y + 3-i),
+                                              Get4XY(x + 2, y + 3-i),
+                                              Get4XY(x + 3, y + 3-i) };
 
                      bool allvalid = true;
                      for (int i = 0; i < 4; i++)
                         for (int j = 0; j < 4; j++)
-                           if (p[i][j] == NOVALUE) {
+                           if (p[i][j] == DEMNOVALUE) {
                               allvalid = false;
                               i = j = 5;
                            }
@@ -309,7 +309,7 @@ namespace BuildDEMFile {
                   double hi = InterpolatedHeight(Left + col * deltax, Bottom + 1 - row * deltay, intpol);
                   if (hi == NOVALUED) {
                      NotValid++;
-                     newdata[row * newcols + col] = NOVALUE;
+                     newdata[row * newcols + col] = DEMNOVALUE;
                   } else {
                      short h = (short)Math.Round(hi);
                      if (Maximum < h)
@@ -326,6 +326,11 @@ namespace BuildDEMFile {
             return true;
          }
          return false;
+      }
+
+      double GetHeight4XY(int x, int y) {
+         int h = Get4XY(x, y);
+         return h == DEMNOVALUE ? NOVALUED : h;
       }
 
       #region Bilinear Interpolation
@@ -362,12 +367,12 @@ namespace BuildDEMFile {
       /// <param name="q1"></param>
       /// <returns></returns>
       double LinearInterpolatedHeight(int h1, int h2, double q1) {
-         if (h1 == NOVALUE)
+         if (h1 == DEMNOVALUE)
             return q1 < .5 ? NOVALUED : // wenn dichter am NOVALUE, dann NOVALUE sonst gleiche Höhe wie der andere Punkt
-                     h2 == NOVALUE ? NOVALUED : h2;
-         if (h2 == NOVALUE)
+                     h2 == DEMNOVALUE ? NOVALUED : h2;
+         if (h2 == DEMNOVALUE)
             return q1 > .5 ? NOVALUED :
-                     h1 == NOVALUE ? NOVALUED : h1;
+                     h1 == DEMNOVALUE ? NOVALUED : h1;
          return h1 + q1 * (h2 - h1);
       }
 
@@ -383,13 +388,13 @@ namespace BuildDEMFile {
       /// <returns></returns>
       double InterpolatedHeightInNormatedRectangle_New(double qx, double qy, int hlt, int hrt, int hrb, int hlb) {
          int novalue = 0;
-         if (hlb == NOVALUE)
+         if (hlb == DEMNOVALUE)
             novalue++;
-         if (hlt == NOVALUE)
+         if (hlt == DEMNOVALUE)
             novalue++;
-         if (hrt == NOVALUE)
+         if (hrt == DEMNOVALUE)
             novalue++;
-         if (hrb == NOVALUE)
+         if (hrb == DEMNOVALUE)
             novalue++;
 
          switch (novalue) {
@@ -397,25 +402,25 @@ namespace BuildDEMFile {
                return (1 - qy) * (hlb + qx * (hrb - hlb)) + qy * (hlt + qx * (hrt - hlt));
 
             case 1:
-               if (hlb == NOVALUE) {            //    valid triangle \|
+               if (hlb == DEMNOVALUE) {            //    valid triangle \|
 
                   if (qx >= 1 - qy)
                      // z = z1 + (1 - nx) * (z3 - z1) + (1 - ny) * (z2 - z1)
                      return hrt + (1 - qx) * (hlt - hrt) + (1 - qy) * (hrb - hrt);
 
-               } else if (hlt == NOVALUE) {     //    valid triangle /|
+               } else if (hlt == DEMNOVALUE) {     //    valid triangle /|
 
                   if (qx <= qy)
                      // z = z1 + (1 - nx) * (z2 - z1) + ny * (z3 - z1)
                      return hrb + (1 - qx) * (hlb - hrb) + qy * (hrt - hrb);
 
-               } else if (hrt == NOVALUE) {     //    valid triangle |\
+               } else if (hrt == DEMNOVALUE) {     //    valid triangle |\
 
                   if (qx <= 1 - qy)
                      //z = z1 + nx * (z3 - z1) + ny * (z2 - z1)
                      return hlb + qx * (hrb - hlb) + qy * (hlt - hlb);
 
-               } else if (hrb == NOVALUE) {     //    valid triangle |/
+               } else if (hrb == DEMNOVALUE) {     //    valid triangle |/
 
                   if (qx <= qy)
                      // z = z1 + nx * (z2 - z1) + (1 - ny) * (z3 - z1)
@@ -425,9 +430,9 @@ namespace BuildDEMFile {
                break;
 
             case 2:
-               if (hlb != NOVALUE && hrt != NOVALUE)  // diagonal
+               if (hlb != DEMNOVALUE && hrt != DEMNOVALUE)  // diagonal
                   return (hlb + hrt) / 2.0;
-               if (hlt != NOVALUE && hrb != NOVALUE)  // diagonal
+               if (hlt != DEMNOVALUE && hrb != DEMNOVALUE)  // diagonal
                   return (hlt + hrb) / 2.0;
                return NOVALUED;
 
@@ -439,8 +444,8 @@ namespace BuildDEMFile {
       }
 
       double InterpolatedHeightInNormatedRectangle_Old(double qx, double qy, int hlt, int hrt, int hrb, int hlb) {
-         if (hlb == NOVALUE ||
-             hrt == NOVALUE)
+         if (hlb == DEMNOVALUE ||
+             hrt == DEMNOVALUE)
             return NOVALUED; // keine Berechnung möglich
 
          /* In welchem Dreieck liegt der Punkt? 

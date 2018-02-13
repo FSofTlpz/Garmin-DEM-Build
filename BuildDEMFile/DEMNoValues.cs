@@ -7,11 +7,11 @@
       }
 
       public override void SetDataArray() {
-         Minimum = Maximum = NOVALUE;
+         Minimum = Maximum = DEMNOVALUE;
          Rows = Columns = 2;   // 2, damit Delta noch einen Wert erhält
          data = new short[Rows * Columns];
          for (int i = 0; i < data.Length; i++)
-            data[i] = NOVALUE;
+            data[i] = DEMNOVALUE;
          NotValid = data.Length;
       }
 

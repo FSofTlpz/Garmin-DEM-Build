@@ -10,6 +10,11 @@ using System.Windows.Media.Imaging;
 namespace BuildDEMFile {
    class DEMTiffReader : DEM1x1 {
 
+      /// <summary>
+      /// "nodata" value in tif-files
+      /// </summary>
+      const short TIF_NOVALUE = -32768;
+
       string tiffile;
 
 
@@ -41,14 +46,19 @@ namespace BuildDEMFile {
          Minimum = short.MaxValue;
          NotValid = 0;
          for (int i = 0; i < data.Length; i++) {
-            if (Maximum < data[i])
-               Maximum = data[i];
-            if (data[i] != NOVALUE) {
+            if (data[i] != TIF_NOVALUE) {
+               if (Maximum < data[i])
+                  Maximum = data[i];
                if (Minimum > data[i])
                   Minimum = data[i];
             } else {
                NotValid++;
+               data[i] = DEMNOVALUE;
             }
+         }
+         if (NotValid == data.Length) {
+            Maximum = 
+            Minimum = DEMNOVALUE;
          }
 
       }

@@ -93,7 +93,7 @@ namespace BuildDEMFile {
       }
 
       /// <summary>
-      /// liefert den kleinsten und größten Wert sowie als Rückgabewert das Vorhandensein von short.MaxValue
+      /// liefert den kleinsten und größten Wert (der kleiner als short.MaxValue ist) sowie als Rückgabewert das Vorhandensein von Werten größer oder gleich short.MaxValue
       /// </summary>
       /// <returns></returns>
       public bool GetMinMax(out int min, out int max) {

@@ -98,7 +98,7 @@ namespace BuildDEMFile {
          for (int i = 0; i < data.Length; i++) {
             data[i] = dat[i];
             if (Maximum < data[i]) Maximum = data[i];
-            if (data[i] != NOVALUE) {
+            if (data[i] != DEMNOVALUE) {
                if (Minimum > data[i]) Minimum = data[i];
             } else
                NotValid++;
@@ -162,15 +162,20 @@ namespace BuildDEMFile {
          NotValid = 0;
          for (int i = 0; i < data.Length; i++) {
             data[i] = (short)((str.ReadByte() << 8) + str.ReadByte());
-            if (Maximum < data[i])
-               Maximum = data[i];
+
             if (data[i] != HGT_NOVALUE) {
+               if (Maximum < data[i])
+                  Maximum = data[i];
                if (Minimum > data[i])
                   Minimum = data[i];
             } else {
                NotValid++;
-               data[i] = NOVALUE;
+               data[i] = DEMNOVALUE;
             }
+         }
+         if (NotValid == data.Length) {
+            Maximum =
+            Minimum = DEMNOVALUE;
          }
       }
 

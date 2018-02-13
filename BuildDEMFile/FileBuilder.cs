@@ -501,7 +501,7 @@ namespace BuildDEMFile {
 
                for (int i = 0; i < sData.Length; i++) {
                   int val = Convert.ToInt32(sData[i].Trim());
-                  if (val == DEM1x1.NOVALUE ||
+                  if (val == DEM1x1.DEMNOVALUE ||
                       val > Subtile.UNDEF4ENCODER)    // 2 verschiedene Varianten für "nodata"
                      val = Subtile.UNDEF4ENCODER;
 
