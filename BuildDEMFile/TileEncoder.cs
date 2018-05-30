@@ -1230,38 +1230,38 @@ namespace Encoder {
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length0"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L0_wrapdown;
+         readonly int L0_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length0"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L0_wrapup;
+         readonly int L0_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length1"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L1_wrapdown;
+         readonly int L1_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length1"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L1_wrapup;
+         readonly int L1_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length2"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L2_wrapdown;
+         readonly int L2_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length2"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L2_wrapup;
+         readonly int L2_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens überschritten werden muss
          /// </summary>
-         int H_wrapdown;
+         readonly int H_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens unterschritten werden muss
          /// </summary>
-         int H_wrapup;
+         readonly int H_wrapup;
 
 #if INCLUDENOTNEEDED
 
@@ -1279,7 +1279,7 @@ namespace Encoder {
          /// <summary>
          /// Maximalhöhe der Kachel
          /// </summary>
-         int max;
+         readonly int max;
 
          public Wraparound(int maxheight) {
             max = maxheight;
@@ -1836,9 +1836,9 @@ namespace Encoder {
          /// <param name="oldsum">bisherige Summe</param>
          /// <param name="elemcount">bisher registrierte Elementanzahl</param>
          /// <param name="newdata">neuer Wert</param>
-         /// <param name="spec64">spez. für 64. Wert</param>
+         /// <param name="region">Bereich in dem newdata liegt (0 ist der niedrigste)</param>
          /// <returns></returns>
-         protected int EvaluateData(int oldsum, int elemcount, int newdata, bool spec64) {
+         protected int EvaluateData(int oldsum, int elemcount, int newdata, ref int region) {
             /*
                D < -2 – (ls + 3*k)/2   -1 – ls – k	
                D < 0 – (ls + k)/2      2*(d + k) + 3	
@@ -1847,25 +1847,65 @@ namespace Encoder {
                                        1 – ls + k	
              */
 
-            int v = 0;
+            if (region < 0)
+               region = GetEvaluateDataRegion(oldsum, elemcount, newdata);
 
-            // Spezialfall
-            if (elemcount == 63 && oldsum == -63 && newdata == -1)
-               return -3;
+            switch (region) {
+               case 0:
+                  return -1 - oldsum - elemcount;
 
-            if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
-               v = -1 - oldsum - elemcount;
-            } else if (newdata < -((oldsum + elemcount) >> 1)) {
-               v = 2 * (newdata + elemcount) + 3;
-            } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
-               v = 2 * newdata - 1;
-            } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
-               v = 2 * (newdata - elemcount) - 5;
-            } else {
-               v = 1 - oldsum + elemcount;
+               case 1:
+                  return 2 * (newdata + elemcount) + 3;
+
+               case 2:
+                  return 2 * newdata - 1;
+
+               case 3:
+                  return 2 * (newdata - elemcount) - 5;
+
+               default:
+                  return 1 - oldsum + elemcount;
             }
+         }
 
-            return v;
+         protected int GetEvaluateDataRegion(int oldsum, int elemcount, int newdata) {
+            /*
+               D < -2 – (ls + 3*k)/2   -1 – ls – k	
+               D < 0 – (ls + k)/2      2*(d + k) + 3	
+               D < 2 – (ls – k)/2      2*d – 1	
+               D < 4 – (ls – 3*k)/2    2*(d – k) - 5	
+                                       1 – ls + k	
+             */
+
+            if (elemcount < 63) {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1)) {
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            } else {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1) - 1) {    // <-- Sonderfall bei "Halbierung"
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            }
          }
 
          /// <summary>
@@ -1939,7 +1979,7 @@ namespace Encoder {
 
       class CodingTypeStd : CodingType {
 
-         bool whithoutL1;
+         readonly bool whithoutL1;
 
          /// <summary>
          /// bildet <see cref="CodingType"/> für die Standard-Codierung
@@ -1967,38 +2007,58 @@ namespace Encoder {
          void addValue(int data) {
 
 #if EXPLORERFUNCTION
-
             ExtInfo4LastAdd = "";
 #endif
 
             int dh = data > 0 ? data :
                                 -data;
 
-            if (ElemCount == 63) {  // besondere Bewertung bei "Halbierung"
-               if (SumL > 0) { // pos. SumL
+            int evalregion = -1;
+            if (ElemCount == 63) {     // besondere Bewertung bei "Halbierung" durch Manipulation von data; SumL bei ElemCount == 63 ist immer ungerade
+               evalregion = GetEvaluateDataRegion(SumL, ElemCount, data);
 
-                  if ((SumL + 1) % 4 == 0) {
-                     if (data % 2 != 0)
-                        data--;
-                  } else {
-                     if (data % 2 == 0)
-                        data--;
-                  }
+               bool datagerade = data % 2 == 0;
+               bool SumL1 = (SumL - 1) % 4 == 0;
 
-               } else { // neg. SumL
-
-                  if ((SumL - 1) % 4 == 0) {
-                     if (data % 2 != 0)
+               switch (evalregion) {
+                  case 0:
+                  case 2:
+                  case 4:
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  } else {
-                     if (data % 2 == 0)
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data++";
+#endif
+                     }
+                     break;
+                  case 1:
+                     data++;
+#if EXPLORERFUNCTION
+                     ExtInfo4LastAdd += ";data++";
+#endif
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  }
-
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data++";
+#endif
+                     }
+                     break;
+                  case 3:
+                     if ((SumL1 && datagerade) ||
+                         (!SumL1 && !datagerade)) {
+                        data--;
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data--";
+#endif
+                     }
+                     break;
                }
-            }
 
-            Eval = EvaluateData(SumL, ElemCount, data, true);
+
+            }
+            Eval = EvaluateData(SumL, ElemCount, data, ref evalregion);
 
             SumH += dh;
             if (SumH + unitdelta + 1 >= 0xFFFF)
@@ -2016,16 +2076,6 @@ namespace Encoder {
                SumH = ((SumH - unitdelta) >> 1) - 1;
 
                SumL /= 2;
-               if (SumL % 2 != 0) {
-                  SumL++;
-
-#if EXPLORERFUNCTION
-
-                  ExtInfo4LastAdd += ";SumL++";
-
-#endif
-               }
-
             }
 
             // ---- Hunit ermitteln ----
@@ -2305,17 +2355,17 @@ namespace Encoder {
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Standardwerte
       /// </summary>
-      CodingTypeStd ct_std;
+      readonly CodingTypeStd ct_std;
 
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Plateau-Nachfolger mit ddiff=0
       /// </summary>
-      CodingTypePlateauFollowerZero ct_ddiff4plateaufollower_zero;
+      readonly CodingTypePlateauFollowerZero ct_ddiff4plateaufollower_zero;
 
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Plateau-Nachfolger mit ddiff!=0
       /// </summary>
-      CodingTypePlateauFollowerNotZero ct_ddiff4plateaufollower_notzero;
+      readonly CodingTypePlateauFollowerNotZero ct_ddiff4plateaufollower_notzero;
 
       Wraparound ValueWrap;
 
@@ -2638,8 +2688,7 @@ namespace Encoder {
       /// <param name="ct_followerddiffnotzero">hunit-Berechnung wenn die ddiff für den Nachfolger ungleich 0 ist</param>
       /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
       bool WritePlateau(Position pos, CodingTypePlateauFollowerZero ct_followerddiffzero, CodingTypePlateauFollowerNotZero ct_followerddiffnotzero) {
-         int length;
-         bool bEnd = GetPlateauLength(pos, out length);
+         bool bEnd = GetPlateauLength(pos, out int length);
 
          // pos steht am Anfang des Plateaus bzw., bei Länge 0, schon auf dem Follower
          // also zeigt pos.X+length auf die Pos. des Followers

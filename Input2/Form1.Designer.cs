@@ -51,6 +51,7 @@
          this.numericUpDown_SingleTest = new System.Windows.Forms.NumericUpDown();
          this.listBox_SingleTest = new System.Windows.Forms.ListBox();
          this.groupBox2 = new System.Windows.Forms.GroupBox();
+         this.checkBox_Shrink = new System.Windows.Forms.CheckBox();
          this.groupBox4 = new System.Windows.Forms.GroupBox();
          this.label14 = new System.Windows.Forms.Label();
          this.textBox_ShrinkAdr = new System.Windows.Forms.TextBox();
@@ -202,10 +203,10 @@
          // 
          this.button_Start.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-         this.button_Start.Location = new System.Drawing.Point(6, 354);
+         this.button_Start.Location = new System.Drawing.Point(6, 392);
          this.button_Start.Name = "button_Start";
          this.button_Start.Size = new System.Drawing.Size(676, 27);
-         this.button_Start.TabIndex = 21;
+         this.button_Start.TabIndex = 22;
          this.button_Start.Text = "&Start";
          this.button_Start.UseVisualStyleBackColor = true;
          this.button_Start.Click += new System.EventHandler(this.button_Start_Click);
@@ -260,21 +261,21 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
          this.textBox_int.Font = new System.Drawing.Font("Courier New", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-         this.textBox_int.Location = new System.Drawing.Point(84, 241);
+         this.textBox_int.Location = new System.Drawing.Point(87, 265);
          this.textBox_int.Multiline = true;
          this.textBox_int.Name = "textBox_int";
          this.textBox_int.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-         this.textBox_int.Size = new System.Drawing.Size(598, 107);
-         this.textBox_int.TabIndex = 19;
+         this.textBox_int.Size = new System.Drawing.Size(595, 121);
+         this.textBox_int.TabIndex = 20;
          this.textBox_int.WordWrap = false;
          this.textBox_int.TextChanged += new System.EventHandler(this.textBox_int_TextChanged);
          // 
          // button_dec2bin
          // 
-         this.button_dec2bin.Location = new System.Drawing.Point(6, 239);
+         this.button_dec2bin.Location = new System.Drawing.Point(9, 265);
          this.button_dec2bin.Name = "button_dec2bin";
          this.button_dec2bin.Size = new System.Drawing.Size(72, 23);
-         this.button_dec2bin.TabIndex = 17;
+         this.button_dec2bin.TabIndex = 18;
          this.button_dec2bin.Text = "&Dez -> Bin";
          this.button_dec2bin.UseVisualStyleBackColor = true;
          this.button_dec2bin.Click += new System.EventHandler(this.button_dec2bin_Click);
@@ -311,7 +312,7 @@
          this.button_Detail.Location = new System.Drawing.Point(9, 327);
          this.button_Detail.Name = "button_Detail";
          this.button_Detail.Size = new System.Drawing.Size(72, 23);
-         this.button_Detail.TabIndex = 20;
+         this.button_Detail.TabIndex = 21;
          this.button_Detail.Text = "De&tails";
          this.button_Detail.UseVisualStyleBackColor = true;
          this.button_Detail.Click += new System.EventHandler(this.button_Detail_Click);
@@ -437,6 +438,7 @@
          this.groupBox2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+         this.groupBox2.Controls.Add(this.checkBox_Shrink);
          this.groupBox2.Controls.Add(this.groupBox4);
          this.groupBox2.Controls.Add(this.numericUpDown_maxdiffEncoder);
          this.groupBox2.Controls.Add(this.label13);
@@ -462,10 +464,20 @@
          this.groupBox2.ForeColor = System.Drawing.SystemColors.ControlText;
          this.groupBox2.Location = new System.Drawing.Point(15, 211);
          this.groupBox2.Name = "groupBox2";
-         this.groupBox2.Size = new System.Drawing.Size(688, 387);
+         this.groupBox2.Size = new System.Drawing.Size(688, 425);
          this.groupBox2.TabIndex = 12;
          this.groupBox2.TabStop = false;
          this.groupBox2.Text = "Test";
+         // 
+         // checkBox_Shrink
+         // 
+         this.checkBox_Shrink.AutoSize = true;
+         this.checkBox_Shrink.Location = new System.Drawing.Point(503, 232);
+         this.checkBox_Shrink.Name = "checkBox_Shrink";
+         this.checkBox_Shrink.Size = new System.Drawing.Size(143, 17);
+         this.checkBox_Shrink.TabIndex = 17;
+         this.checkBox_Shrink.Text = "Höhenangaben shrinken";
+         this.checkBox_Shrink.UseVisualStyleBackColor = true;
          // 
          // groupBox4
          // 
@@ -668,7 +680,7 @@
          // checkBox_Normalized
          // 
          this.checkBox_Normalized.AutoSize = true;
-         this.checkBox_Normalized.Location = new System.Drawing.Point(460, 218);
+         this.checkBox_Normalized.Location = new System.Drawing.Point(259, 232);
          this.checkBox_Normalized.Name = "checkBox_Normalized";
          this.checkBox_Normalized.Size = new System.Drawing.Size(228, 17);
          this.checkBox_Normalized.TabIndex = 16;
@@ -679,7 +691,7 @@
          // checkBoxMinMaxAuto
          // 
          this.checkBoxMinMaxAuto.AutoSize = true;
-         this.checkBoxMinMaxAuto.Location = new System.Drawing.Point(231, 218);
+         this.checkBoxMinMaxAuto.Location = new System.Drawing.Point(9, 232);
          this.checkBoxMinMaxAuto.Name = "checkBoxMinMaxAuto";
          this.checkBoxMinMaxAuto.Size = new System.Drawing.Size(226, 17);
          this.checkBoxMinMaxAuto.TabIndex = 15;
@@ -770,10 +782,10 @@
          // label18
          // 
          this.label18.AutoSize = true;
-         this.label18.Location = new System.Drawing.Point(81, 265);
+         this.label18.Location = new System.Drawing.Point(84, 291);
          this.label18.Name = "label18";
          this.label18.Size = new System.Drawing.Size(15, 13);
-         this.label18.TabIndex = 18;
+         this.label18.TabIndex = 19;
          this.label18.Text = "&w";
          // 
          // textBox_ExternArgs
@@ -798,7 +810,7 @@
          // 
          this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
          this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-         this.ClientSize = new System.Drawing.Size(719, 611);
+         this.ClientSize = new System.Drawing.Size(719, 649);
          this.Controls.Add(this.label12);
          this.Controls.Add(this.textBox_ExternArgs);
          this.Controls.Add(this.groupBox2);
@@ -901,6 +913,7 @@
       private System.Windows.Forms.Label label14;
       private System.Windows.Forms.TextBox textBox_ShrinkAdr;
       private System.Windows.Forms.Label label18;
+      private System.Windows.Forms.CheckBox checkBox_Shrink;
    }
 }
 

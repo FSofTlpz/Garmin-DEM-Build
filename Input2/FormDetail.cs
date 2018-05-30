@@ -25,9 +25,14 @@ namespace Input2 {
       public byte Codingtype;
 
       /// <summary>
-      /// 
+      /// Shrink-Faktor (ungerade)
       /// </summary>
       public int Shrink;
+
+      /// <summary>
+      /// Höhendaten mit <see cref="Shrink"/> verkleinern
+      /// </summary>
+      public bool ShrinkHeightData;
 
       /// <summary>
       /// Kachelbreite (i.a. 64)
@@ -49,7 +54,7 @@ namespace Input2 {
 
          this.KeyPreview = true;
 
-         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightDiff, HeightDiffEncoder, Codingtype, Shrink, TileSizeHorz, TileSizeVert, HeightData);
+         Encoder.TileEncoder enc = new Encoder.TileEncoder(HeightDiff, HeightDiffEncoder, Codingtype, Shrink, TileSizeHorz, TileSizeVert, HeightData, ShrinkHeightData);
          textBox_Encoder.AppendText(string.Format("{0}{1}", enc, Environment.NewLine));
 
          textBox_Encoder.Visible = false;
@@ -68,9 +73,9 @@ namespace Input2 {
                if (count > 0) {
                   for (int i = enc.Elements.Count - count; i < enc.Elements.Count; i++) {
 
-                     if (enc.Elements[i].Line >= 0 &&
-                         line != enc.Elements[i].Line) {
-                        line = enc.Elements[i].Line;
+                     if (enc.Elements[i].Info.Line >= 0 &&
+                         line != enc.Elements[i].Info.Line) {
+                        line = enc.Elements[i].Info.Line;
                         textBox_Encoder.AppendText("Line " + line.ToString());
                         textBox_Encoder.AppendText(Environment.NewLine);
                         textBox_Data.AppendText(Environment.NewLine);
@@ -78,11 +83,11 @@ namespace Input2 {
 
                      StringBuilder sb;
 
-                     switch (enc.Elements[i].ElementTyp) {
+                     switch (enc.Elements[i].Info.Typ) {
                         case Encoder.TileEncoder.HeightElement.Typ.Plateau:
                            textBox_Encoder.AppendText(string.Format("Idx={0}, Plateau Length={1} TableIdx={2} Bits={3} [{4}] <{5}>{6}",
-                                                                     enc.Elements[i].Column,
-                                                                     enc.Elements[i].Data,
+                                                                     enc.Elements[i].Info.Column,
+                                                                     enc.Elements[i].Info.Data,
                                                                      enc.Elements[i].PlateauTableIdx,
                                                                      enc.Elements[i].PlateauBinBits,
                                                                      enc.Elements[i].GetBinText(),
@@ -90,8 +95,8 @@ namespace Input2 {
                                                                      Environment.NewLine));
 
                            sb = new StringBuilder();
-                           for (int j = 0; j < enc.Elements[i].Data; j++) {
-                              if (enc.Elements[i].Column > 0 || j > 0)
+                           for (int j = 0; j < enc.Elements[i].Info.Data; j++) {
+                              if (enc.Elements[i].Info.Column > 0 || j > 0)
                                  sb.Append("\t");
                               sb.Append("*");
                            }
@@ -99,42 +104,44 @@ namespace Input2 {
                            break;
 
                         case Encoder.TileEncoder.HeightElement.Typ.PlateauFollower:
-                           textBox_Encoder.AppendText(string.Format("Idx={0}, PlateauFollower ActualHeigth={1}, Value={2}{3} {4} [{5}] {6}{7} ddiff={8}{9}",
-                                                                     enc.Elements[i].Column,
+                           textBox_Encoder.AppendText(string.Format("Idx={0}, PlateauFollower ActualHeigth={1}, Value={2}{3}{4} {5} [{6}] {7}{8} ddiff={9}{10}",
+                                                                     enc.Elements[i].Info.Column,
                                                                      enc.ActualHeight,
-                                                                     enc.Elements[i].Data,
-                                                                     enc.Elements[i].WrappedValue ? " (Wrap)" : "",
-                                                                     enc.Elements[i].CalculationType,
+                                                                     enc.Elements[i].Info.Data,
+                                                                     enc.Elements[i].Info.Wrapped ? " (Wrap)" : "",
+                                                                     enc.Elements[i].Info.TopAligned ? " (TopAligned)" : "",
+                                                                     enc.Elements[i].Info.Caltype,
                                                                      enc.Elements[i].GetBinText(),
-                                                                     enc.Elements[i].Encoding,
-                                                                     enc.Elements[i].Encoding == Encoder.TileEncoder.EncodeMode.Hybrid ?
-                                                                           enc.Elements[i].HUnit.ToString() :
+                                                                     enc.Elements[i].Info.EncMode,
+                                                                     enc.Elements[i].Info.EncMode == Encoder.TileEncoder.EncodeMode.Hybrid ?
+                                                                           enc.Elements[i].Info.Hunit.ToString() :
                                                                            "",
                                                                      enc.Elements[i].PlateauFollowerDdiff,
                                                                      Environment.NewLine));
-                           if (enc.Elements[i].Column > 0)
+                           if (enc.Elements[i].Info.Column > 0)
                               textBox_Data.AppendText("\t");
 
-                           textBox_Data.AppendText("[" + enc.Elements[i].Data.ToString() + "]");
+                           textBox_Data.AppendText("[" + enc.Elements[i].Info.Data.ToString() + "]");
                            break;
 
                         case Encoder.TileEncoder.HeightElement.Typ.Value:
-                           textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1}, Value={2}{3} {4} [{5}] {6}{7}{8}",
-                                                                     enc.Elements[i].Column,
+                           textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1}, Value={2}{3}{4} {5} [{6}] {7}{8}{9}",
+                                                                     enc.Elements[i].Info.Column,
                                                                      enc.ActualHeight,
-                                                                     enc.Elements[i].Data,
-                                                                     enc.Elements[i].WrappedValue ? " (Wrap)" : "",
-                                                                     enc.Elements[i].CalculationType,
+                                                                     enc.Elements[i].Info.Data,
+                                                                     enc.Elements[i].Info.Wrapped ? " (Wrap)" : "",
+                                                                     enc.Elements[i].Info.TopAligned ? " (TopAligned)" : "",
+                                                                     enc.Elements[i].Info.Caltype,
                                                                      enc.Elements[i].GetBinText(),
-                                                                     enc.Elements[i].Encoding,
-                                                                     enc.Elements[i].Encoding == Encoder.TileEncoder.EncodeMode.Hybrid ?
-                                                                           enc.Elements[i].HUnit.ToString() :
+                                                                     enc.Elements[i].Info.EncMode,
+                                                                     enc.Elements[i].Info.EncMode == Encoder.TileEncoder.EncodeMode.Hybrid ?
+                                                                           enc.Elements[i].Info.Hunit.ToString() :
                                                                            "",
                                                                      Environment.NewLine));
-                           if (enc.Elements[i].Column > 0)
+                           if (enc.Elements[i].Info.Column > 0)
                               textBox_Data.AppendText("\t");
 
-                           textBox_Data.AppendText(enc.Elements[i].Data.ToString());
+                           textBox_Data.AppendText(enc.Elements[i].Info.Data.ToString());
                            break;
 
                      }

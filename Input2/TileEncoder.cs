@@ -9,6 +9,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
+#pragma warning disable IDE1006 // Benennungsstile
+
 /*
 CS0659: "Klasse" überschreibt Object.Equals(object o), aber nicht Object.GetHashCode() ('class' overrides Object.Equals(object o) but does not override Object.GetHashCode())
 CS0660: "Klasse" definiert den Operator == oder !=, aber überschreibt Object.Equals(object o) nicht. ('class' defines operator == or operator != but does not override Object.Equals(object o))
@@ -299,42 +301,113 @@ namespace Encoder {
             PlateauFollower,
          }
 
-         /// <summary>
-         /// Typ des Elements
-         /// </summary>
-         public Typ ElementTyp { get; private set; }
-         /// <summary>
-         /// Datenwert
-         /// </summary>
-         public int Data { get; private set; }
-         /// <summary>
-         /// Codierart
-         /// </summary>
-         public EncodeMode Encoding { get; private set; }
-         /// <summary>
-         /// HUnit, gültig nur bei Hybridcodierung
-         /// </summary>
-         public int HUnit { get; private set; }
+         public class HeightElementInfo {
+
+            /// <summary>
+            /// Typ des <see cref="HeightElement"/>
+            /// </summary>
+            public Typ Typ { get; private set; }
+            ///// <summary>
+            ///// Datenwert
+            ///// </summary>
+            public int Data { get; private set; }
+            ///// <summary>
+            ///// Element bezieht sich auf diese Spalte
+            ///// </summary>
+            public int Column { get; private set; }
+            ///// <summary>
+            ///// Element bezieht sich auf diese Zeile
+            ///// </summary>
+            public int Line { get; private set; }
+            ///// <summary>
+            ///// Berechnungstyp
+            ///// </summary>
+            public CalculationType Caltype { get; private set; }
+            ///// <summary>
+            ///// Wurde der Datenwert gewrapped?
+            ///// </summary>
+            public bool Wrapped { get; private set; }
+            ///// <summary>
+            ///// Codierart
+            ///// </summary>
+            public EncodeMode EncMode { get; set; }
+            ///// <summary>
+            ///// HUnit, gültig nur bei Hybridcodierung
+            ///// </summary>
+            public int Hunit { get; private set; }
+            /// <summary>
+            /// Diagonaldiff. für den Plateaunachfolger
+            /// </summary>
+            public int Ddiff { get; private set; }
+            /// <summary>
+            /// Wert ist am Maximum (nur bei shrink möglich) oder am Minimum ausgerichtet
+            /// </summary>
+            public bool TopAligned { get; private set; }
+            /// <summary>
+            /// Plateaulänge
+            /// </summary>
+            public int LineLength { get; private set; }
+            /// <summary>
+            /// vorhergehendes <see cref="HeightElement"/> (nur bei Plateau)
+            /// </summary>
+            public HeightElement LastHeightElement { get; private set; }
+
+
+            protected HeightElementInfo(Typ typ, int column, int line, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned) {
+               Typ = typ;
+               Data = data;
+               Column = column;
+               Line = line;
+               Caltype = caltype;
+               Wrapped = wrapped;
+               EncMode = encmode;
+               Hunit = int.MinValue;
+               Ddiff = int.MinValue;
+               LineLength = int.MinValue;
+               TopAligned = topaligned;
+               LastHeightElement = null;
+            }
+
+
+            public HeightElementInfo(Typ typ, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned, int column, int line) :
+               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
+            }
+
+            public HeightElementInfo(Typ typ, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, int hunit, bool topaligned, int column, int line) :
+               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
+               Hunit = hunit;
+            }
+
+            public HeightElementInfo(Typ typ, int data, int ddiff, CalculationType caltype, EncodeMode encmode, bool wrapped, int hunit, bool topaligned, int column, int line) :
+               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
+               Ddiff = ddiff;
+               Hunit = hunit;
+            }
+
+            public HeightElementInfo(Typ typ, int data, int ddiff, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned, int column, int line) :
+               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
+               Ddiff = ddiff;
+            }
+
+            public HeightElementInfo(Typ typ, int length, int linelength, IList<HeightElement> oldheightelements, bool topaligned, int column, int line) :
+               this(typ, column, line, length, CalculationType.nothing, EncodeMode.Plateau, false, topaligned) {
+               LineLength = linelength;
+               for (int i = oldheightelements.Count - 1; i >= 0; i--) // letztes Plateau-Element suchen
+                  if (oldheightelements[i].Info.Typ == HeightElement.Typ.Plateau) {
+                     LastHeightElement = oldheightelements[i];
+                     break;
+                  }
+            }
+
+         }
+
+
+         public HeightElementInfo Info;
+
          /// <summary>
          /// Bit-Liste der Codierung
          /// </summary>
          public List<byte> Bits { get; private set; }
-         /// <summary>
-         /// Element bezieht sich auf diese Zeile
-         /// </summary>
-         public int Line { get; private set; }
-         /// <summary>
-         /// Element bezieht sich auf diese Spalte
-         /// </summary>
-         public int Column { get; private set; }
-         /// <summary>
-         /// Wurde der Datenwert gewrapped?
-         /// </summary>
-         public bool WrappedValue { get; private set; }
-         /// <summary>
-         /// Berechnungstyp
-         /// </summary>
-         public CalculationType CalculationType { get; private set; }
 
          /// <summary>
          /// Tabelle für die Codierung der Plateaulängen
@@ -556,238 +629,58 @@ namespace Encoder {
          static int Max0Bits;
 
 
-         /// <summary>
-         /// Dieser Konstruktor kann nur klassenintern aufgerufen werden. Das erfolgt über die statischen CreateHeightElement-Funktionen.
-         /// </summary>
-         /// <param name="typ"></param>
-         /// <param name="data"></param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped"></param>
-         /// <param name="encoding"></param>
-         /// <param name="column"></param>
-         /// <param name="line"></param>
-         /// <param name="hunit"></param>
-         /// <param name="linelength"></param>
-         /// <param name="lastplateauelem"></param>
-         /// <param name="plateaufollowerddiff"></param>
-         protected HeightElement(Typ typ,
-                                 int data,
-                                 CalculationType caltype,
-                                 bool wrapped,
-                                 EncodeMode encoding,
-                                 int column,
-                                 int line,
-                                 int hunit,
-                                 int linelength,
-                                 HeightElement lastplateauelem,
-                                 int plateaufollowerddiff) {
+         public HeightElement(HeightElementInfo hi) {
             Bits = new List<byte>();
 
-            Column = column;
-            Line = line;
-            ElementTyp = typ;
-            Data = data;
-            WrappedValue = wrapped;
-            Encoding = encoding;
-            HUnit = hunit;
+            Info = hi;
 
-            PlateauFollowerDdiff = plateaufollowerddiff;
-            if (lastplateauelem != null)
-               PlateauTable4Tile = lastplateauelem.PlateauTable4Tile;
+            PlateauFollowerDdiff = Info.Ddiff;
+            if (Info.LastHeightElement != null)
+               PlateauTable4Tile = Info.LastHeightElement.PlateauTable4Tile;
             else
                PlateauTable4Tile = new PlateauTable();
 
-            CalculationType = caltype;
-
-            switch (typ) {
+            switch (hi.Typ) {
                case Typ.Value:
                case Typ.PlateauFollower:
-                  switch (Encoding) {
+                  switch (Info.EncMode) {
                      case EncodeMode.Hybrid:
-                        EncodeHybrid(data, hunit);
+                        EncodeHybrid(Info.Data, Info.Hunit);
                         break;
 
                      case EncodeMode.Length0:
-                        EncodeLength0(data);
+                        EncodeLength0(Info.Data);
                         break;
 
                      case EncodeMode.Length1:
-                        EncodeLength1(data);
+                        EncodeLength1(Info.Data);
                         break;
 
                      case EncodeMode.Length2:
-                        EncodeLength0(-data);
+                        EncodeLength0(-Info.Data);
                         break;
 
                      case EncodeMode.BigBinary:
                      case EncodeMode.BigBinaryL1:
-                        EncodeBigBin(data, typ == Typ.PlateauFollower);
+                        EncodeBigBin(Info.Data, hi.Typ == Typ.PlateauFollower);
                         break;
 
                      case EncodeMode.BigBinaryL2:
-                        EncodeBigBin(-data, typ == Typ.PlateauFollower);
+                        EncodeBigBin(-Info.Data, hi.Typ == Typ.PlateauFollower);
                         break;
 
                      default:
-                        throw new Exception(string.Format("Falscher Codiertyp: {0}.", Encoding));
+                        throw new Exception(string.Format("Falscher Codiertyp: {0}.", Info.EncMode));
                   }
                   break;
 
                case Typ.Plateau:
-                  EncodePlateau(data, column, line, linelength);
+                  EncodePlateau(Info.Data, Info.Column, Info.Line, Info.LineLength);
                   break;
 
             }
          }
 
-         #region CreateHeightElement-Funktionen zum Erzeugen eines Objektes
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen" Wert mit Hybridcodierung
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="hunit">Heightunit für den Wert</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_ValueH(int data, CalculationType caltype, bool wrapped, int hunit, int column, int line) {
-            return new HeightElement(HeightElement.Typ.Value, data, caltype, wrapped, EncodeMode.Hybrid, column, line, hunit, int.MinValue, null, int.MinValue);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für den Plateaunachfolger (analog einem ganz normalen Wert)
-         /// </summary>
-         /// <param name="data">Datenwert für den Plateaunachfolger</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="hunit">Heightunit für den Plateaunachfolger</param>
-         /// <param name="ddiff">Diagonaldiff. für den Plateaunachfolger</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_PlateauFollowerH(int data, CalculationType caltype, bool wrapped, int hunit, int ddiff, int column, int line) {
-            return new HeightElement(HeightElement.Typ.PlateauFollower, data, caltype, wrapped, EncodeMode.Hybrid, column, line, hunit, int.MinValue, null, ddiff);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen" Wert mit Längencodierung
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="em">Längencodierung Variante 0 oder 1</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_ValueL(int data, CalculationType caltype, bool wrapped, EncodeMode em, int column, int line) {
-            return new HeightElement(HeightElement.Typ.Value, data, caltype, wrapped, em, column, line, int.MinValue, int.MinValue, null, int.MinValue);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für den Plateaunachfolger in Längencodierung
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="em">Längencodierung</param>
-         /// <param name="ddiff">Diagonaldiff. für den Plateaunachfolger</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_PlateauFollowerL(int data, CalculationType caltype, bool wrapped, EncodeMode em, int ddiff, int column, int line) {
-            return new HeightElement(HeightElement.Typ.PlateauFollower, data, caltype, wrapped, em, column, line, int.MinValue, int.MinValue, null, ddiff);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen", aber großen Wert mit Hybridcodierung
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_BigValue(int data, CalculationType caltype, bool wrapped, int column, int line) {
-            return new HeightElement(HeightElement.Typ.Value, data, caltype, wrapped, EncodeMode.BigBinary, column, line, int.MinValue, int.MinValue, null, int.MinValue);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen", aber großen Wert mit Hybridcodierung (an Stelle von <see cref="EncodeMode.Length1"/>)
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_BigValueL1(int data, CalculationType caltype, bool wrapped, int column, int line) {
-            return new HeightElement(HeightElement.Typ.Value, data, caltype, wrapped, EncodeMode.BigBinaryL1, column, line, int.MinValue, int.MinValue, null, int.MinValue);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen", aber großen Wert mit Hybridcodierung
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="ddiff">Diagonaldiff. für den Plateaunachfolger</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_PlateauFollowerBigValue(int data, CalculationType caltype, bool wrapped, int ddiff, int column, int line) {
-            return new HeightElement(HeightElement.Typ.PlateauFollower, data, caltype, wrapped, EncodeMode.BigBinary, column, line, int.MinValue, int.MinValue, null, ddiff);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen", aber großen Wert mit Hybridcodierung (an Stelle von <see cref="EncodeMode.Length1"/>)
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="ddiff">Diagonaldiff. für den Plateaunachfolger</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_PlateauFollowerBigValueL1(int data, CalculationType caltype, bool wrapped, int ddiff, int column, int line) {
-            return new HeightElement(HeightElement.Typ.PlateauFollower, data, caltype, wrapped, EncodeMode.BigBinaryL1, column, line, int.MinValue, int.MinValue, null, ddiff);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für einen "normalen", aber großen Wert mit Hybridcodierung (an Stelle von <see cref="EncodeMode.Length2"/>)
-         /// </summary>
-         /// <param name="data">Datenwert</param>
-         /// <param name="caltype"></param>
-         /// <param name="wrapped">Wert wurde gewrapped</param>
-         /// <param name="ddiff">Diagonaldiff. für den Plateaunachfolger</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_PlateauFollowerBigValueL2(int data, CalculationType caltype, bool wrapped, int ddiff, int column, int line) {
-            return new HeightElement(HeightElement.Typ.PlateauFollower, data, caltype, wrapped, EncodeMode.BigBinaryL2, column, line, int.MinValue, int.MinValue, null, ddiff);
-         }
-
-         /// <summary>
-         /// erzeugt ein <see cref="HeightElement"/> für die Plateaulänge
-         /// </summary>
-         /// <param name="length">Plateaulänge</param>
-         /// <param name="column">akt. Spalte</param>
-         /// <param name="line">akt. Zeile</param>
-         /// <param name="linelength">Zeilenlänge, d.h. Kachelbreite</param>
-         /// <param name="oldheightelements">Liste aller bisher ermittelten <see cref="HeightElement"/>'s</param>
-         /// <returns></returns>
-         static public HeightElement CreateHeightElement_Plateau(int length, int column, int line, int linelength, IList<HeightElement> oldheightelements) {
-            HeightElement last = null;
-            for (int i = oldheightelements.Count - 1; i >= 0; i--) // letztes Plateau-Element suchen
-               if (oldheightelements[i].ElementTyp == HeightElement.Typ.Plateau) {
-                  last = oldheightelements[i];
-                  break;
-               }
-            return new HeightElement(HeightElement.Typ.Plateau, length, CalculationType.nothing, false, EncodeMode.Plateau, column, line, int.MinValue, linelength, last, int.MinValue);
-         }
-
-         #endregion
 
 #if EXPLORERFUNCTION
 
@@ -883,7 +776,7 @@ namespace Encoder {
             EncodeLength(length0); // 0-Bits und 1-Bit
 
             int min, max;
-            if (Encoding == EncodeMode.BigBinaryL1) {
+            if (Info.EncMode == EncodeMode.BigBinaryL1) {
                data = 1 - data; // Umwandlung, um die gleiche Codierfunktion verwendet zu können
                GetValueRangeBigBin(out min, out max);
             } else {
@@ -1029,7 +922,7 @@ namespace Encoder {
                else if (MaxEncoderheight < 4096) Max0Bits = 34;
                else if (MaxEncoderheight < 8192) Max0Bits = 37;
                else if (MaxEncoderheight < 16384) Max0Bits = 40;
-               Max0Bits = 43;
+               else Max0Bits = 43;
 
             } else {
                if (MaxRealheight > 0) {
@@ -1189,30 +1082,32 @@ namespace Encoder {
          }
 
          public override string ToString() {
-            StringBuilder sb = new StringBuilder(ElementTyp.ToString());
-            if (Column >= 0)
-               sb.Append(", Column=" + Column.ToString());
-            if (Line >= 0)
-               sb.Append(", Line=" + Line.ToString());
-            sb.Append(", Data=" + Data.ToString());
-            if (WrappedValue)
-               sb.Append("  (Wrap)");
-            if (this.ElementTyp == Typ.Plateau) {
+            StringBuilder sb = new StringBuilder(Info.Typ.ToString());
+            if (Info.Column >= 0)
+               sb.Append(", Column=" + Info.Column.ToString());
+            if (Info.Line >= 0)
+               sb.Append(", Line=" + Info.Line.ToString());
+            sb.Append(", Data=" + Info.Data.ToString());
+            if (Info.Wrapped)
+               sb.Append(" (Wrap)");
+            if (Info.TopAligned)
+               sb.Append(" (TopAligned)");
+            if (Info.Typ == Typ.Plateau) {
                sb.Append(", PlateauTableIdx=" + PlateauTableIdx.ToString());
                sb.Append(", PlateauBinBits=" + PlateauBinBits.ToString());
             }
-            sb.Append(", Encoding=" + Encoding.ToString());
-            if (Encoding == EncodeMode.Hybrid)
-               sb.Append(" (" + HUnit.ToString() + ")");
+            sb.Append(", Encoding=" + Info.EncMode.ToString());
+            if (Info.EncMode == EncodeMode.Hybrid)
+               sb.Append(" (" + Info.Hunit.ToString() + ")");
             sb.Append(", Bits=");
             for (int i = 0; i < Bits.Count; i++)
                sb.Append(Bits[i] > 0 ? "1" : ".");
 
 #if EXPLORERFUNCTION
 
-            if (this.ElementTyp == Typ.Plateau)
+            if (Info.Typ == Typ.Plateau)
                sb.Append(" " + GetPlateauUnitsText());
-            else if (this.ElementTyp == Typ.PlateauFollower)
+            else if (Info.Typ == Typ.PlateauFollower)
                sb.Append(" ddiff=" + PlateauFollowerDdiff);
 
 #endif
@@ -1230,56 +1125,61 @@ namespace Encoder {
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length0"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L0_wrapdown;
+         readonly int L0_wrapdown;
+
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length0"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L0_wrapup;
+         readonly int L0_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length1"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L1_wrapdown;
+         readonly int L1_wrapdown;
+
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length1"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L1_wrapup;
+         readonly int L1_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Length2"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L2_wrapdown;
+         readonly int L2_wrapdown;
+
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Length2"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L2_wrapup;
+         readonly int L2_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="HeightElement.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens überschritten werden muss
          /// </summary>
-         int H_wrapdown;
+         readonly int H_wrapdown;
+
          /// <summary>
          /// unterer Grenzwert für <see cref="HeightElement.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens unterschritten werden muss
          /// </summary>
-         int H_wrapup;
+         readonly int H_wrapup;
 
 #if INCLUDENOTNEEDED
 
          /// <summary>
          /// oberer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping überschritten werden müssen
          /// </summary>
-         SortedDictionary<int, int> H_wrapdown_safely = new SortedDictionary<int, int>();
+         readonly SortedDictionary<int, int> H_wrapdown_safely = new SortedDictionary<int, int>();
+
          /// <summary>
          /// unterer Grenzwerte für <see cref="HeightElement.EncodeMode.Hybrid"/> je Hunit, die für ein sicheres Wrapping unterschritten werden müssen
          /// </summary>
-         SortedDictionary<int, int> H_wrapup_safely = new SortedDictionary<int, int>();
+         readonly SortedDictionary<int, int> H_wrapup_safely = new SortedDictionary<int, int>();
 
 #endif
 
          /// <summary>
          /// Maximalhöhe der Kachel
          /// </summary>
-         int max;
+         readonly int max;
 
          public Wraparound(int maxheight) {
             max = maxheight;
@@ -1337,45 +1237,43 @@ namespace Encoder {
 
 #if INCLUDENOTNEEDED
 
-            H_wrapdown_safely = new SortedDictionary<int, int>();
-            H_wrapdown_safely.Add(1, (maxheight + 2) / 2); // für hunit=1
-            H_wrapdown_safely.Add(2, maxheight / 2 + 2);
-            H_wrapdown_safely.Add(4, maxheight / 2 + 4);
-            H_wrapdown_safely.Add(8, maxheight / 2 + 8);
-            H_wrapdown_safely.Add(16, maxheight / 2 + 16);
-            H_wrapdown_safely.Add(32, maxheight / 2 + 32);
-            H_wrapdown_safely.Add(64, maxheight / 2 + 64);
-            H_wrapdown_safely.Add(128, maxheight / 2 + 128);
-            H_wrapdown_safely.Add(256, maxheight / 2 + 256);
+            H_wrapdown_safely = new SortedDictionary<int, int> {
+               { 1, (maxheight + 2) / 2 }, // für hunit=1
+               { 2, maxheight / 2 + 2 },
+               { 4, maxheight / 2 + 4 },
+               { 8, maxheight / 2 + 8 },
+               { 16, maxheight / 2 + 16 },
+               { 32, maxheight / 2 + 32 },
+               { 64, maxheight / 2 + 64 },
+               { 128, maxheight / 2 + 128 },
+               { 256, maxheight / 2 + 256 }
+            };
 
-            H_wrapup_safely = new SortedDictionary<int, int>();
-            H_wrapup_safely.Add(1, -maxheight / 2); // für hunit=1
-            H_wrapup_safely.Add(2, -maxheight / 2 - 2);
-            H_wrapup_safely.Add(4, -maxheight / 2 - 4);
-            H_wrapup_safely.Add(8, -maxheight / 2 - 8);
-            H_wrapup_safely.Add(16, -maxheight / 2 - 16);
-            H_wrapup_safely.Add(32, -maxheight / 2 - 32);
-            H_wrapup_safely.Add(64, -maxheight / 2 - 64);
-            H_wrapup_safely.Add(128, -maxheight / 2 - 128);
-            H_wrapup_safely.Add(256, -maxheight / 2 - 256);
+            H_wrapup_safely = new SortedDictionary<int, int> {
+               { 1, -maxheight / 2 }, // für hunit=1
+               { 2, -maxheight / 2 - 2 },
+               { 4, -maxheight / 2 - 4 },
+               { 8, -maxheight / 2 - 8 },
+               { 16, -maxheight / 2 - 16 },
+               { 32, -maxheight / 2 - 32 },
+               { 64, -maxheight / 2 - 64 },
+               { 128, -maxheight / 2 - 128 },
+               { 256, -maxheight / 2 - 256 }
+            };
 
 #endif
          }
 
          /// <summary>
-         /// ein Wert wird bei Bedarf gewrapt, notfalls auch die Codierart auf BiBin gesetzt
+         /// ein Wert wird bei Bedarf gewrapt
          /// </summary>
          /// <param name="data">Wert</param>
          /// <param name="wrapped">gesetzt, wenn ein gewrapter Wert geliefert wird</param>
-         /// <param name="em">Codierart des Wertes; danach ev. auf BigBin gesetzt</param>
-         /// <param name="hunit">nur für die Codierart <see cref="HeightElement.EncodeMode.Hybrid"/> nötig</param>
-         /// <param name="iPlateauLengthBinBits">Anzahl der Binbits für die ev. vorausgehende Plateaulänge</param>
+         /// <param name="em">Codierart des Wertes</param>
          /// <returns>zu verwendender Wert</returns>
-         public int Wrap(int data, out bool wrapped, ref EncodeMode em, int hunit, int iPlateauLengthBinBits) {
-            int minval, maxval;
+         public int Wrap(int data, out bool wrapped, EncodeMode em) {
             wrapped = false;
             int datawrapped = int.MinValue;
-            bool changed2BigBin = false;
 
             switch (em) {
                case EncodeMode.Hybrid:
@@ -1383,19 +1281,6 @@ namespace Encoder {
                      datawrapped = WrapDown(data);
                   else if (data < H_wrapup)
                      datawrapped = WrapUp(data);
-
-                  HeightElement.GetValueRangeHybrid(hunit, out minval, out maxval, iPlateauLengthBinBits);
-                  if (datawrapped != int.MinValue) {
-                     if (datawrapped < minval || maxval < datawrapped) {
-                        em = EncodeMode.BigBinary;
-                        changed2BigBin = true;
-                     }
-                  } else {
-                     if (data < minval || maxval < data) {
-                        em = EncodeMode.BigBinary;
-                        changed2BigBin = true;
-                     }
-                  }
                   break;
 
                case EncodeMode.Length0:
@@ -1403,19 +1288,6 @@ namespace Encoder {
                      datawrapped = WrapDown(data);
                   else if (data < L0_wrapup)
                      datawrapped = WrapUp(data);
-
-                  HeightElement.GetValueRangeLength0(out minval, out maxval, iPlateauLengthBinBits);
-                  if (datawrapped != int.MinValue) {
-                     if (datawrapped < minval || maxval < datawrapped) {
-                        em = EncodeMode.BigBinary;
-                        changed2BigBin = true;
-                     }
-                  } else {
-                     if (data < minval || maxval < data) {
-                        em = EncodeMode.BigBinary;
-                        changed2BigBin = true;
-                     }
-                  }
                   break;
 
                case EncodeMode.Length1:
@@ -1423,19 +1295,6 @@ namespace Encoder {
                      datawrapped = WrapDown(data);
                   else if (data < L1_wrapup)
                      datawrapped = WrapUp(data);
-
-                  HeightElement.GetValueRangeLength1(out minval, out maxval, iPlateauLengthBinBits);
-                  if (datawrapped != int.MinValue) {
-                     if (datawrapped < minval || maxval < datawrapped) {
-                        em = EncodeMode.BigBinaryL1;
-                        changed2BigBin = true;
-                     }
-                  } else {
-                     if (data < minval || maxval < data) {
-                        em = EncodeMode.BigBinaryL1;
-                        changed2BigBin = true;
-                     }
-                  }
                   break;
 
                case EncodeMode.Length2:
@@ -1443,67 +1302,76 @@ namespace Encoder {
                      datawrapped = WrapDown(data);
                   else if (data < L2_wrapup)
                      datawrapped = WrapUp(data);
+                  break;
 
-                  HeightElement.GetValueRangeLength2(out minval, out maxval, iPlateauLengthBinBits);
-                  if (datawrapped != int.MinValue) {
-                     if (datawrapped < minval || maxval < datawrapped) {
-                        em = EncodeMode.BigBinaryL2;
-                        changed2BigBin = true;
-                     }
-                  } else {
+               case EncodeMode.BigBinary:
+               case EncodeMode.BigBinaryL2: {
+                     HeightElement.GetValueRangeBigBin(out int minval, out int maxval);
                      if (data < minval || maxval < data) {
-                        em = EncodeMode.BigBinaryL2;
-                        changed2BigBin = true;
+                        if (data > maxval)
+                           datawrapped = WrapDown(data);
+                        else if (data < minval)
+                           datawrapped = WrapUp(data);
+                     }
+                  }
+                  break;
+
+               case EncodeMode.BigBinaryL1: {
+                     HeightElement.GetValueRangeBigBinL1(out int minval, out int maxval);
+                     if (data < minval || maxval < data) {
+                        if (data > maxval)
+                           datawrapped = WrapDown(data);
+                        else if (data < minval)
+                           datawrapped = WrapUp(data);
                      }
                   }
                   break;
             }
 
-            if (!changed2BigBin) // sonst sollte BigBin immer i.O. sein
-               switch (em) {
-                  case EncodeMode.BigBinary:
-                  case EncodeMode.BigBinaryL2:
-                     HeightElement.GetValueRangeBigBin(out minval, out maxval);
-                     if (datawrapped != int.MinValue) {
-                        if (datawrapped < minval || maxval < datawrapped) {
-                           if (data > maxval)
-                              datawrapped = WrapDown(datawrapped);
-                           else if (data < minval)
-                              datawrapped = WrapUp(datawrapped);
-                        }
-                     } else {
-                        if (data < minval || maxval < data) {
-                           if (data > maxval)
-                              datawrapped = WrapDown(data);
-                           else if (data < minval)
-                              datawrapped = WrapUp(data);
-                        }
-                     }
-                     break;
-
-                  case EncodeMode.BigBinaryL1:
-                     HeightElement.GetValueRangeBigBinL1(out minval, out maxval);
-                     if (datawrapped != int.MinValue) {
-                        if (datawrapped < minval || maxval < datawrapped) {
-                           if (data > maxval)
-                              datawrapped = WrapDown(datawrapped);
-                           else if (data < minval)
-                              datawrapped = WrapUp(datawrapped);
-                        }
-                     } else {
-                        if (data < minval || maxval < data) {
-                           if (data > maxval)
-                              datawrapped = WrapDown(data);
-                           else if (data < minval)
-                              datawrapped = WrapUp(data);
-                        }
-                     }
-                     break;
-               }
-
             wrapped = datawrapped != int.MinValue;
 
             return wrapped ? datawrapped : data;
+         }
+
+         /// <summary>
+         /// der <see cref="EncodeMode"/> wird bei Bedarf geändert
+         /// <para>Die Bereichsgrenze für die BigBin-Bereiche wird NICHT überprüft.</para>
+         /// </summary>
+         /// <param name="data">Wert</param>
+         /// <param name="em">Codierart des Wertes; danach ev. auf BigBin gesetzt</param>
+         /// <param name="hunit">nur für die Codierart <see cref="HeightElement.EncodeMode.Hybrid"/> nötig</param>
+         /// <param name="iPlateauLengthBinBits">Anzahl der Binbits für die ev. vorausgehende Plateaulänge</param>
+         /// <returns>zu verwendender Wert</returns>
+         public EncodeMode FitEncodeMode(int data, EncodeMode em, int hunit, int iPlateauLengthBinBits = -1) {
+            int minval, maxval;
+            switch (em) {
+               case EncodeMode.Hybrid:
+                  HeightElement.GetValueRangeHybrid(hunit, out minval, out maxval, iPlateauLengthBinBits);
+                  return data < minval || maxval < data ?
+                                 EncodeMode.BigBinary :
+                                 em;
+
+               case EncodeMode.Length0:
+                  HeightElement.GetValueRangeLength0(out minval, out maxval, iPlateauLengthBinBits);
+                  return data < minval || maxval < data ?
+                                 EncodeMode.BigBinary :
+                                 em;
+
+               case EncodeMode.Length1:
+                  HeightElement.GetValueRangeLength1(out minval, out maxval, iPlateauLengthBinBits);
+                  return data < minval || maxval < data ?
+                                 EncodeMode.BigBinaryL1 :
+                                 em;
+
+               case EncodeMode.Length2:
+                  HeightElement.GetValueRangeLength2(out minval, out maxval, iPlateauLengthBinBits);
+                  return data < minval || maxval < data ?
+                                 EncodeMode.BigBinaryL2 :
+                                 em;
+
+               default:
+                  return em;
+            }
          }
 
 
@@ -1836,9 +1704,9 @@ namespace Encoder {
          /// <param name="oldsum">bisherige Summe</param>
          /// <param name="elemcount">bisher registrierte Elementanzahl</param>
          /// <param name="newdata">neuer Wert</param>
-         /// <param name="spec64">spez. für 64. Wert</param>
+         /// <param name="region">Bereich in dem newdata liegt (0 ist der niedrigste)</param>
          /// <returns></returns>
-         protected int EvaluateData(int oldsum, int elemcount, int newdata, bool spec64) {
+         protected int EvaluateData(int oldsum, int elemcount, int newdata, ref int region) {
             /*
                D < -2 – (ls + 3*k)/2   -1 – ls – k	
                D < 0 – (ls + k)/2      2*(d + k) + 3	
@@ -1847,25 +1715,65 @@ namespace Encoder {
                                        1 – ls + k	
              */
 
-            int v = 0;
+            if (region < 0)
+               region = GetEvaluateDataRegion(oldsum, elemcount, newdata);
 
-            // Spezialfall
-            if (elemcount == 63 && oldsum == -63 && newdata == -1)
-               return -3;
+            switch (region) {
+               case 0:
+                  return -1 - oldsum - elemcount;
 
-            if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
-               v = -1 - oldsum - elemcount;
-            } else if (newdata < -((oldsum + elemcount) >> 1)) {
-               v = 2 * (newdata + elemcount) + 3;
-            } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
-               v = 2 * newdata - 1;
-            } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
-               v = 2 * (newdata - elemcount) - 5;
-            } else {
-               v = 1 - oldsum + elemcount;
+               case 1:
+                  return 2 * (newdata + elemcount) + 3;
+
+               case 2:
+                  return 2 * newdata - 1;
+
+               case 3:
+                  return 2 * (newdata - elemcount) - 5;
+
+               default:
+                  return 1 - oldsum + elemcount;
             }
+         }
 
-            return v;
+         protected int GetEvaluateDataRegion(int oldsum, int elemcount, int newdata) {
+            /*
+               D < -2 – (ls + 3*k)/2   -1 – ls – k	
+               D < 0 – (ls + k)/2      2*(d + k) + 3	
+               D < 2 – (ls – k)/2      2*d – 1	
+               D < 4 – (ls – 3*k)/2    2*(d – k) - 5	
+                                       1 – ls + k	
+             */
+
+            if (elemcount < 63) {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1)) {
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            } else {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1) - 1) {    // <-- Sonderfall bei "Halbierung"
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            }
          }
 
          /// <summary>
@@ -1939,7 +1847,7 @@ namespace Encoder {
 
       class CodingTypeStd : CodingType {
 
-         bool whithoutL1;
+         readonly bool whithoutL1;
 
          /// <summary>
          /// bildet <see cref="CodingType"/> für die Standard-Codierung
@@ -1967,38 +1875,58 @@ namespace Encoder {
          void addValue(int data) {
 
 #if EXPLORERFUNCTION
-
             ExtInfo4LastAdd = "";
 #endif
 
             int dh = data > 0 ? data :
                                 -data;
 
-            if (ElemCount == 63) {  // besondere Bewertung bei "Halbierung"
-               if (SumL > 0) { // pos. SumL
+            int evalregion = -1;
+            if (ElemCount == 63) {     // besondere Bewertung bei "Halbierung" durch Manipulation von data; SumL bei ElemCount == 63 ist immer ungerade
+               evalregion = GetEvaluateDataRegion(SumL, ElemCount, data);
 
-                  if ((SumL + 1) % 4 == 0) {
-                     if (data % 2 != 0)
-                        data--;
-                  } else {
-                     if (data % 2 == 0)
-                        data--;
-                  }
+               bool datagerade = data % 2 == 0;
+               bool SumL1 = (SumL - 1) % 4 == 0;
 
-               } else { // neg. SumL
-
-                  if ((SumL - 1) % 4 == 0) {
-                     if (data % 2 != 0)
+               switch (evalregion) {
+                  case 0:
+                  case 2:
+                  case 4:
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  } else {
-                     if (data % 2 == 0)
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data++";
+#endif
+                     }
+                     break;
+                  case 1:
+                     data++;
+#if EXPLORERFUNCTION
+                     ExtInfo4LastAdd += ";data++";
+#endif
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  }
-
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data++";
+#endif
+                     }
+                     break;
+                  case 3:
+                     if ((SumL1 && datagerade) ||
+                         (!SumL1 && !datagerade)) {
+                        data--;
+#if EXPLORERFUNCTION
+                        ExtInfo4LastAdd += ";data--";
+#endif
+                     }
+                     break;
                }
-            }
 
-            Eval = EvaluateData(SumL, ElemCount, data, true);
+
+            }
+            Eval = EvaluateData(SumL, ElemCount, data, ref evalregion);
 
             SumH += dh;
             if (SumH + unitdelta + 1 >= 0xFFFF)
@@ -2016,16 +1944,6 @@ namespace Encoder {
                SumH = ((SumH - unitdelta) >> 1) - 1;
 
                SumL /= 2;
-               if (SumL % 2 != 0) {
-                  SumL++;
-
-#if EXPLORERFUNCTION
-
-                  ExtInfo4LastAdd += ";SumL++";
-
-#endif
-               }
-
             }
 
             // ---- Hunit ermitteln ----
@@ -2246,6 +2164,9 @@ namespace Encoder {
          BigBinaryL2,
       }
 
+      /// <summary>
+      /// Art der Berechnung
+      /// </summary>
       public enum CalculationType {
          /// <summary>
          /// nur für Init.
@@ -2256,7 +2177,6 @@ namespace Encoder {
          /// Standardberechnung
          /// </summary>
          Standard,
-
          /// <summary>
          /// Standardberechnung bei großer pos. horizontale Diff.
          /// </summary>
@@ -2310,12 +2230,12 @@ namespace Encoder {
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Plateau-Nachfolger mit ddiff=0
       /// </summary>
-      CodingTypePlateauFollowerZero ct_ddiff4plateaufollower_zero;
+      readonly CodingTypePlateauFollowerZero ct_ddiff4plateaufollower_zero;
 
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Plateau-Nachfolger mit ddiff!=0
       /// </summary>
-      CodingTypePlateauFollowerNotZero ct_ddiff4plateaufollower_notzero;
+      readonly CodingTypePlateauFollowerNotZero ct_ddiff4plateaufollower_notzero;
 
       Wraparound ValueWrap;
 
@@ -2340,7 +2260,7 @@ namespace Encoder {
       public EncodeMode ActualMode {
          get {
             return Elements.Count > 0 ?
-                        Elements[Elements.Count - 1].Encoding :
+                        Elements[Elements.Count - 1].Info.EncMode :
                         EncodeMode.notdefined;
          }
       }
@@ -2360,7 +2280,7 @@ namespace Encoder {
             return _initialHeightUnit.HunitValue;
          }
          private set {
-            _initialHeightUnit = new CodingTypeStd(value, Shrink > 0);
+            _initialHeightUnit = new CodingTypeStd(value, shrink.ShrinkValue > 0);
          }
       }
 
@@ -2401,14 +2321,786 @@ namespace Encoder {
          }
       }
 
-      public int Shrink {
-         get {
-            return HeightElement.Shrink;
+#endif
+
+      //public class Shrink1 {
+
+      //   /// <summary>
+      //   /// Shrink-Faktor (ungerade)
+      //   /// </summary>
+      //   public int ShrinkValue { get; private set; }
+
+      //   /// <summary>
+      //   /// max. reale Höhe
+      //   /// </summary>
+      //   public int MaxRealheight { get; private set; }
+
+      //   /// <summary>
+      //   /// max. Höhe für den Encoder
+      //   /// </summary>
+      //   public int MaxEncoderheight { get; private set; }
+
+      //   /// <summary>
+      //   /// Spezialencodierung des Wertes <see cref="MaxEncoderheight"/> (dann ist auch die Plateauerzeugung erweitert)
+      //   /// </summary>
+      //   public bool SpecEncoding4MaxEncoderheight { get; private set; }
+
+      //   /// <summary>
+      //   /// Bezugspunkt ist der Maximalwert oder 0
+      //   /// </summary>
+      //   public bool TopAligned { get; private set; }
+
+      //   /// <summary>
+      //   /// Höhendaten müssen noch verkleinert werden
+      //   /// </summary>
+      //   public bool ShrinkHeightsNecessary { get; private set; }
+
+      //   /// <summary>
+      //   /// Differenz zwischen theoretischen Maximalwert (<see cref="MaxEncoderheight"/> * <see cref="ShrinkValue"/>) und <see cref="MaxRealheight"/>
+      //   /// </summary>
+      //   int delta;
+
+      //   public Shrink1(int shrink, int maxrealheight, int maxencoderheight = 0, bool shrinkheightsnecessary = false) {
+      //      ShrinkValue = shrink;
+      //      MaxRealheight = maxrealheight;
+
+      //      if (ShrinkValue > 1) {
+      //         if (maxencoderheight > 0)
+      //            MaxEncoderheight = maxencoderheight;
+      //         else
+      //            MaxEncoderheight = 1 + (maxrealheight - 1) / ShrinkValue;
+      //      } else
+      //         MaxEncoderheight = MaxRealheight;
+
+      //      delta = MaxEncoderheight * ShrinkValue - MaxRealheight;
+
+      //      SpecEncoding4MaxEncoderheight = ShrinkValue > 1 && delta > ShrinkValue / 2;
+
+      //      TopAlignedOnOff = new List<TopAlignedOnOffItem>();
+
+      //      ShrinkHeightsNecessary = shrinkheightsnecessary;
+      //   }
+
+      //   /// <summary>
+      //   /// liefert die Encoderhöhe zur realen Höhe
+      //   /// </summary>
+      //   /// <param name="height"></param>
+      //   /// <param name="topaligned"></param>
+      //   /// <returns></returns>
+      //   int GetEncoderHeight4RealHeight(int height, bool topaligned) {
+      //      if (ShrinkValue > 1) {
+
+      //         if (!TopAligned) {
+
+      //            if (height < MaxRealheight - (ShrinkValue - delta) / 2)
+      //               height = (height + ShrinkValue / 2) / ShrinkValue;
+      //            else
+      //               height = MaxEncoderheight;
+
+      //         } else {
+
+      //            if (height <= (ShrinkValue - delta) / 2)
+      //               height = 0;
+      //            else
+      //               height = (height + delta) / ShrinkValue;
+
+      //         }
+
+      //      }
+      //      return height;
+      //   }
+
+      //   /// <summary>
+      //   /// berechnet für den realen Höhenwert den Wert für den Encoder
+      //   /// </summary>
+      //   /// <param name="x"></param>
+      //   /// <param name="y"></param>
+      //   /// <param name="realheigth"></param>
+      //   /// <returns></returns>
+      //   public int GetEncoderHeight4RealHeight(int x, int y, int realheigth) {
+      //      return ShrinkHeightsNecessary ?
+      //         GetEncoderHeight4RealHeight(realheigth, IsTopAlignedOnPos(x, y)) :
+      //         realheigth;
+      //   }
+
+      //   /// <summary>
+      //   /// berechnet für den realen Höhenwert den Wert für den Encoder
+      //   /// </summary>
+      //   /// <param name="realheigth"></param>
+      //   /// <returns></returns>
+      //   public int GetEncoderHeight4RealHeight(int realheigth) {
+      //      return ShrinkHeightsNecessary ?
+      //         GetEncoderHeight4RealHeight(realheigth, TopAligned) :
+      //         realheigth;
+      //   }
+
+
+      //   class TopAlignedOnOffItem {
+      //      public byte X;
+      //      public byte Y;
+      //      public byte On;
+
+      //      public bool IsOn {
+      //         get {
+      //            return On > 0;
+      //         }
+      //      }
+
+      //      public TopAlignedOnOffItem(int x, int y, bool on) {
+      //         X = (byte)x;
+      //         Y = (byte)y;
+      //         On = (byte)(on ? 1 : 0);
+      //      }
+
+      //      public int ComparePosition(TopAlignedOnOffItem ta) {
+      //         if (ta == null)
+      //            return 1;
+
+      //         if (Y > ta.Y)
+      //            return 1;
+      //         else if (Y < ta.Y)
+      //            return -1;
+      //         else {
+      //            if (X > ta.X)
+      //               return 1;
+      //            else if (X < ta.X)
+      //               return -1;
+      //            return 0;
+      //         }
+      //      }
+
+      //      public override string ToString() {
+      //         return string.Format("X={0}, Y={1}, IsOn={2}", X, Y, IsOn);
+      //      }
+      //   }
+
+      //   /// <summary>
+      //   /// Liste der "Schaltpunkte"
+      //   /// </summary>
+      //   List<TopAlignedOnOffItem> TopAlignedOnOff;
+
+      //   /// <summary>
+      //   /// registriert die Ein- oder Ausschaltpositionen für den TopAligned-Modus
+      //   /// </summary>
+      //   /// <param name="heigth"></param>
+      //   /// <param name="x"></param>
+      //   /// <param name="y"></param>
+      //   public void RegisterTopAlignedSwitchPos(int x, int y, int heigth) {
+      //      if (ShrinkValue > 1) {
+      //         if (heigth == 0) {
+
+      //            TopAlignedOnOffItem ta = new TopAlignedOnOffItem(x, y, false);
+      //            if (TopAlignedOnOff.Count > 0 &&
+      //                ta.ComparePosition(TopAlignedOnOff[TopAlignedOnOff.Count - 1]) == 0) {
+      //               TopAlignedOnOff.RemoveAt(TopAlignedOnOff.Count - 1);
+      //            }
+      //            TopAlignedOnOff.Add(ta);
+      //            TopAligned = false;
+
+      //         } else if (heigth < 0) { // nur bei MaxEncoderheight; heigth == MaxEncoderheight
+
+      //            TopAlignedOnOffItem ta = new TopAlignedOnOffItem(x, y, true);
+      //            if (TopAlignedOnOff.Count > 0 &&
+      //                ta.ComparePosition(TopAlignedOnOff[TopAlignedOnOff.Count - 1]) == 0) {
+      //               TopAlignedOnOff.RemoveAt(TopAlignedOnOff.Count - 1);
+      //            }
+      //            TopAlignedOnOff.Add(ta);
+      //            TopAligned = true;
+
+      //         }
+      //      }
+      //   }
+
+      //   /// <summary>
+      //   /// Gilt an dieser Position der TopAligned-Modus?
+      //   /// </summary>
+      //   /// <param name="x"></param>
+      //   /// <param name="y"></param>
+      //   /// <returns></returns>
+      //   bool IsTopAlignedOnPos(int x, int y) {
+      //      bool topaligned = false;
+      //      // Schaltpunkte der gleichen Zeile testen
+      //      int foundidx = -1;
+      //      for (int i = TopAlignedOnOff.Count - 1; i >= 0; i--) {
+      //         if (TopAlignedOnOff[i].Y < y)
+      //            break;
+      //         if (TopAlignedOnOff[i].Y == y && TopAlignedOnOff[i].X <= x) {
+      //            foundidx = i;
+      //            topaligned = TopAlignedOnOff[i].IsOn;
+      //            break;
+      //         }
+      //      }
+      //      if (y > 0) {   // Vorgängerzeile testen
+      //         for (int i = (foundidx < 0 ? TopAlignedOnOff.Count : foundidx) - 1; i >= 0; i--) {
+      //            if (TopAlignedOnOff[i].Y < y - 1)
+      //               break;
+      //            if (TopAlignedOnOff[i].Y == y - 1 && TopAlignedOnOff[i].X <= x) {
+      //               if (TopAlignedOnOff[i].X == x && TopAlignedOnOff[i].IsOn)
+      //                  topaligned = true;
+      //               break;
+      //            }
+      //         }
+      //      }
+      //      return topaligned;
+      //   }
+
+      //   /// <summary>
+      //   /// Beginnt an dieser Position ein Plateau?
+      //   /// </summary>
+      //   /// <param name="x"></param>
+      //   /// <param name="y"></param>
+      //   /// <param name="hl">Höhe links</param>
+      //   /// <param name="hu">Höhe darüber</param>
+      //   /// <returns></returns>
+      //   public bool IsPlateauStart(int x, int y, int hl, int hu) {
+      //      if (SpecEncoding4MaxEncoderheight && // ist gleichbedeutend mit spez. Plateau-Regel
+      //          x > 0) { // bei x==0 immer Plateau
+
+      //         bool topal_l = IsTopAlignedOnPos(x - 1, y);
+      //         bool topal_u = IsTopAlignedOnPos(x, y - 1);
+
+      //         if (topal_l == topal_u)
+      //            return hl == hu;
+      //         else {
+      //            if (topal_l)
+      //               return hl == hu + 1;
+      //            else
+      //               return hu == hl + 1;
+      //         }
+
+      //      } else
+      //         return hl == hu;
+      //   }
+
+      //   /// <summary>
+      //   /// liefert ein ev. nötiges Delta für den Wert oberhalb des Plateaufollowers
+      //   /// </summary>
+      //   /// <param name="x"></param>
+      //   /// <param name="y"></param>
+      //   /// <returns></returns>
+      //   public int GetPlateauFollowerUpDelta(int x, int y) {
+      //      int delta = 0;
+      //      if (SpecEncoding4MaxEncoderheight) {
+      //         bool topal_l = IsTopAlignedOnPos(x - 1, y);
+      //         bool topal_u = IsTopAlignedOnPos(x, y - 1);
+      //         if (topal_l || topal_u) {
+      //            delta = topal_u ? -1 : 1;
+      //         }
+      //      }
+      //      return delta;
+      //   }
+
+      //   public int Ddiff(int x, int y, int hl, int hu) {
+      //      if (SpecEncoding4MaxEncoderheight) {
+      //         if (IsTopAlignedOnPos(x, y - 1))
+      //            return --hu - hl;
+      //         if (IsTopAlignedOnPos(x - 1, y))
+      //            return hu - --hl;
+      //      }
+      //      return hu - hl;
+      //   }
+
+
+      //}
+
+      public class Shrink {
+
+         /// <summary>
+         /// Shrink-Faktor (ungerade)
+         /// </summary>
+         public int ShrinkValue { get; private set; }
+
+         /// <summary>
+         /// max. reale Höhe
+         /// </summary>
+         public int MaxRealheight { get; private set; }
+
+         /// <summary>
+         /// max. Höhe für den Encoder
+         /// </summary>
+         public int MaxEncoderheight { get; private set; }
+
+         /// <summary>
+         /// true wenn die top-Ausrichtung möglich ist
+         /// </summary>
+         public bool TopAlignIsPossible { get; private set; }
+
+         /// <summary>
+         /// reale Höhendaten müssen noch verkleinert werden
+         /// </summary>
+         public bool ShrinkHeightsNecessary { get; private set; }
+
+         /// <summary>
+         /// Differenz zwischen theoretischen Maximalwert (<see cref="MaxEncoderheight"/> * <see cref="ShrinkValue"/>) und <see cref="MaxRealheight"/>
+         /// </summary>
+         readonly int delta;
+
+         class TopAlignedArray {
+
+            SetType[] dat;
+
+            public int Width, Height;
+
+            enum SetType : byte {
+               Unknown = 0,
+               No,
+               Yes,
+            }
+
+            public TopAlignedArray(ushort width, ushort height) {
+               Width = width;
+               Height = height;
+               dat = new SetType[Width * Height];
+            }
+
+            /// <summary>
+            /// setzt den Rest der Zeile oder nur die einzelne Position
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <param name="top"></param>
+            public void Set(int x, int y, bool top) {
+               if (0 <= x && x < Width &&
+                   0 <= y && y < Height)
+                  dat[y * Width + x] = top ? SetType.Yes : SetType.No;
+            }
+
+            public bool Get(int x, int y) {
+               if (x < 0 || y < 0)
+                  return false;
+               int idx = y * Width + x;
+               return dat[idx] == SetType.Yes;
+            }
+
+            public string ToString(int y) {
+               StringBuilder sb = new StringBuilder();
+               for (int i = y * Width; i < dat.Length; i++) {
+                  if (i == (y + 1) * Width)
+                     break;
+                  switch (dat[i]) {
+                     case SetType.No: sb.Append("N"); break;
+                     case SetType.Yes: sb.Append("Y"); break;
+                     default: sb.Append("?"); break;
+                  }
+               }
+               return sb.ToString();
+            }
+
+            public override string ToString() {
+               StringBuilder sb = new StringBuilder();
+               for (int y = 0; y < Height; y++)
+                  sb.AppendLine(ToString(y));
+               return sb.ToString();
+            }
          }
+
+         TopAlignedArray TopAlignedData;
+
+
+         /// <summary>
+         /// 
+         /// </summary>
+         /// <param name="width">Spaltenanzahl des Datenbereiches</param>
+         /// <param name="height">Zeilenanzahl des Datenbereiches</param>
+         /// <param name="shrink">Verkleinerungsfaktor (1, 3, 5, ...)</param>
+         /// <param name="maxrealheight">max. reale Höhe</param>
+         /// <param name="maxencoderheight">max. Höhe mit der der Encoder rechnet</param>
+         /// <param name="shrinkheightsnecessary">true, wenn reale (noch nicht verkleinerte) Höhen geliefert werden</param>
+         public Shrink(ushort width, ushort height, int shrink, int maxrealheight, int maxencoderheight = 0, bool shrinkheightsnecessary = false) {
+            ShrinkValue = shrink;
+            MaxRealheight = maxrealheight;
+
+            if (ShrinkValue > 1) {
+               if (maxencoderheight > 0)
+                  MaxEncoderheight = maxencoderheight;
+               else
+                  MaxEncoderheight = 1 + (maxrealheight - 1) / ShrinkValue;
+            } else
+               MaxEncoderheight = MaxRealheight;
+
+            delta = MaxEncoderheight * ShrinkValue - MaxRealheight;
+
+            TopAlignIsPossible = ShrinkValue > 1 && delta > ShrinkValue / 2;  // nur unter diesen Bedingungen kann es eine top-Ausrichtung geben
+
+            if (ShrinkValue > 1)
+               ShrinkHeightsNecessary = shrinkheightsnecessary;
+            else
+               ShrinkHeightsNecessary = false;
+
+            TopAlignedData = new TopAlignedArray(width, height);
+         }
+
+         /// <summary>
+         /// berechnet für den realen Höhenwert den Wert für den Encoder
+         /// <para>Es wird nur dann der korrekte Wert geliefert, wenn <see cref="TopAlignedData"/> bis direkt vor diese Position schon korrekt ermittelt wurde. Das ist erst bei der 
+         /// Encodierung der Fall.</para>
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <param name="realheight"></param>
+         /// <returns></returns>
+         public int GetEncoderHeight4RealHeight(int x, int y, int realheight) {
+            if (ShrinkHeightsNecessary) {
+               if (!IsTopAligned(x, y)) {
+
+                  if (realheight < MaxRealheight - (ShrinkValue - delta) / 2)
+                     realheight = (realheight + ShrinkValue / 2) / ShrinkValue;
+                  else
+                     realheight = MaxEncoderheight;
+
+               } else {
+
+                  if (realheight <= (ShrinkValue - delta) / 2)
+                     realheight = 0;
+                  else
+                     realheight = (realheight + delta) / ShrinkValue;
+
+               }
+            }
+            return realheight;
+         }
+
+         /// <summary>
+         /// setzt die Ausrichtung für diesen Wert (und liefert sie)
+         /// </summary>
+         /// <param name="x">Spalte</param>
+         /// <param name="y">Zeile</param>
+         /// <param name="heigth">Höhe</param>
+         /// <param name="hook">Höhe davor + Höhe darüber - Höhe links darüber</param>
+         /// <returns></returns>
+         public bool SetTopAligned4Normal(int x, int y, int heigth, int hook) {
+            if (TopAlignIsPossible) {
+               bool topaligned = false;
+               if (heigth == 0) {
+                  topaligned = false;
+               } else if (heigth == MaxEncoderheight) {
+                  topaligned = true;
+               } else {
+                  int min = 7;
+                  if (TopAlignedData.Get(x - 1, y) ||
+                      TopAlignedData.Get(x, y - 1))
+                     min = 1;
+                  topaligned = hook >= min;
+               }
+               TopAlignedData.Set(x, y, topaligned);
+               return topaligned;
+            }
+            return false;
+         }
+
+         /// <summary>
+         /// setzt die Ausrichtung für diesen Wert (und liefert sie)
+         /// </summary>
+         /// <param name="x">Spalte</param>
+         /// <param name="y">Zeile</param>
+         /// <param name="heigth">Höhe</param>
+         /// <param name="hook">Höhe davor + Höhe darüber - Höhe links darüber</param>
+         /// <param name="length">Länge des Plateaus</param>
+         /// <returns></returns>
+         public bool SetTopAligned4Plateau(int x, int y, int heigth, int hook, int length) {
+            if (TopAlignIsPossible) {
+               bool topaligned = false;
+               if (heigth == 0) {
+                  topaligned = false;
+               } else if (heigth == MaxEncoderheight) {
+                  topaligned = true;
+               } else {
+                  bool topalignedv = TopAlignedData.Get(x - 1, y);
+                  if (TopAlignedData.Get(x - 1, y))
+                     topaligned = true;
+                  else {
+                     if (!TopAlignedData.Get(x, y - 1))
+                        topaligned = false;
+                     else
+                        topaligned = hook >= 1;
+                  }
+               }
+               for (int i = 0; i < length; i++)
+                  TopAlignedData.Set(x + i, y, topaligned);
+               return topaligned;
+            }
+            return false;
+         }
+
+         /// <summary>
+         /// setzt die Ausrichtung für diesen Wert (und liefert sie)
+         /// </summary>
+         /// <param name="x">Spalte</param>
+         /// <param name="y">Zeile</param>
+         /// <param name="heigth">Höhe</param>
+         /// <param name="ddiffTis0">"Diagonaldifferenz" unter Berücksichtigung der Ausrichtung (<see cref="Ddiff"/>())</param>
+         /// <returns></returns>
+         public bool SetTopAligned4Plateaufollower(int x, int y, int heigth, bool ddiffTis0) {
+            if (TopAlignIsPossible) {
+               bool topaligned = false;
+               if (heigth == 0) {
+                  topaligned = false;
+               } else if (heigth == MaxEncoderheight) {
+                  topaligned = true;
+               } else {
+                  if (ddiffTis0)
+                     topaligned = TopAlignedData.Get(x - 1, y);
+                  else
+                     topaligned = TopAlignedData.Get(x, y - 1);
+               }
+               TopAlignedData.Set(x, y, topaligned);
+               return topaligned;
+            }
+            return false;
+         }
+
+         /// <summary>
+         /// Gilt an dieser Position der TopAligned-Modus?
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <returns></returns>
+         public bool IsTopAligned(int x, int y) {
+            return x >= 0 && y >= 0 ?
+                        TopAlignedData.Get((ushort)x, (ushort)y) :
+                        (x < 0 && y > 0) ?
+                              TopAlignedData.Get(0, (ushort)(y - 1)) :
+                              false;
+         }
+
+         /// <summary>
+         /// Beginnt an dieser Position ein Plateau?
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <param name="hl">Höhe links</param>
+         /// <param name="hu">Höhe darüber</param>
+         /// <returns></returns>
+         public bool IsPlateauStart(int x, int y, int hl, int hu) {
+            if (TopAlignIsPossible && // sonst gelten die Standardregeln
+                x > 0) { // bei x==0 immer Plateau
+
+               bool topal_l = IsTopAligned(x - 1, y);
+               bool topal_u = IsTopAligned(x, y - 1);
+
+               if (topal_l == topal_u)
+                  return hl == hu;
+               else {
+                  if (topal_l)
+                     return hl == hu + 1;
+                  else
+                     return hu == hl + 1;
+               }
+
+            } else
+               return hl == hu;
+         }
+
+         /// <summary>
+         /// berechnet die "Diagonaldifferenz" unter Berücksichtigung von <see cref="TopAlignedData"/>
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <param name="hl"></param>
+         /// <param name="hu"></param>
+         /// <returns></returns>
+         public int Ddiff(int x, int y, int hl, int hu) {
+            if (TopAlignIsPossible) { // sonst gelten die Standardregeln
+               if (IsTopAligned(x, y - 1)) {
+                  if (IsTopAligned(x - 1, y))
+                     return hu - hl;
+                  else
+                     return --hu - hl;
+               } else {
+                  if (IsTopAligned(x - 1, y))
+                     return hu - --hl;
+                  else
+                     return hu - hl;
+               }
+            }
+            return hu - hl;
+         }
+
+         /// <summary>
+         /// liefert den Datenwert für den Plateaufollower h und ob ev. das nachfolgende Wrapping verboten ist
+         /// <para>Es findet (noch) keine Optimierung für h == 0 oder <see cref="MaxEncoderheight"/> statt!</para>
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <param name="ddifft"></param>
+         /// <param name="h"></param>
+         /// <param name="hu"></param>
+         /// <param name="wrapforbidden"></param>
+         /// <returns></returns>
+         public int GetData4PlateauFollower(int x, int y, int ddifft, int h, int hu, out bool wrapforbidden) {
+            bool topal_l = IsTopAligned(x - 1, y);
+            bool topal_u = IsTopAligned(x, y - 1);
+            wrapforbidden = false;
+
+            int data = h - hu;   // vdiff
+
+            // "einfaches" Wrapping
+            if (data > MaxEncoderheight / 2)
+               data -= MaxEncoderheight + 1;
+            else if (data < -MaxEncoderheight / 2)
+               data += MaxEncoderheight + 1;
+
+            bool specialcase = false;
+            int specialcasevalue = 0;
+
+            if (ddifft != 0) {
+
+               if (ddifft > 0)
+                  data = -data;
+
+               if (topal_u) {
+
+                  if (h == 0) {  // statt 0 wird 7T angezeigt
+                                 // Sonderfälle für 0
+                     if (topal_l) {
+                        if (ddifft > 0) {
+                           if (data == hu + 1) {
+                              specialcase = true;
+                              specialcasevalue = -(MaxEncoderheight + 1);
+                           }
+                        } else { // ddifft < 0
+                           if (data == -hu) {
+                              specialcase = true;
+                              specialcasevalue = MaxEncoderheight + 1;
+                           }
+                        }
+                     } else {
+                        if (ddifft > 0) {
+                           if (data == hu) {
+                              specialcase = true;
+                              specialcasevalue = -(MaxEncoderheight + 1);
+                           }
+                        } else { // ddifft < 0
+                           if (data == -hu) {
+                              specialcase = true;
+                              specialcasevalue = MaxEncoderheight + 1;
+                           }
+                        }
+                     }
+                  }
+
+               } else { // topal_u == true
+
+                  // topal_l ist egal
+
+                  // Sonderfälle für MaxEncoderheight
+                  if (h == MaxEncoderheight) {  // statt 7T wird 0 angezeigt
+                     if (ddifft > 0) {
+                        if (data == hu - MaxEncoderheight) {
+                           specialcase = true;
+                           specialcasevalue = MaxEncoderheight + 1;
+                        }
+                     } else { // ddifft < 0
+                        if (data == MaxEncoderheight - hu) {
+                           specialcase = true;
+                           specialcasevalue = -(MaxEncoderheight + 1);
+                        }
+                     }
+                  }
+
+               }
+
+            } else { // ddifft == 0
+
+               if (topal_u) {
+                  if (topal_l) {
+                     if (data < 0)
+                        data++;
+                     if (h == 0 &&
+                         data == -hu + 1) {
+                        specialcase = true;
+                        specialcasevalue = MaxEncoderheight;
+                     }
+                  } else { // topal_l == false
+                     if (data > -1)
+                        data++;
+                     else  // data < -1
+                        data += 2;
+                     if (h == MaxEncoderheight &&
+                         data == MaxEncoderheight - hu + 1) {
+                        specialcase = true;
+                        specialcasevalue = -MaxEncoderheight;
+                     }
+                  }
+               } else { // topal_u == false
+                  if (topal_l) {
+                     if (data > 1)
+                        data -= 1;
+                     if (h == 0 &&
+                         data == -hu) {
+                        specialcase = true;
+                        specialcasevalue = MaxEncoderheight;
+                     }
+                  } else { // topal_l == false
+                     if (data < 0)
+                        data += 1;
+                     if (h == MaxEncoderheight &&
+                         data == MaxEncoderheight - hu) {
+                        specialcase = true;
+                        specialcasevalue = -MaxEncoderheight;
+                     }
+                  }
+               }
+            }
+
+            if (specialcase) {
+               wrapforbidden = true;
+               data += specialcasevalue;
+            }
+
+            return data;
+         }
+
+         /// <summary>
+         /// korrigiert ev. den schon berechneten Datenwert
+         /// </summary>
+         /// <param name="h"></param>
+         /// <param name="data"></param>
+         /// <param name="hook"></param>
+         /// <param name="sgnddiff"></param>
+         /// <param name="wrapforbidden"></param>
+         /// <returns></returns>
+         public int GetData4Normal(int h, int data, int hook, int sgnddiff, out bool wrapforbidden) {
+            wrapforbidden = false;
+            if (TopAlignIsPossible)
+               if (MaxEncoderheight <= hook) {
+
+                  if (h == 0 &&
+                      data == MaxEncoderheight) {
+                     data = -1;
+                     wrapforbidden = true;
+                  }
+
+               } else if (hook <= 0) {
+
+                  if (h == MaxEncoderheight &&
+                      data == MaxEncoderheight) {
+                     data = -1;
+                     wrapforbidden = true;
+                  }
+
+               } else {
+
+                  if (h == MaxEncoderheight) {
+                     if (sgnddiff < 0) {
+                        if (data > 0) {
+                           data -= MaxEncoderheight + 1;
+                           wrapforbidden = true;
+                        }
+                     } else {
+                        if (data < 0) {
+                           data += MaxEncoderheight + 1;
+                           wrapforbidden = true;
+                        }
+                     }
+                  }
+               }
+            return data;
+         }
+
       }
 
-
-#endif
+      public Shrink shrink;
 
       /// <summary>
       /// alle Höhenwerte
@@ -2422,27 +3114,24 @@ namespace Encoder {
       /// die Codierung abgeschlossen. Die fertige Bytefolge knn mit <see cref="GetCodedBytes"/> abgerufen werden.
       /// </para>
       /// </summary>
-      /// <param name="maxheight">max. Höhe</param>
+      /// <param name="maxrealheight">max. Höhe</param>
       /// <param name="maxheightencoder">expl. gesetzt, wenn größer als 0 und shrink größer als 1</param>
       /// <param name="codingtyp">Codiertyp (z.Z. nicht verwendet)</param>
-      /// <param name="shrink"></param>
+      /// <param name="shrink">Shrink-Faktor (ungerade)</param>
       /// <param name="tilesizehorz">Breite der Kachel</param>
       /// <param name="tilesizevert">Höhe der Kachel</param>
       /// <param name="height">Liste der Höhendaten (Anzahl normalerweise <see cref="tilesize"/> * <see cref="tilesize"/>)</param>
-      public TileEncoder(int maxheight, int maxheightencoder, byte codingtyp, int shrink, int tilesizehorz, int tilesizevert, IList<int> height) {
-         MaxRealHeight = MaxHeight = maxheight;
+      /// <param name="shrinkheights">true, wenn reale (noch nicht verkleinerte) Höhen geliefert werden</param>
+      public TileEncoder(int maxrealheight, int maxheightencoder, byte codingtyp, int shrink, int tilesizehorz, int tilesizevert, IList<int> height, bool shrinkheights) {
+         this.shrink = new Shrink((ushort)tilesizehorz, (ushort)tilesizevert, shrink, maxrealheight, maxheightencoder, shrinkheights);
 
-         if (shrink > 1) {
-            if (maxheightencoder > 0)
-               MaxHeight = maxheightencoder;
-            else
-               MaxHeight = MaxEncoderHeight4Shrink(shrink, MaxRealHeight);
-         }
+         MaxRealHeight = this.shrink.MaxRealheight;
+         MaxHeight = this.shrink.MaxEncoderheight;
 
          TileSizeHorz = tilesizehorz;
          TileSizeVert = tilesizevert;
 
-         HeightElement.Shrink = shrink;
+         HeightElement.Shrink = this.shrink.ShrinkValue;
          HeightElement.MaxEncoderheight = MaxHeight;
          HeightElement.MaxRealheight = MaxRealHeight;
 
@@ -2474,15 +3163,6 @@ namespace Encoder {
 #endif
       }
 
-      /// <summary>
-      /// max. Höhenwert für Encoder bei der entsprechenden realen Maximalhöhe und dem Verkleinerungswert
-      /// </summary>
-      /// <param name="shrink"></param>
-      /// <param name="maxrealheight"></param>
-      /// <returns></returns>
-      public static int MaxEncoderHeight4Shrink(int shrink, int maxrealheight) {
-         return maxrealheight / shrink + (maxrealheight % shrink > 0 ? 1 : 0);
-      }
 
       /// <summary>
       /// liefert die codierte Bitfolge als Bytes
@@ -2581,12 +3261,14 @@ namespace Encoder {
       /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
       bool CalculateData(Position pos) {
          bool bEnd = false;
+         int h = ValidHeight(pos);
 
-         if (ValidHeight(pos) >= 0) { // nur nichtnegative Höhen
+         if (h >= 0) { // nur nichtnegative Höhen
 
             try {
 
-               if (ValidHeightDDiff(pos) == 0) { // die Diagonale hat konstante Höhe (gilt auch für die 1. Spalte) -> immer Plateau (ev. auch mit Länge 0)
+               //if (ValidHeightDDiff(pos) == 0) { // die Diagonale hat konstante Höhe (gilt auch für die 1. Spalte) -> immer Plateau (ev. auch mit Länge 0)
+               if (shrink.IsPlateauStart(pos.X, pos.Y, ValidHeight(pos.X - 1, pos.Y), ValidHeight(pos.X, pos.Y - 1))) {
 
                   bEnd = WritePlateau(pos, ct_ddiff4plateaufollower_zero, ct_ddiff4plateaufollower_notzero);
 
@@ -2595,31 +3277,42 @@ namespace Encoder {
                   int data = 0;
                   CalculationType caltype = CalculationType.nothing;
 
-                  int hdiff_up = ValidHeightHDiff(pos.X, pos.Y - 1);       // horiz. Diff. der Höhe in der Zeile "über" der akt. Pos.
-                  int hv = ValidHeight(pos, -1, 0);
-                  int sgnddiff = Math.Sign(ValidHeightDDiff(pos));
+                  int hlefttop = ValidHeight(pos.X - 1, pos.Y - 1);
+                  int htop = ValidHeight(pos.X, pos.Y - 1);
+                  int hleft = ValidHeight(pos.X - 1, pos.Y);
+                  int sgnddiff = Math.Sign(shrink.Ddiff(pos.X, pos.Y, hleft, htop));
+                  int hook = hleft + htop - hlefttop;
+                  bool wrapforbidden = false;
 
-                  if (hdiff_up >= MaxHeight - hv) {
+                  if (MaxHeight <= hook) {
 
-                     data = -sgnddiff * (ValidHeight(pos) + 1);
+                     data = -sgnddiff * (h + 1);
                      caltype = CalculationType.StandardHdiffHigh;
 
-                  } else if (hdiff_up <= -hv) {
+                  } else if (hook <= 0) {
 
-                     data = -sgnddiff * ValidHeight(pos);
+                     data = -sgnddiff * h;
                      caltype = CalculationType.StandardHdiffLow;
 
                   } else {
 
-                     data = -sgnddiff * (ValidHeightHDiff(pos) - hdiff_up);
+                     data = -sgnddiff * (h - hook);
                      caltype = CalculationType.Standard;
 
                   }
 
-                  AddHeightValue(data, caltype, pos, ct_std);
+                  data = shrink.GetData4Normal(h, data, hook, sgnddiff, out wrapforbidden);
+                  shrink.SetTopAligned4Normal(pos.X, pos.Y, h, hook);
+
+                  EncodeMode em = ct_std.EncodeMode;
+                  bool wrapped = false;
+                  if (!wrapforbidden)
+                     data = ValueWrap.Wrap(data, out wrapped, em);
+                  em = ValueWrap.FitEncodeMode(data, em, ct_std.HunitValue);
+
+                  AddHeightValue(data, caltype, pos, ct_std, em, int.MinValue, wrapped);
 
                   bEnd = !pos.MoveForward();
-                  //}
                }
 
             } catch (Exception ex) {
@@ -2638,14 +3331,19 @@ namespace Encoder {
       /// <param name="ct_followerddiffnotzero">hunit-Berechnung wenn die ddiff für den Nachfolger ungleich 0 ist</param>
       /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
       bool WritePlateau(Position pos, CodingTypePlateauFollowerZero ct_followerddiffzero, CodingTypePlateauFollowerNotZero ct_followerddiffnotzero) {
-         int length;
-         bool bEnd = GetPlateauLength(pos, out length);
+         bool bEnd = GetPlateauLength(pos, out int length);
+
+         shrink.SetTopAligned4Plateau(pos.X,
+                                      pos.Y,
+                                      ValidHeight(pos.X, pos.Y),
+                                      ValidHeight(pos.X - 1, pos.Y) + ValidHeight(pos.X, pos.Y - 1) - ValidHeight(pos.X - 1, pos.Y - 1),
+                                      length);
 
          // pos steht am Anfang des Plateaus bzw., bei Länge 0, schon auf dem Follower
          // also zeigt pos.X+length auf die Pos. des Followers
 
          // Plateaulänge codieren
-         HeightElement he = HeightElement.CreateHeightElement_Plateau(length, pos.X, pos.Y, TileSizeHorz, Elements);
+         HeightElement he = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Plateau, length, TileSizeHorz, Elements, shrink.IsTopAligned(pos.X, pos.Y), pos.X, pos.Y));
          Elements.Add(he);
          bool bLineFilled = pos.X + length >= TileSizeHorz;
          bEnd = !pos.MoveForward(length);
@@ -2653,12 +3351,14 @@ namespace Encoder {
          if (!bLineFilled) { // Nachfolgewert bestimmen
             if (!bEnd) {
                int follower = ValidHeight(pos);
+               int follower_up = ValidHeight(pos.X, pos.Y - 1);
+               int follower_left = ValidHeight(pos.X - 1, pos.Y);
+
                int follower_ddiff = pos.X == 0 ?
                                           0 : // wegen virt. Spalte
-                                          ValidHeightDDiff(pos);
-               int follower_vdiff = ValidHeightVDiff(pos);
-
-               int data = follower_vdiff;
+                                          shrink.TopAlignIsPossible ?
+                                             shrink.Ddiff(pos.X, pos.Y, follower_left, follower_up) :
+                                             follower_up - follower_left;
 
                CodingType ct;
                if (follower_ddiff != 0)
@@ -2666,28 +3366,54 @@ namespace Encoder {
                else
                   ct = ct_followerddiffzero;
 
+               int data = follower - follower_up;  // vdiff
+
                EncodeMode em = ct.EncodeMode;
-               bool wrapped;
+               bool wrapped = false;
                // Nachfolger codieren
                CalculationType caltyp2 = CalculationType.nothing;
                if (follower_ddiff != 0) {
 
                   caltyp2 = CalculationType.PlateauFollower1;
-                  if (follower_ddiff > 0)
-                     data = -data;
 
-                  data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, he.PlateauBinBits);
+                  if (shrink.TopAlignIsPossible) {
+
+                     data = shrink.GetData4PlateauFollower(pos.X, pos.Y, follower_ddiff, follower, follower_up, out bool wrapforbidden);
+                     if (!wrapforbidden)
+                        data = ValueWrap.Wrap(data, out wrapped, em);
+
+                  } else {
+
+                     if (follower_ddiff > 0)
+                        data = -data;
+                     data = ValueWrap.Wrap(data, out wrapped, em);
+
+                  }
+
 
                } else {
 
                   caltyp2 = CalculationType.PlateauFollower0;
 
-                  data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, he.PlateauBinBits);
-                  if (data < 0)
-                     data++;
+                  if (shrink.TopAlignIsPossible) {
+
+                     data = shrink.GetData4PlateauFollower(pos.X, pos.Y, follower_ddiff, follower, follower_up, out bool wrapforbidden);
+                     //if (!wrapforbidden)
+                     //   data = ValueWrap.Wrap(data, out wrapped, em);
+
+                  } else {
+
+                     data = ValueWrap.Wrap(data, out wrapped, em);
+                     if (data < 0)
+                        data++;
+
+                  }
 
                }
 
+               shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, follower, follower_ddiff == 0);
+
+               em = ValueWrap.FitEncodeMode(data, em, ct.HunitValue, he.PlateauBinBits);
                AddHeightValue(data, caltyp2, pos, ct, em, follower_ddiff, wrapped);
 
                bEnd = !pos.MoveForward();
@@ -2730,76 +3456,75 @@ namespace Encoder {
          return bEnd;
       }
 
+
       /// <summary>
-      /// fügt eine neues <see cref="HeightElement"/> an die Liste <see cref="Elements"/> an
+      /// fügt eine neues <see cref="HeightElement"/> an die Liste <see cref="Elements"/> an und registriert den Datenwert im <see cref="CodingType"/>
       /// </summary>
       /// <param name="data">Datenwert</param>
-      /// <param name="caltype">Berechnungstyp</param>
+      /// <param name="caltype">Berechnungstyp (Plateau-Nachfolger oder andere)</param>
       /// <param name="pos">Pos. in der Kachel</param>
       /// <param name="ct">Codierart</param>
-      /// <param name="emfollower">ausdrücklicher Codiermodus bei einem Plateau-Nachfolger</param>
-      /// <param name="extdata">ddiff für den Plateau-Nachfolger oder Länge bei Moved Range</param>
-      /// <param name="wrapped">true, falls der Plateau-Nachfolger gewrapt ist</param>
-      void AddHeightValue(int data, CalculationType caltype, Position pos, CodingType ct, EncodeMode emfollower = EncodeMode.notdefined, int extdata = int.MinValue, bool wrapped = false) {
+      /// <param name="em_explicit">ausdrücklicher Codiermodus bei einem Plateau-Nachfolger</param>
+      /// <param name="extdata">ddiff für den Plateau-Nachfolger</param>
+      /// <param name="wrapped_info">true, falls der Datenwert gewrapt ist</param>
+      void AddHeightValue(int data,
+                          CalculationType caltype,
+                          Position pos,
+                          CodingType ct,
+                          EncodeMode em_explicit = EncodeMode.notdefined,
+                          int extdata = int.MinValue,
+                          bool wrapped_info = false) {
          HeightElement elem = null;
+         bool topaligned = shrink.IsTopAligned(pos.X, pos.Y);
 
          switch (caltype) {
             case CalculationType.PlateauFollower0:
             case CalculationType.PlateauFollower1:
-               if (emfollower != EncodeMode.notdefined) {
-                  switch (emfollower) {
-                     case EncodeMode.Hybrid:
-                        elem = HeightElement.CreateHeightElement_PlateauFollowerH(data, caltype, wrapped, ct.HunitValue, extdata, pos.X, pos.Y);
-                        break;
+               switch (em_explicit) {
+                  case EncodeMode.Hybrid:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, extdata, caltype, EncodeMode.Hybrid, wrapped_info, ct.HunitValue, topaligned, pos.X, pos.Y));
+                     break;
 
-                     case EncodeMode.Length0:
-                     case EncodeMode.Length1:
-                     case EncodeMode.Length2:
-                        elem = HeightElement.CreateHeightElement_PlateauFollowerL(data, caltype, wrapped, emfollower, extdata, pos.X, pos.Y);
-                        break;
+                  case EncodeMode.Length0:
+                  case EncodeMode.Length1:
+                  case EncodeMode.Length2:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, extdata, caltype, em_explicit, wrapped_info, topaligned, pos.X, pos.Y));
+                     break;
 
-                     case EncodeMode.BigBinary:
-                        elem = HeightElement.CreateHeightElement_PlateauFollowerBigValue(data, caltype, wrapped, extdata, pos.X, pos.Y);
-                        break;
+                  case EncodeMode.BigBinary:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinary, wrapped_info, extdata, topaligned, pos.X, pos.Y));
+                     break;
 
-                     case EncodeMode.BigBinaryL1:
-                        elem = HeightElement.CreateHeightElement_PlateauFollowerBigValueL1(data, caltype, wrapped, extdata, pos.X, pos.Y);
-                        break;
+                  case EncodeMode.BigBinaryL1:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinaryL1, wrapped_info, extdata, topaligned, pos.X, pos.Y));
+                     break;
 
-                     case EncodeMode.BigBinaryL2:
-                        elem = HeightElement.CreateHeightElement_PlateauFollowerBigValueL2(data, caltype, wrapped, extdata, pos.X, pos.Y);
-                        break;
-                  }
-               } else
-                  throw new Exception("Bei einem Plateau-Nachfolger muss explizit der Codiermodus angegeben sein.");
+                  case EncodeMode.BigBinaryL2:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinaryL2, wrapped_info, extdata, topaligned, pos.X, pos.Y));
+                     break;
+               }
                break;
 
-            default: {
-                  EncodeMode em = ct.EncodeMode; // wird ev. verändert auf BigBin
-                  data = ValueWrap.Wrap(data, out wrapped, ref em, ct.HunitValue, -1);
+            default: // Standardwert
+               switch (em_explicit) {
+                  case EncodeMode.Hybrid:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.Hybrid, wrapped_info, ct.HunitValue, topaligned, pos.X, pos.Y));
+                     break;
 
-                  //Debug.Write(string.Format("[{0},{1}], ", pos.X, pos.Y));
+                  case EncodeMode.Length0:
+                  case EncodeMode.Length1:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, em_explicit, wrapped_info, topaligned, pos.X, pos.Y));
+                     break;
 
-                  switch (em) {
-                     case EncodeMode.Hybrid:
-                        elem = HeightElement.CreateHeightElement_ValueH(data, caltype, wrapped, ct.HunitValue, pos.X, pos.Y);
-                        break;
+                  case EncodeMode.BigBinary:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.BigBinary, wrapped_info, topaligned, pos.X, pos.Y));
+                     break;
 
-                     case EncodeMode.Length0:
-                     case EncodeMode.Length1:
-                        elem = HeightElement.CreateHeightElement_ValueL(data, caltype, wrapped, em, pos.X, pos.Y);
-                        break;
-
-                     case EncodeMode.BigBinary:
-                        elem = HeightElement.CreateHeightElement_BigValue(data, caltype, wrapped, pos.X, pos.Y);
-                        break;
-
-                     case EncodeMode.BigBinaryL1:
-                        elem = HeightElement.CreateHeightElement_BigValueL1(data, caltype, wrapped, pos.X, pos.Y);
-                        break;
-                  }
-                  break;
+                  case EncodeMode.BigBinaryL1:
+                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.BigBinaryL1, wrapped_info, topaligned, pos.X, pos.Y));
+                     break;
                }
+               break;
          }
 
          if (elem != null) {
@@ -2835,7 +3560,6 @@ namespace Encoder {
             }
          }
       }
-
 
       #region spezielle Höhendifferenzen
 
@@ -2901,24 +3625,17 @@ namespace Encoder {
       #region Zugriff auf Höhenwerte
 
       /// <summary>
-      /// liefert die Höhe zum Index (alle Höhen sind zeilenweise hintereinander angeordnet)
-      /// </summary>
-      /// <param name="idx"></param>
-      /// <returns>negativ, wenn ungültig</returns>
-      int Height(int idx) {
-         return 0 <= idx && idx < HeightValues.Count ?
-                        HeightValues[idx] :
-                        -1;
-      }
-
-      /// <summary>
       /// liefert die Höhe aus Spalte und Zeile (Spalte und Zeile müssen gültige Werte sein, da intern der Index verwendet wird)
       /// </summary>
-      /// <param name="column"></param>
-      /// <param name="line"></param>
+      /// <param name="x"></param>
+      /// <param name="y"></param>
       /// <returns>negativ, wenn ungültig</returns>
-      public int Height(int column, int line) {
-         return Height(TileSizeHorz * line + column);
+      public int Height(int x, int y) {
+         int idx = TileSizeHorz * y + x;
+         int h = 0 <= idx && idx < HeightValues.Count ?
+                        HeightValues[idx] :
+                        -1;
+         return shrink.GetEncoderHeight4RealHeight(x, y, h);
       }
 
       /// <summary>
@@ -2928,11 +3645,11 @@ namespace Encoder {
       /// <param name="deltax">Spalten-Delta zur Position</param>
       /// <param name="deltay">Zeilen-Delta zur Position</param>
       /// <returns>negativ, wenn ungültig</returns>
-      int ValidHeight(Position pos, int deltax = 0, int deltay = 0) {
-         if (pos.X + deltax < 0 || pos.X + deltax >= pos.Width ||
-             pos.Y + deltay < 0 || pos.Y + deltay >= pos.Height)
+      int ValidHeight(Position pos) {
+         if (pos.X < 0 || pos.X >= pos.Width ||
+             pos.Y < 0 || pos.Y >= pos.Height)
             return -1;
-         return Height(new Position(pos, deltax, deltay).Idx);
+         return Height(pos.X, pos.Y);
       }
 
       /// <summary>
@@ -2946,8 +3663,9 @@ namespace Encoder {
          if (0 <= column && column < TileSizeHorz &&
              0 <= line && line < TileSizeVert) { // innerhalb des Standardbereiches
             int h = Height(column, line);
-            if (h >= 0)
+            if (h >= 0) {
                return h;
+            }
          }
          if (column == -1 &&
              0 <= line && line < TileSizeVert) { // virtuelle Spalte
@@ -2966,47 +3684,47 @@ namespace Encoder {
       static public List<byte> LengthCoding0(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_ValueL(data, CalculationType.nothing, false, EncodeMode.Length0, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length0, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> LengthCoding1(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_ValueL(data, CalculationType.nothing, false, EncodeMode.Length1, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length1, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> LengthCoding2(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_ValueL(data, CalculationType.nothing, false, EncodeMode.Length2, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length2, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> HybridCoding(int data, int maxHeight, int hunit, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_ValueH(data, CalculationType.nothing, false, hunit, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Hybrid, false, hunit, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> BigValueCodingHybrid(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_BigValue(data, CalculationType.nothing, false, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinary, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> BigValueCodingLength0(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_BigValue(data, CalculationType.nothing, false, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinary, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       static public List<byte> BigValueCodingLength1(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(HeightElement.CreateHeightElement_BigValueL1(data, CalculationType.nothing, false, int.MinValue, int.MinValue).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinaryL1, false, false, int.MinValue, int.MinValue)).Bits);
       }
 
       #endregion
@@ -3019,7 +3737,7 @@ namespace Encoder {
          return string.Format("MaxHeight={0}, Codingtype={1}, Shrink={2}, TileSize={3}x{4}, BaseHeightUnit={5}, HeightUnit={6}, ActualMode={7}, ActualHeight={8}",
                               MaxHeight,
                               Codingtype,
-                              Shrink,
+                              shrink.ShrinkValue,
                               TileSizeHorz,
                               TileSizeVert,
                               InitialHeightUnit,

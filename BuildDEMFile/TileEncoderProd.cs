@@ -150,7 +150,7 @@ namespace Encoder {
          /// <summary>
          /// max. Höhe
          /// </summary>
-         int maxheight;
+         readonly int maxheight;
          /// <summary>
          /// Bitstream
          /// </summary>
@@ -385,9 +385,9 @@ namespace Encoder {
       /// </summary>
       public class ValueRanges {
 
-         int maxencoderheight;
-         int maxrealheight;
-         int shrink;
+         readonly int maxencoderheight;
+         readonly int maxrealheight;
+         readonly int shrink;
 
          /// <summary>
          /// liefert die max. mögliche Anzahl 0-Bits für die Hybrid- oder Längencodierung
@@ -445,9 +445,7 @@ namespace Encoder {
             InitMax0Bits();
             BigBinBits = GetBigBinBits();
 
-            int min, max;
-
-            RangeBigBin(out min, out max);
+            RangeBigBin(out int min, out int max);
             MinBigBin = min;
             MaxBigBin = max;
 
@@ -801,38 +799,38 @@ namespace Encoder {
          /// <summary>
          /// oberer Grenzwert für <see cref="BitEncoding.EncodeMode.Length0"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L0_wrapdown;
+         readonly int L0_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="BitEncoding.EncodeMode.Length0"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L0_wrapup;
+         readonly int L0_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="BitEncoding.EncodeMode.Length1"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L1_wrapdown;
+         readonly int L1_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="BitEncoding.EncodeMode.Length1"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L1_wrapup;
+         readonly int L1_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="BitEncoding.EncodeMode.Length2"/> der für das Wrapping überschritten werden muss
          /// </summary>
-         int L2_wrapdown;
+         readonly int L2_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="BitEncoding.EncodeMode.Length2"/> der für das Wrapping unterschritten werden muss
          /// </summary>
-         int L2_wrapup;
+         readonly int L2_wrapup;
 
          /// <summary>
          /// oberer Grenzwert für <see cref="BitEncoding.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens überschritten werden muss
          /// </summary>
-         int H_wrapdown;
+         readonly int H_wrapdown;
          /// <summary>
          /// unterer Grenzwert für <see cref="BitEncoding.EncodeMode.Hybrid"/> der für ein eventuelles Wrapping mindestens unterschritten werden muss
          /// </summary>
-         int H_wrapup;
+         readonly int H_wrapup;
 
          /// <summary>
          /// Maximalhöhe der Kachel
@@ -1048,31 +1046,38 @@ namespace Encoder {
             int dh = data > 0 ? data :
                                 -data;
 
-            if (ElemCount == 63) {  // besondere Bewertung bei "Halbierung"
-               if (SumL > 0) { // pos. SumL
+            int evalregion = -1;
+            if (ElemCount == 63) {     // besondere Bewertung bei "Halbierung" durch Manipulation von data; SumL bei ElemCount == 63 ist immer ungerade
+               evalregion = GetEvaluateDataRegion(SumL, ElemCount, data);
 
-                  if ((SumL + 1) % 4 == 0) {
-                     if (data % 2 != 0)
-                        data--;
-                  } else {
-                     if (data % 2 == 0)
-                        data--;
-                  }
+               bool datagerade = data % 2 == 0;
+               bool SumL1 = (SumL - 1) % 4 == 0;
 
-               } else { // neg. SumL
-
-                  if ((SumL - 1) % 4 == 0) {
-                     if (data % 2 != 0)
+               switch (evalregion) {
+                  case 0:
+                  case 2:
+                  case 4:
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  } else {
-                     if (data % 2 == 0)
+                     }
+                     break;
+                  case 1:
+                     data++;
+                     if ((SumL1 && !datagerade) ||
+                         (!SumL1 && datagerade)) {
                         data++;
-                  }
-
+                     }
+                     break;
+                  case 3:
+                     if ((SumL1 && datagerade) ||
+                         (!SumL1 && !datagerade)) {
+                        data--;
+                     }
+                     break;
                }
             }
-
-            Eval = EvaluateData(SumL, ElemCount, data, true);
+            Eval = EvaluateData(SumL, ElemCount, data, ref evalregion);
 
             SumH += dh;
             if (SumH + UnitDelta + 1 >= 0xFFFF)
@@ -1090,10 +1095,6 @@ namespace Encoder {
                SumH = ((SumH - UnitDelta) >> 1) - 1;
 
                SumL /= 2;
-               if (SumL % 2 != 0) {
-                  SumL++;
-               }
-
             }
 
             // ---- Hunit ermitteln ----
@@ -1176,9 +1177,9 @@ namespace Encoder {
          /// <param name="oldsum">bisherige Summe</param>
          /// <param name="elemcount">bisher registrierte Elementanzahl</param>
          /// <param name="newdata">neuer Wert</param>
-         /// <param name="spec64">spez. für 64. Wert</param>
+         /// <param name="region">Bereich in dem newdata liegt (0 ist der niedrigste)</param>
          /// <returns></returns>
-         protected int EvaluateData(int oldsum, int elemcount, int newdata, bool spec64) {
+         protected int EvaluateData(int oldsum, int elemcount, int newdata, ref int region) {
             /*
                D < -2 – (ls + 3*k)/2   -1 – ls – k	
                D < 0 – (ls + k)/2      2*(d + k) + 3	
@@ -1187,25 +1188,65 @@ namespace Encoder {
                                        1 – ls + k	
              */
 
-            int v = 0;
+            if (region < 0)
+               region = GetEvaluateDataRegion(oldsum, elemcount, newdata);
 
-            // Spezialfall
-            if (elemcount == 63 && oldsum == -63 && newdata == -1)
-               return -3;
+            switch (region) {
+               case 0:
+                  return -1 - oldsum - elemcount;
 
-            if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
-               v = -1 - oldsum - elemcount;
-            } else if (newdata < -((oldsum + elemcount) >> 1)) {
-               v = 2 * (newdata + elemcount) + 3;
-            } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
-               v = 2 * newdata - 1;
-            } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
-               v = 2 * (newdata - elemcount) - 5;
-            } else {
-               v = 1 - oldsum + elemcount;
+               case 1:
+                  return 2 * (newdata + elemcount) + 3;
+
+               case 2:
+                  return 2 * newdata - 1;
+
+               case 3:
+                  return 2 * (newdata - elemcount) - 5;
+
+               default:
+                  return 1 - oldsum + elemcount;
             }
+         }
 
-            return v;
+         protected int GetEvaluateDataRegion(int oldsum, int elemcount, int newdata) {
+            /*
+               D < -2 – (ls + 3*k)/2   -1 – ls – k	
+               D < 0 – (ls + k)/2      2*(d + k) + 3	
+               D < 2 – (ls – k)/2      2*d – 1	
+               D < 4 – (ls – 3*k)/2    2*(d – k) - 5	
+                                       1 – ls + k	
+             */
+
+            if (elemcount < 63) {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1)) {
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            } else {
+
+               if (newdata < -2 - ((oldsum + 3 * elemcount) >> 1)) {
+                  return 0;
+               } else if (newdata < -((oldsum + elemcount) >> 1) - 1) {    // <-- Sonderfall bei "Halbierung"
+                  return 1;
+               } else if (newdata < 2 - ((oldsum - elemcount) >> 1)) {
+                  return 2;
+               } else if (newdata < 4 - ((oldsum - 3 * elemcount) >> 1)) {
+                  return 3;
+               } else {
+                  return 4;
+               }
+
+            }
          }
 
          /// <summary>
@@ -1516,7 +1557,7 @@ namespace Encoder {
       /// <summary>
       /// alle Höhenwerte
       /// </summary>
-      List<int> HeightValues;
+      readonly List<int> HeightValues;
 
       /// <summary>
       /// codierter Bitstream
@@ -1526,7 +1567,7 @@ namespace Encoder {
       /// <summary>
       /// Encodierung für Kachel mit verkleinerten Werten
       /// </summary>
-      int shrink;
+      readonly int shrink;
 
       ValueRanges valrange;
 

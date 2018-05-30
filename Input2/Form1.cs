@@ -394,7 +394,8 @@ namespace Input2 {
                                                            2 * (int)numericUpDown_Shrink.Value + 1,
                                                            (int)numericUpDown_TilesizeHoriz.Value,
                                                            (int)numericUpDown_TilesizeVert.Value,
-                                                           v);
+                                                           v,
+                                                           checkBox_Shrink.Checked);
          int idx = 0;
          try {
             int count = -1;
@@ -424,6 +425,7 @@ namespace Input2 {
          dlg.HeightDiffEncoder = (int)numericUpDown_maxdiffEncoder.Value;
          dlg.Codingtype = (byte)numericUpDown_Codingtype.Value;
          dlg.Shrink = 2 * (int)numericUpDown_Shrink.Value + 1;
+         dlg.ShrinkHeightData = dlg.Shrink > 1 ? checkBox_Shrink.Checked : false;
          dlg.TileSizeHorz = (int)numericUpDown_TilesizeHoriz.Value;
          dlg.TileSizeVert = (int)numericUpDown_TilesizeVert.Value;
          dlg.ShowDialog();
