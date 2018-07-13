@@ -2174,17 +2174,17 @@ namespace Encoder {
          nothing,
 
          /// <summary>
-         /// Standardberechnung
+         /// Standardberechnung für 0 kleiner Hook kleiner Max
          /// </summary>
-         Standard,
+         Std,
          /// <summary>
-         /// Standardberechnung bei großer pos. horizontale Diff.
+         /// Standardberechnung für Max kleiner/gleich Hook
          /// </summary>
-         StandardHdiffHigh,
+         StdHookOverMax,
          /// <summary>
-         /// Standardberechnung bei kleiner neg. horizontale Diff.
+         /// Standardberechnung für Hook kleiner/gleich 0
          /// </summary>
-         StandardHdiffLow,
+         StdHookNotPos,
 
          /// <summary>
          /// Nachfolger nach Plateau (ddiff=0)
@@ -2323,286 +2323,6 @@ namespace Encoder {
 
 #endif
 
-      //public class Shrink1 {
-
-      //   /// <summary>
-      //   /// Shrink-Faktor (ungerade)
-      //   /// </summary>
-      //   public int ShrinkValue { get; private set; }
-
-      //   /// <summary>
-      //   /// max. reale Höhe
-      //   /// </summary>
-      //   public int MaxRealheight { get; private set; }
-
-      //   /// <summary>
-      //   /// max. Höhe für den Encoder
-      //   /// </summary>
-      //   public int MaxEncoderheight { get; private set; }
-
-      //   /// <summary>
-      //   /// Spezialencodierung des Wertes <see cref="MaxEncoderheight"/> (dann ist auch die Plateauerzeugung erweitert)
-      //   /// </summary>
-      //   public bool SpecEncoding4MaxEncoderheight { get; private set; }
-
-      //   /// <summary>
-      //   /// Bezugspunkt ist der Maximalwert oder 0
-      //   /// </summary>
-      //   public bool TopAligned { get; private set; }
-
-      //   /// <summary>
-      //   /// Höhendaten müssen noch verkleinert werden
-      //   /// </summary>
-      //   public bool ShrinkHeightsNecessary { get; private set; }
-
-      //   /// <summary>
-      //   /// Differenz zwischen theoretischen Maximalwert (<see cref="MaxEncoderheight"/> * <see cref="ShrinkValue"/>) und <see cref="MaxRealheight"/>
-      //   /// </summary>
-      //   int delta;
-
-      //   public Shrink1(int shrink, int maxrealheight, int maxencoderheight = 0, bool shrinkheightsnecessary = false) {
-      //      ShrinkValue = shrink;
-      //      MaxRealheight = maxrealheight;
-
-      //      if (ShrinkValue > 1) {
-      //         if (maxencoderheight > 0)
-      //            MaxEncoderheight = maxencoderheight;
-      //         else
-      //            MaxEncoderheight = 1 + (maxrealheight - 1) / ShrinkValue;
-      //      } else
-      //         MaxEncoderheight = MaxRealheight;
-
-      //      delta = MaxEncoderheight * ShrinkValue - MaxRealheight;
-
-      //      SpecEncoding4MaxEncoderheight = ShrinkValue > 1 && delta > ShrinkValue / 2;
-
-      //      TopAlignedOnOff = new List<TopAlignedOnOffItem>();
-
-      //      ShrinkHeightsNecessary = shrinkheightsnecessary;
-      //   }
-
-      //   /// <summary>
-      //   /// liefert die Encoderhöhe zur realen Höhe
-      //   /// </summary>
-      //   /// <param name="height"></param>
-      //   /// <param name="topaligned"></param>
-      //   /// <returns></returns>
-      //   int GetEncoderHeight4RealHeight(int height, bool topaligned) {
-      //      if (ShrinkValue > 1) {
-
-      //         if (!TopAligned) {
-
-      //            if (height < MaxRealheight - (ShrinkValue - delta) / 2)
-      //               height = (height + ShrinkValue / 2) / ShrinkValue;
-      //            else
-      //               height = MaxEncoderheight;
-
-      //         } else {
-
-      //            if (height <= (ShrinkValue - delta) / 2)
-      //               height = 0;
-      //            else
-      //               height = (height + delta) / ShrinkValue;
-
-      //         }
-
-      //      }
-      //      return height;
-      //   }
-
-      //   /// <summary>
-      //   /// berechnet für den realen Höhenwert den Wert für den Encoder
-      //   /// </summary>
-      //   /// <param name="x"></param>
-      //   /// <param name="y"></param>
-      //   /// <param name="realheigth"></param>
-      //   /// <returns></returns>
-      //   public int GetEncoderHeight4RealHeight(int x, int y, int realheigth) {
-      //      return ShrinkHeightsNecessary ?
-      //         GetEncoderHeight4RealHeight(realheigth, IsTopAlignedOnPos(x, y)) :
-      //         realheigth;
-      //   }
-
-      //   /// <summary>
-      //   /// berechnet für den realen Höhenwert den Wert für den Encoder
-      //   /// </summary>
-      //   /// <param name="realheigth"></param>
-      //   /// <returns></returns>
-      //   public int GetEncoderHeight4RealHeight(int realheigth) {
-      //      return ShrinkHeightsNecessary ?
-      //         GetEncoderHeight4RealHeight(realheigth, TopAligned) :
-      //         realheigth;
-      //   }
-
-
-      //   class TopAlignedOnOffItem {
-      //      public byte X;
-      //      public byte Y;
-      //      public byte On;
-
-      //      public bool IsOn {
-      //         get {
-      //            return On > 0;
-      //         }
-      //      }
-
-      //      public TopAlignedOnOffItem(int x, int y, bool on) {
-      //         X = (byte)x;
-      //         Y = (byte)y;
-      //         On = (byte)(on ? 1 : 0);
-      //      }
-
-      //      public int ComparePosition(TopAlignedOnOffItem ta) {
-      //         if (ta == null)
-      //            return 1;
-
-      //         if (Y > ta.Y)
-      //            return 1;
-      //         else if (Y < ta.Y)
-      //            return -1;
-      //         else {
-      //            if (X > ta.X)
-      //               return 1;
-      //            else if (X < ta.X)
-      //               return -1;
-      //            return 0;
-      //         }
-      //      }
-
-      //      public override string ToString() {
-      //         return string.Format("X={0}, Y={1}, IsOn={2}", X, Y, IsOn);
-      //      }
-      //   }
-
-      //   /// <summary>
-      //   /// Liste der "Schaltpunkte"
-      //   /// </summary>
-      //   List<TopAlignedOnOffItem> TopAlignedOnOff;
-
-      //   /// <summary>
-      //   /// registriert die Ein- oder Ausschaltpositionen für den TopAligned-Modus
-      //   /// </summary>
-      //   /// <param name="heigth"></param>
-      //   /// <param name="x"></param>
-      //   /// <param name="y"></param>
-      //   public void RegisterTopAlignedSwitchPos(int x, int y, int heigth) {
-      //      if (ShrinkValue > 1) {
-      //         if (heigth == 0) {
-
-      //            TopAlignedOnOffItem ta = new TopAlignedOnOffItem(x, y, false);
-      //            if (TopAlignedOnOff.Count > 0 &&
-      //                ta.ComparePosition(TopAlignedOnOff[TopAlignedOnOff.Count - 1]) == 0) {
-      //               TopAlignedOnOff.RemoveAt(TopAlignedOnOff.Count - 1);
-      //            }
-      //            TopAlignedOnOff.Add(ta);
-      //            TopAligned = false;
-
-      //         } else if (heigth < 0) { // nur bei MaxEncoderheight; heigth == MaxEncoderheight
-
-      //            TopAlignedOnOffItem ta = new TopAlignedOnOffItem(x, y, true);
-      //            if (TopAlignedOnOff.Count > 0 &&
-      //                ta.ComparePosition(TopAlignedOnOff[TopAlignedOnOff.Count - 1]) == 0) {
-      //               TopAlignedOnOff.RemoveAt(TopAlignedOnOff.Count - 1);
-      //            }
-      //            TopAlignedOnOff.Add(ta);
-      //            TopAligned = true;
-
-      //         }
-      //      }
-      //   }
-
-      //   /// <summary>
-      //   /// Gilt an dieser Position der TopAligned-Modus?
-      //   /// </summary>
-      //   /// <param name="x"></param>
-      //   /// <param name="y"></param>
-      //   /// <returns></returns>
-      //   bool IsTopAlignedOnPos(int x, int y) {
-      //      bool topaligned = false;
-      //      // Schaltpunkte der gleichen Zeile testen
-      //      int foundidx = -1;
-      //      for (int i = TopAlignedOnOff.Count - 1; i >= 0; i--) {
-      //         if (TopAlignedOnOff[i].Y < y)
-      //            break;
-      //         if (TopAlignedOnOff[i].Y == y && TopAlignedOnOff[i].X <= x) {
-      //            foundidx = i;
-      //            topaligned = TopAlignedOnOff[i].IsOn;
-      //            break;
-      //         }
-      //      }
-      //      if (y > 0) {   // Vorgängerzeile testen
-      //         for (int i = (foundidx < 0 ? TopAlignedOnOff.Count : foundidx) - 1; i >= 0; i--) {
-      //            if (TopAlignedOnOff[i].Y < y - 1)
-      //               break;
-      //            if (TopAlignedOnOff[i].Y == y - 1 && TopAlignedOnOff[i].X <= x) {
-      //               if (TopAlignedOnOff[i].X == x && TopAlignedOnOff[i].IsOn)
-      //                  topaligned = true;
-      //               break;
-      //            }
-      //         }
-      //      }
-      //      return topaligned;
-      //   }
-
-      //   /// <summary>
-      //   /// Beginnt an dieser Position ein Plateau?
-      //   /// </summary>
-      //   /// <param name="x"></param>
-      //   /// <param name="y"></param>
-      //   /// <param name="hl">Höhe links</param>
-      //   /// <param name="hu">Höhe darüber</param>
-      //   /// <returns></returns>
-      //   public bool IsPlateauStart(int x, int y, int hl, int hu) {
-      //      if (SpecEncoding4MaxEncoderheight && // ist gleichbedeutend mit spez. Plateau-Regel
-      //          x > 0) { // bei x==0 immer Plateau
-
-      //         bool topal_l = IsTopAlignedOnPos(x - 1, y);
-      //         bool topal_u = IsTopAlignedOnPos(x, y - 1);
-
-      //         if (topal_l == topal_u)
-      //            return hl == hu;
-      //         else {
-      //            if (topal_l)
-      //               return hl == hu + 1;
-      //            else
-      //               return hu == hl + 1;
-      //         }
-
-      //      } else
-      //         return hl == hu;
-      //   }
-
-      //   /// <summary>
-      //   /// liefert ein ev. nötiges Delta für den Wert oberhalb des Plateaufollowers
-      //   /// </summary>
-      //   /// <param name="x"></param>
-      //   /// <param name="y"></param>
-      //   /// <returns></returns>
-      //   public int GetPlateauFollowerUpDelta(int x, int y) {
-      //      int delta = 0;
-      //      if (SpecEncoding4MaxEncoderheight) {
-      //         bool topal_l = IsTopAlignedOnPos(x - 1, y);
-      //         bool topal_u = IsTopAlignedOnPos(x, y - 1);
-      //         if (topal_l || topal_u) {
-      //            delta = topal_u ? -1 : 1;
-      //         }
-      //      }
-      //      return delta;
-      //   }
-
-      //   public int Ddiff(int x, int y, int hl, int hu) {
-      //      if (SpecEncoding4MaxEncoderheight) {
-      //         if (IsTopAlignedOnPos(x, y - 1))
-      //            return --hu - hl;
-      //         if (IsTopAlignedOnPos(x - 1, y))
-      //            return hu - --hl;
-      //      }
-      //      return hu - hl;
-      //   }
-
-
-      //}
-
       public class Shrink {
 
          /// <summary>
@@ -2621,7 +2341,7 @@ namespace Encoder {
          public int MaxEncoderheight { get; private set; }
 
          /// <summary>
-         /// true wenn die top-Ausrichtung möglich ist
+         /// true wenn die top-Ausrichtung möglich ist, d.h. überhaupt ein shrink erfolgt, bei dem nicht maxenc direkt auf maxdiff trifft
          /// </summary>
          public bool TopAlignIsPossible { get; private set; }
 
@@ -2654,7 +2374,7 @@ namespace Encoder {
             }
 
             /// <summary>
-            /// setzt den Rest der Zeile oder nur die einzelne Position
+            /// setzt die einzelne Position
             /// </summary>
             /// <param name="x"></param>
             /// <param name="y"></param>
@@ -2760,33 +2480,6 @@ namespace Encoder {
             return realheight;
          }
 
-         /// <summary>
-         /// setzt die Ausrichtung für diesen Wert (und liefert sie)
-         /// </summary>
-         /// <param name="x">Spalte</param>
-         /// <param name="y">Zeile</param>
-         /// <param name="heigth">Höhe</param>
-         /// <param name="hook">Höhe davor + Höhe darüber - Höhe links darüber</param>
-         /// <returns></returns>
-         public bool SetTopAligned4Normal(int x, int y, int heigth, int hook) {
-            if (TopAlignIsPossible) {
-               bool topaligned = false;
-               if (heigth == 0) {
-                  topaligned = false;
-               } else if (heigth == MaxEncoderheight) {
-                  topaligned = true;
-               } else {
-                  int min = 7;
-                  if (TopAlignedData.Get(x - 1, y) ||
-                      TopAlignedData.Get(x, y - 1))
-                     min = 1;
-                  topaligned = hook >= min;
-               }
-               TopAlignedData.Set(x, y, topaligned);
-               return topaligned;
-            }
-            return false;
-         }
 
          /// <summary>
          /// setzt die Ausrichtung für diesen Wert (und liefert sie)
@@ -2795,9 +2488,8 @@ namespace Encoder {
          /// <param name="y">Zeile</param>
          /// <param name="heigth">Höhe</param>
          /// <param name="hook">Höhe davor + Höhe darüber - Höhe links darüber</param>
-         /// <param name="length">Länge des Plateaus</param>
          /// <returns></returns>
-         public bool SetTopAligned4Plateau(int x, int y, int heigth, int hook, int length) {
+         public bool SetTopAligned4Normal(int x, int y, int heigth, int hook, AlignType3 aligntype) {
             if (TopAlignIsPossible) {
                bool topaligned = false;
                if (heigth == 0) {
@@ -2805,16 +2497,33 @@ namespace Encoder {
                } else if (heigth == MaxEncoderheight) {
                   topaligned = true;
                } else {
-                  bool topalignedv = TopAlignedData.Get(x - 1, y);
-                  if (TopAlignedData.Get(x - 1, y))
-                     topaligned = true;
-                  else {
-                     if (!TopAlignedData.Get(x, y - 1))
-                        topaligned = false;
-                     else
-                        topaligned = hook >= 1;
+                  switch (aligntype) {
+                     case AlignType3.TA111:
+                     case AlignType3.TA100:
+                     case AlignType3.TA010:
+                     case AlignType3.TA001:
+                        if (0 < hook)
+                           topaligned = true;
+                        break;
+
+                     case AlignType3.TA110:
+                     case AlignType3.TA000:
+                     case AlignType3.TA101:
+                     case AlignType3.TA011:
+                        if (MaxEncoderheight <= hook)
+                           topaligned = true;
+                        break;
                   }
                }
+               TopAlignedData.Set(x, y, topaligned);
+               return topaligned;
+            }
+            return false;
+         }
+
+         public bool SetTopAligned4Plateau(int x, int y, int length) {
+            if (TopAlignIsPossible) {
+               bool topaligned = TopAlignedData.Get(x - 1, y);
                for (int i = 0; i < length; i++)
                   TopAlignedData.Set(x + i, y, topaligned);
                return topaligned;
@@ -2849,6 +2558,7 @@ namespace Encoder {
             return false;
          }
 
+
          /// <summary>
          /// Gilt an dieser Position der TopAligned-Modus?
          /// </summary>
@@ -2870,25 +2580,55 @@ namespace Encoder {
          /// <param name="y"></param>
          /// <param name="hl">Höhe links</param>
          /// <param name="hu">Höhe darüber</param>
+         /// <param name="hlu">Höhe links darüber</param>
          /// <returns></returns>
-         public bool IsPlateauStart(int x, int y, int hl, int hu) {
+         public bool IsPlateauStart(int x, int y, int hl, int hu, int hll, int hlu, int hlll, int hllu, int hlllu) {
             if (TopAlignIsPossible && // sonst gelten die Standardregeln
                 x > 0) { // bei x==0 immer Plateau
 
-               bool topal_l = IsTopAligned(x - 1, y);
-               bool topal_u = IsTopAligned(x, y - 1);
+               AlignType3 tmp;
+               switch (GetAlignType3(x, y)) {
+                  case AlignType3.TA000:
+                  case AlignType3.TA001:
+                  case AlignType3.TA110:
+                  case AlignType3.TA111:
+                     return hl == hu;
 
-               if (topal_l == topal_u)
-                  return hl == hu;
-               else {
-                  if (topal_l)
+                  case AlignType3.TA101:
                      return hl == hu + 1;
-                  else
-                     return hu == hl + 1;
+
+                  case AlignType3.TA010:
+                     return hl + 1 == hu;
+
+                  case AlignType3.TA100:
+                     if (GetAlignType3(x - 1, y) == AlignType3.TA001 && Hook(x, y, hll, hlu, hllu, out tmp) >= 1)
+                        return hl == hu;
+                     else
+                        return hl == hu + 1;
+
+                  case AlignType3.TA011:
+                     //if (GetAlignType3(x - 1, y) == AlignType3.TA110 && Hook(x, y, hl, hu, hlu, out tmp) >= 1)
+                     //   return hl == hu;
+                     //else
+                     //   return hl + 1 == hu;
+
+                     tmp = GetAlignType3(x - 1, y);
+                     if (hl + 1 == hu) {
+                        if (tmp == AlignType3.TA110) {
+                           return Hook(x - 1, y, hll, hlu, hllu, out tmp) <= 1 &&
+                                  Hook(x - 2, y, hlll, hllu, hlllu, out tmp) <= 1;
+                        } else
+                           return true;      // Standard
+                     } else {
+                        if (hl == hu)     // Spezialfall für zusätzliche Plateaus
+                           if (tmp == AlignType3.TA110)
+                              return Hook(x - 1, y, hll, hlu, hllu, out tmp) > 1;
+                     }
+                     return false;
                }
 
-            } else
-               return hl == hu;
+            }
+            return hl == hu;
          }
 
          /// <summary>
@@ -2898,204 +2638,110 @@ namespace Encoder {
          /// <param name="y"></param>
          /// <param name="hl"></param>
          /// <param name="hu"></param>
+         /// <param name="usetopalign">TopAlign berücksichtigen</param>
          /// <returns></returns>
-         public int Ddiff(int x, int y, int hl, int hu) {
-            if (TopAlignIsPossible) { // sonst gelten die Standardregeln
-               if (IsTopAligned(x, y - 1)) {
-                  if (IsTopAligned(x - 1, y))
-                     return hu - hl;
-                  else
-                     return --hu - hl;
-               } else {
-                  if (IsTopAligned(x - 1, y))
-                     return hu - --hl;
-                  else
-                     return hu - hl;
+         public int Ddiff(int x, int y, int hl, int hu, bool usetopalign = true) {
+            int diff = hu - hl;
+            if (usetopalign && TopAlignIsPossible) {              // sonst gelten die Standardregeln
+               switch (GetAlignType2(x, y)) {
+                  case AlignType2.TA00:
+                  case AlignType2.TA11:
+                     break;
+
+                  case AlignType2.TA10:
+                     diff++;
+                     break;
+
+                  case AlignType2.TA01:
+                     diff--;
+                     break;
                }
             }
-            return hu - hl;
+            return diff;
          }
 
          /// <summary>
-         /// liefert den Datenwert für den Plateaufollower h und ob ev. das nachfolgende Wrapping verboten ist
-         /// <para>Es findet (noch) keine Optimierung für h == 0 oder <see cref="MaxEncoderheight"/> statt!</para>
+         /// liefert den Hook und setzt den Align-Type für die akt. Pos.
          /// </summary>
          /// <param name="x"></param>
          /// <param name="y"></param>
-         /// <param name="ddifft"></param>
-         /// <param name="h"></param>
+         /// <param name="hl"></param>
          /// <param name="hu"></param>
-         /// <param name="wrapforbidden"></param>
+         /// <param name="hlu"></param>
+         /// <param name="aligntype3"></param>
          /// <returns></returns>
-         public int GetData4PlateauFollower(int x, int y, int ddifft, int h, int hu, out bool wrapforbidden) {
-            bool topal_l = IsTopAligned(x - 1, y);
-            bool topal_u = IsTopAligned(x, y - 1);
-            wrapforbidden = false;
-
-            int data = h - hu;   // vdiff
-
-            // "einfaches" Wrapping
-            if (data > MaxEncoderheight / 2)
-               data -= MaxEncoderheight + 1;
-            else if (data < -MaxEncoderheight / 2)
-               data += MaxEncoderheight + 1;
-
-            bool specialcase = false;
-            int specialcasevalue = 0;
-
-            if (ddifft != 0) {
-
-               if (ddifft > 0)
-                  data = -data;
-
-               if (topal_u) {
-
-                  if (h == 0) {  // statt 0 wird 7T angezeigt
-                                 // Sonderfälle für 0
-                     if (topal_l) {
-                        if (ddifft > 0) {
-                           if (data == hu + 1) {
-                              specialcase = true;
-                              specialcasevalue = -(MaxEncoderheight + 1);
-                           }
-                        } else { // ddifft < 0
-                           if (data == -hu) {
-                              specialcase = true;
-                              specialcasevalue = MaxEncoderheight + 1;
-                           }
-                        }
-                     } else {
-                        if (ddifft > 0) {
-                           if (data == hu) {
-                              specialcase = true;
-                              specialcasevalue = -(MaxEncoderheight + 1);
-                           }
-                        } else { // ddifft < 0
-                           if (data == -hu) {
-                              specialcase = true;
-                              specialcasevalue = MaxEncoderheight + 1;
-                           }
-                        }
-                     }
-                  }
-
-               } else { // topal_u == true
-
-                  // topal_l ist egal
-
-                  // Sonderfälle für MaxEncoderheight
-                  if (h == MaxEncoderheight) {  // statt 7T wird 0 angezeigt
-                     if (ddifft > 0) {
-                        if (data == hu - MaxEncoderheight) {
-                           specialcase = true;
-                           specialcasevalue = MaxEncoderheight + 1;
-                        }
-                     } else { // ddifft < 0
-                        if (data == MaxEncoderheight - hu) {
-                           specialcase = true;
-                           specialcasevalue = -(MaxEncoderheight + 1);
-                        }
-                     }
-                  }
-
+         public int Hook(int x, int y, int hl, int hu, int hlu, out AlignType3 aligntype3) {
+            int hook = hl + hu - hlu;
+            if (TopAlignIsPossible) {
+               aligntype3 = GetAlignType3(x, y);
+               switch (aligntype3) {
+                  case AlignType3.TA001:
+                     hook++;
+                     break;
+                  case AlignType3.TA110:
+                     hook--;
+                     break;
                }
-
-            } else { // ddifft == 0
-
-               if (topal_u) {
-                  if (topal_l) {
-                     if (data < 0)
-                        data++;
-                     if (h == 0 &&
-                         data == -hu + 1) {
-                        specialcase = true;
-                        specialcasevalue = MaxEncoderheight;
-                     }
-                  } else { // topal_l == false
-                     if (data > -1)
-                        data++;
-                     else  // data < -1
-                        data += 2;
-                     if (h == MaxEncoderheight &&
-                         data == MaxEncoderheight - hu + 1) {
-                        specialcase = true;
-                        specialcasevalue = -MaxEncoderheight;
-                     }
-                  }
-               } else { // topal_u == false
-                  if (topal_l) {
-                     if (data > 1)
-                        data -= 1;
-                     if (h == 0 &&
-                         data == -hu) {
-                        specialcase = true;
-                        specialcasevalue = MaxEncoderheight;
-                     }
-                  } else { // topal_l == false
-                     if (data < 0)
-                        data += 1;
-                     if (h == MaxEncoderheight &&
-                         data == MaxEncoderheight - hu) {
-                        specialcase = true;
-                        specialcasevalue = -MaxEncoderheight;
-                     }
-                  }
-               }
-            }
-
-            if (specialcase) {
-               wrapforbidden = true;
-               data += specialcasevalue;
-            }
-
-            return data;
+            } else
+               aligntype3 = AlignType3.unknown;
+            return hook;
          }
 
          /// <summary>
-         /// korrigiert ev. den schon berechneten Datenwert
+         /// 0- oder Top-Align für die 3 Nachbarn (hl, hu, hlu bzw. x,y,z)
          /// </summary>
-         /// <param name="h"></param>
-         /// <param name="data"></param>
-         /// <param name="hook"></param>
-         /// <param name="sgnddiff"></param>
-         /// <param name="wrapforbidden"></param>
+         public enum AlignType3 {
+            unknown = -1,
+            TA000 = 0,
+            TA100 = 100,
+            TA010 = 10,
+            TA110 = 110,
+            TA001 = 1,
+            TA101 = 101,
+            TA011 = 11,
+            TA111 = 111,
+         }
+
+         /// <summary>
+         /// 0- oder Top-Align für die 2 direkten Nachbarn (hl, hu)
+         /// </summary>
+         public enum AlignType2 {
+            TA00 = 0,
+            TA10 = 10,
+            TA01 = 1,
+            TA11 = 11,
+         }
+
+         /// <summary>
+         /// liefert den Align-Typ für die Position basierend auf den 3 Nachbarwerten
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
          /// <returns></returns>
-         public int GetData4Normal(int h, int data, int hook, int sgnddiff, out bool wrapforbidden) {
-            wrapforbidden = false;
-            if (TopAlignIsPossible)
-               if (MaxEncoderheight <= hook) {
+         public AlignType3 GetAlignType3(int x, int y) {
+            int ht = 0;
+            if (TopAlignedData.Get((ushort)x - 1, (ushort)y))
+               ht += 100;
+            if (TopAlignedData.Get((ushort)x, (ushort)y - 1))
+               ht += 10;
+            if (TopAlignedData.Get((ushort)x - 1, (ushort)y - 1))
+               ht += 1;
+            return (AlignType3)ht;
+         }
 
-                  if (h == 0 &&
-                      data == MaxEncoderheight) {
-                     data = -1;
-                     wrapforbidden = true;
-                  }
-
-               } else if (hook <= 0) {
-
-                  if (h == MaxEncoderheight &&
-                      data == MaxEncoderheight) {
-                     data = -1;
-                     wrapforbidden = true;
-                  }
-
-               } else {
-
-                  if (h == MaxEncoderheight) {
-                     if (sgnddiff < 0) {
-                        if (data > 0) {
-                           data -= MaxEncoderheight + 1;
-                           wrapforbidden = true;
-                        }
-                     } else {
-                        if (data < 0) {
-                           data += MaxEncoderheight + 1;
-                           wrapforbidden = true;
-                        }
-                     }
-                  }
-               }
-            return data;
+         /// <summary>
+         /// liefert den Align-Typ für die Position basierend auf den 2 direkten Nachbarwerten
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <returns></returns>
+         public AlignType2 GetAlignType2(int x, int y) {
+            int ht = 0;
+            if (TopAlignedData.Get((ushort)x - 1, (ushort)y))
+               ht += 10;
+            if (TopAlignedData.Get((ushort)x, (ushort)y - 1))
+               ht += 1;
+            return (AlignType2)ht;
          }
 
       }
@@ -3268,52 +2914,14 @@ namespace Encoder {
             try {
 
                //if (ValidHeightDDiff(pos) == 0) { // die Diagonale hat konstante Höhe (gilt auch für die 1. Spalte) -> immer Plateau (ev. auch mit Länge 0)
-               if (shrink.IsPlateauStart(pos.X, pos.Y, ValidHeight(pos.X - 1, pos.Y), ValidHeight(pos.X, pos.Y - 1))) {
-
+               if (shrink.IsPlateauStart(pos.X, pos.Y,
+                                         ValidHeight(pos.X - 1, pos.Y), ValidHeight(pos.X, pos.Y - 1),
+                                         ValidHeight(pos.X - 2, pos.Y), ValidHeight(pos.X - 1, pos.Y - 1),
+                                         ValidHeight(pos.X - 3, pos.Y), ValidHeight(pos.X - 2, pos.Y - 1),
+                                         ValidHeight(pos.X - 3, pos.Y - 1)))
                   bEnd = WritePlateau(pos, ct_ddiff4plateaufollower_zero, ct_ddiff4plateaufollower_notzero);
-
-               } else {
-
-                  int data = 0;
-                  CalculationType caltype = CalculationType.nothing;
-
-                  int hlefttop = ValidHeight(pos.X - 1, pos.Y - 1);
-                  int htop = ValidHeight(pos.X, pos.Y - 1);
-                  int hleft = ValidHeight(pos.X - 1, pos.Y);
-                  int sgnddiff = Math.Sign(shrink.Ddiff(pos.X, pos.Y, hleft, htop));
-                  int hook = hleft + htop - hlefttop;
-                  bool wrapforbidden = false;
-
-                  if (MaxHeight <= hook) {
-
-                     data = -sgnddiff * (h + 1);
-                     caltype = CalculationType.StandardHdiffHigh;
-
-                  } else if (hook <= 0) {
-
-                     data = -sgnddiff * h;
-                     caltype = CalculationType.StandardHdiffLow;
-
-                  } else {
-
-                     data = -sgnddiff * (h - hook);
-                     caltype = CalculationType.Standard;
-
-                  }
-
-                  data = shrink.GetData4Normal(h, data, hook, sgnddiff, out wrapforbidden);
-                  shrink.SetTopAligned4Normal(pos.X, pos.Y, h, hook);
-
-                  EncodeMode em = ct_std.EncodeMode;
-                  bool wrapped = false;
-                  if (!wrapforbidden)
-                     data = ValueWrap.Wrap(data, out wrapped, em);
-                  em = ValueWrap.FitEncodeMode(data, em, ct_std.HunitValue);
-
-                  AddHeightValue(data, caltype, pos, ct_std, em, int.MinValue, wrapped);
-
-                  bEnd = !pos.MoveForward();
-               }
+               else
+                  bEnd = WriteStandardValue(pos, h, ct_std);
 
             } catch (Exception ex) {
                throw new Exception(string.Format("interner Fehler bei Position {0}, Höhe {1}: {2}", pos, ValidHeight(pos), ex.Message));
@@ -3321,6 +2929,94 @@ namespace Encoder {
          } else
             throw new Exception(string.Format("negative Daten (Pos {0}) können nicht verarbeitet werden.", pos));
          return bEnd;
+      }
+
+      /// <summary>
+      /// erzeugt ein <see cref="HeightElement"/> für den Standardwert
+      /// </summary>
+      /// <param name="pos">akt. Position</param>
+      /// <param name="h">akt. Höhe</param>
+      /// <param name="ct"></param>
+      /// <returns></returns>
+      bool WriteStandardValue(Position pos, int h, CodingTypeStd ct) {
+         int hl = ValidHeight(pos.X - 1, pos.Y);
+         int hu = ValidHeight(pos.X, pos.Y - 1);
+         int hlu = ValidHeight(pos.X - 1, pos.Y - 1);
+
+         Shrink.AlignType3 aligntype;
+         int hook = shrink.Hook(pos.X, pos.Y, hl, hu, hlu, out aligntype);
+         int ddiff = shrink.Ddiff(pos.X, pos.Y, hl, hu);
+         if (ddiff == 0)
+            ddiff = shrink.Ddiff(pos.X, pos.Y, hl, hu, false);
+         int sgnddiff = ddiff > 0 ? 1 : ddiff < 0 ? -1 : 0;
+
+         if (sgnddiff == 0)
+            throw new Exception(string.Format("sgnddiff == 0 bei Pos {0}", pos));
+
+         CalculationType caltype = CalculationType.nothing;
+         int data = 0;
+         if (shrink.MaxEncoderheight <= hook) {
+
+            data = -sgnddiff * (h + 1);
+            caltype = CalculationType.StdHookOverMax;
+
+         } else if (hook <= 0) {
+
+            data = -sgnddiff * h;
+            caltype = CalculationType.StdHookNotPos;
+
+         } else {
+
+            data = -sgnddiff * (h - hook);
+            caltype = CalculationType.Std;
+
+         }
+
+         bool wrapped = false;
+         data = ValueWrap.Wrap(data, out wrapped, ct.EncodeMode);
+
+         if (shrink.TopAlignIsPossible) {
+            // Sonderfälle bei denen 0 als MaxEncoderheight bzw. MaxEncoderheight als 0 dargestellt wird vermeiden
+            bool wrapspec = false;
+            if (hook <= 0) {
+               if (data == -sgnddiff * shrink.MaxEncoderheight)
+                  wrapspec = true;
+            } else if (0 < hook && hook < shrink.MaxEncoderheight) {
+               switch (aligntype) {
+                  case Shrink.AlignType3.TA101:
+                  case Shrink.AlignType3.TA100:
+                  case Shrink.AlignType3.TA010:
+                  case Shrink.AlignType3.TA111:
+                     if (data == sgnddiff * hook)
+                        wrapspec = true;
+                     break;
+
+                  case Shrink.AlignType3.TA000:
+                  case Shrink.AlignType3.TA011:
+                     if (data == sgnddiff * (hook - shrink.MaxEncoderheight))
+                        wrapspec = true;
+                     break;
+               }
+            } else {
+               if (data == sgnddiff * shrink.MaxEncoderheight)
+                  wrapspec = true;
+            }
+
+            if (wrapspec) {
+               if (data < 0)
+                  data += shrink.MaxEncoderheight + 1;
+               else if (data > 0)
+                  data -= shrink.MaxEncoderheight + 1;
+            }
+
+            shrink.SetTopAligned4Normal(pos.X, pos.Y, h, hook, aligntype);
+         }
+
+         EncodeMode em = ValueWrap.FitEncodeMode(data, ct.EncodeMode, ct.HunitValue);
+
+         AddHeightValue(data, caltype, pos, ct, em, int.MinValue, wrapped);
+
+         return !pos.MoveForward();
       }
 
       /// <summary>
@@ -3333,11 +3029,7 @@ namespace Encoder {
       bool WritePlateau(Position pos, CodingTypePlateauFollowerZero ct_followerddiffzero, CodingTypePlateauFollowerNotZero ct_followerddiffnotzero) {
          bool bEnd = GetPlateauLength(pos, out int length);
 
-         shrink.SetTopAligned4Plateau(pos.X,
-                                      pos.Y,
-                                      ValidHeight(pos.X, pos.Y),
-                                      ValidHeight(pos.X - 1, pos.Y) + ValidHeight(pos.X, pos.Y - 1) - ValidHeight(pos.X - 1, pos.Y - 1),
-                                      length);
+         shrink.SetTopAligned4Plateau(pos.X, pos.Y, length);
 
          // pos steht am Anfang des Plateaus bzw., bei Länge 0, schon auf dem Follower
          // also zeigt pos.X+length auf die Pos. des Followers
@@ -3350,46 +3042,82 @@ namespace Encoder {
 
          if (!bLineFilled) { // Nachfolgewert bestimmen
             if (!bEnd) {
-               int follower = ValidHeight(pos);
-               int follower_up = ValidHeight(pos.X, pos.Y - 1);
-               int follower_left = ValidHeight(pos.X - 1, pos.Y);
+               int h = ValidHeight(pos);
+               int hu = ValidHeight(pos.X, pos.Y - 1);
+               int hl = ValidHeight(pos.X - 1, pos.Y);
 
-               int follower_ddiff = pos.X == 0 ?
-                                          0 : // wegen virt. Spalte
-                                          shrink.TopAlignIsPossible ?
-                                             shrink.Ddiff(pos.X, pos.Y, follower_left, follower_up) :
-                                             follower_up - follower_left;
+               int hlu_start = ValidHeight(pos.X - length - 1, pos.Y - 1);
+
+
+               int ddiff = pos.X == 0 ?
+                                 0 : // wegen virt. Spalte
+                                 shrink.Ddiff(pos.X, pos.Y, hl, hu);
 
                CodingType ct;
-               if (follower_ddiff != 0)
+               if (ddiff != 0)
                   ct = ct_followerddiffnotzero;
                else
                   ct = ct_followerddiffzero;
 
-               int data = follower - follower_up;  // vdiff
+               // Nachfolger codieren
+               int data = h - hu;  // vdiff
 
                EncodeMode em = ct.EncodeMode;
                bool wrapped = false;
-               // Nachfolger codieren
+               // "einfaches" Wrapping
+               //if (data > shrink.MaxEncoderheight / 2)
+               //   data -= shrink.MaxEncoderheight + 1;
+               //else if (data < -shrink.MaxEncoderheight / 2)
+               //   data += shrink.MaxEncoderheight + 1;
                CalculationType caltyp2 = CalculationType.nothing;
-               if (follower_ddiff != 0) {
+               data = ValueWrap.Wrap(data, out wrapped, em);
+
+               if (ddiff != 0) {
 
                   caltyp2 = CalculationType.PlateauFollower1;
+                  if (ddiff > 0)
+                     data = -data;
 
                   if (shrink.TopAlignIsPossible) {
+                     // Sonderfälle vermeiden
+                     bool wrapspec = false;
+                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
+                        case Shrink.AlignType2.TA11:
+                        case Shrink.AlignType2.TA01:
+                           if (h == 0)
+                              if (ddiff > 0) {
+                                 if (data == hu)
+                                    wrapspec = true;
+                              } else {
+                                 if (data == -hu)
+                                    wrapspec = true;
+                              }
+                           break;
 
-                     data = shrink.GetData4PlateauFollower(pos.X, pos.Y, follower_ddiff, follower, follower_up, out bool wrapforbidden);
-                     if (!wrapforbidden)
-                        data = ValueWrap.Wrap(data, out wrapped, em);
+                        case Shrink.AlignType2.TA10:
+                        case Shrink.AlignType2.TA00:
+                           // Sonderfälle für MaxEncoderheight
+                           if (h == shrink.MaxEncoderheight) {  // statt MaxEncoderheight wird 0 angezeigt
+                              if (ddiff > 0) {
+                                 if (data == -(shrink.MaxEncoderheight - hu))  // data <= 0
+                                    wrapspec = true;
+                              } else {
+                                 if (data == shrink.MaxEncoderheight - hu)  // data >= 0
+                                    wrapspec = true;
+                              }
+                           }
+                           break;
+                     }
 
-                  } else {
+                     if (wrapspec) {
+                        if (data < 0)
+                           data += shrink.MaxEncoderheight + 1;
+                        else if (data > 0)
+                           data -= shrink.MaxEncoderheight + 1;
+                     }
 
-                     if (follower_ddiff > 0)
-                        data = -data;
-                     data = ValueWrap.Wrap(data, out wrapped, em);
-
+                     shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, h, false);
                   }
-
 
                } else {
 
@@ -3397,24 +3125,71 @@ namespace Encoder {
 
                   if (shrink.TopAlignIsPossible) {
 
-                     data = shrink.GetData4PlateauFollower(pos.X, pos.Y, follower_ddiff, follower, follower_up, out bool wrapforbidden);
-                     //if (!wrapforbidden)
-                     //   data = ValueWrap.Wrap(data, out wrapped, em);
+                     // spez. Berechnung (normalerweise:  if (data < 0) data++)
+                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
+                        case Shrink.AlignType2.TA11:
+                        case Shrink.AlignType2.TA00:
+                           // hl=hu; data=h-hu -> data=h-hl -> wegen h <> hl folgt data <> 0, d.h. data<0 kann um 1 vergrößert werden
+                           if (data < 0)
+                              data++;
+                           break;
+
+                        case Shrink.AlignType2.TA10:
+                           // hl=hu+1; data=h-hu -> data=h-(hl-1)=h-hl+1 -> wegen h <> hl folgt data <> 1, d.h. data>1 kann um 1 verringert werden
+                           if (data > 0)
+                              data--;
+                           break;
+
+                        case Shrink.AlignType2.TA01:
+                           // hl+1=hu; data=h-hu -> data=h-(hl+1)=h-hl-1 -> wegen h <> hl folgt data <> -1, d.h. 
+                           //    data > -1 kann um 1 vergrößert werden
+                           //    data < -1 kann sogar um 2 vergrößert werden
+                           if (data >= 0)
+                              data++;
+                           else
+                              data += 2;
+                           break;
+                     }
+
+                     // Sonderfälle vermeiden
+                     bool wrapspec = false;
+                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
+                        case Shrink.AlignType2.TA11:
+                           if (h == 0 && data <= 0)
+                              wrapspec = true;
+                           break;
+
+                        case Shrink.AlignType2.TA10:
+                           if (h == 0 && data <= 0)
+                              wrapspec = true;
+                           break;
+
+                        case Shrink.AlignType2.TA01:
+                        case Shrink.AlignType2.TA00:
+                           if (h == shrink.MaxEncoderheight && data > 0)
+                              wrapspec = true;
+                           break;
+                     }
+
+                     if (wrapspec) {
+                        if (data < 0)
+                           data += shrink.MaxEncoderheight + 1;
+                        else if (data > 0)
+                           data -= shrink.MaxEncoderheight + 1;
+                     }
+
+                     shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, h, true);
 
                   } else {
 
-                     data = ValueWrap.Wrap(data, out wrapped, em);
                      if (data < 0)
                         data++;
 
                   }
-
                }
 
-               shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, follower, follower_ddiff == 0);
-
                em = ValueWrap.FitEncodeMode(data, em, ct.HunitValue, he.PlateauBinBits);
-               AddHeightValue(data, caltyp2, pos, ct, em, follower_ddiff, wrapped);
+               AddHeightValue(data, caltyp2, pos, ct, em, ddiff, wrapped);
 
                bEnd = !pos.MoveForward();
             }
@@ -3455,7 +3230,6 @@ namespace Encoder {
 
          return bEnd;
       }
-
 
       /// <summary>
       /// fügt eine neues <see cref="HeightElement"/> an die Liste <see cref="Elements"/> an und registriert den Datenwert im <see cref="CodingType"/>
