@@ -166,7 +166,7 @@ namespace BuildDEMFile {
          NoSnapLeftTop,
          UseTestEncoder,
 
-         //Multithread,
+         Multithread,
 
          Help,
       }
@@ -203,7 +203,7 @@ namespace BuildDEMFile {
          cmd.DefineOption((int)MyOptions.NoSnapLeftTop, "lefttopnosnap", "", "without snapping for left-top dem-corner (without arg 'false', default 'true'; for test)", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
          cmd.DefineOption((int)MyOptions.UseTestEncoder, "testencoder", "", "use testencoder (slow!) (without arg 'true', default 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
 
-         //         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded (ohne Argument 'true', Standard 'false')", FSoftUtils.CmdlineOptions.OptionArgumentType.BooleanOrNot);
+         cmd.DefineOption((int)MyOptions.Multithread, "mt", "", "Berechnung multithreaded; Threadanzahl (ohne Argument '0', Standard '0')", FSoftUtils.CmdlineOptions.OptionArgumentType.IntegerOrNot);
 
          cmd.DefineOption((int)MyOptions.Help, "help", "?", "this text", FSoftUtils.CmdlineOptions.OptionArgumentType.Nothing);
       }
@@ -394,12 +394,12 @@ namespace BuildDEMFile {
                         break;
 
 
-                     //case MyOptions.Multithread:
-                     //   if (cmd.ArgIsUsed((int)opt))
-                     //      Multithread = cmd.BooleanValue((int)opt) ? 1 : 0;
-                     //   else
-                     //      Multithread = 1;
-                     //   break;
+                     case MyOptions.Multithread:
+                        if (cmd.ArgIsUsed((int)opt))
+                           Multithread = cmd.IntegerValue((int)opt);
+                        else
+                           Multithread = 0;
+                        break;
 
                      case MyOptions.Help:
                         ShowHelp();
@@ -438,6 +438,9 @@ namespace BuildDEMFile {
             while (OverviewShrink.Count < Math.Max(OverviewPixelDistance.Count, OverviewPixelHeight.Count)) {
                OverviewShrink.Add(1);
             }
+
+            if (Multithread == 0)
+               Multithread = FSoftUtils.TaskQueue.LogicalProcessorCores();
 
             if (cmd.Parameters.Count > 0)
                throw new Exception(string.Format("args not permitted ({0})", cmd.Parameters[0]));

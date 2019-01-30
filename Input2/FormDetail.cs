@@ -62,6 +62,9 @@ namespace Input2 {
          textBox_CodingTypePlateauFollowerZero.Visible = false;
          textBox_CodingTypePlateauFollowerNotZero.Visible = false;
          textBox_CodingTypeStd.Visible = false;
+         textBox_Hook.Visible = false;
+         textBox_Align.Visible = false;
+         textBox_Align.AppendText("T: hook>=Max; _: hook<=0; X: Maximalwert; 0: 0; -/t: 0<hook<Max");
 
          try {
 
@@ -79,14 +82,21 @@ namespace Input2 {
                         textBox_Encoder.AppendText("Line " + line.ToString());
                         textBox_Encoder.AppendText(Environment.NewLine);
                         textBox_Data.AppendText(Environment.NewLine);
+                        textBox_Hook.AppendText(Environment.NewLine);
+                        textBox_Align.AppendText(Environment.NewLine);
                      }
 
                      StringBuilder sb;
 
                      switch (enc.Elements[i].Info.Typ) {
-                        case Encoder.TileEncoder.HeightElement.Typ.Plateau:
-                           textBox_Encoder.AppendText(string.Format("Idx={0}, Plateau Length={1} TableIdx={2} Bits={3} [{4}] <{5}>{6}",
+                        case Encoder.TileEncoder.HeightElement.Typ.PlateauLength:
+                           //case Encoder.TileEncoder.HeightElement.Typ.Plateau:
+                           textBox_Encoder.AppendText(string.Format("Idx={0}, Plateau: (Ddiff={1}, Hook={2} Heigth={3}{4}) Length={5} TableIdx={6} Bits={7} [{8}] <{9}>{10}",
                                                                      enc.Elements[i].Info.Column,
+                                                                     enc.Elements[i].Info.Ddiff,
+                                                                     enc.Elements[i].Info.Hook,
+                                                                     enc.Elements[i].Info.Height,
+                                                                     enc.Elements[i].Info.TopAligned ? " TopAligned" : "",
                                                                      enc.Elements[i].Info.Data,
                                                                      enc.Elements[i].PlateauTableIdx,
                                                                      enc.Elements[i].PlateauBinBits,
@@ -101,53 +111,96 @@ namespace Input2 {
                               sb.Append("*");
                            }
                            textBox_Data.AppendText(sb.ToString());
+
+                           sb.Clear();
+                           for (int j = 0; j < enc.Elements[i].Info.Data; j++) {
+                              if (enc.Elements[i].Info.Column > 0 || j > 0)
+                                 sb.Append("\t");
+                              sb.Append("*");
+                           }
+                           textBox_Hook.AppendText(sb.ToString());
+
+                           sb.Clear();
+                           string symbol = GetTopAlignedSymbol(enc.Elements[i], enc);
+                           for (int j = 0; j < enc.Elements[i].Info.Data; j++) {
+                              if (enc.Elements[i].Info.Column > 0 || j > 0)
+                                 sb.Append("\t");
+                              sb.Append(symbol);
+                           }
+                           textBox_Align.AppendText(sb.ToString());
+
                            break;
 
                         case Encoder.TileEncoder.HeightElement.Typ.PlateauFollower:
-                           textBox_Encoder.AppendText(string.Format("Idx={0}, PlateauFollower ActualHeigth={1}, Value={2}{3}{4} {5} [{6}] {7}{8} ddiff={9}{10}",
+                        case Encoder.TileEncoder.HeightElement.Typ.PlateauFollower0:
+                           textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1} {2}, Data={3}, Ddiff={4}, Hook={5}{6}{7}{8} [{9}] {10}{11}{12}",
                                                                      enc.Elements[i].Info.Column,
-                                                                     enc.ActualHeight,
+                                                                     enc.Elements[i].Info.Height,
+                                                                     enc.Elements[i].Info.Typ,
                                                                      enc.Elements[i].Info.Data,
+                                                                     enc.Elements[i].Info.Ddiff,
+                                                                     enc.Elements[i].Info.Hook,
                                                                      enc.Elements[i].Info.Wrapped ? " (Wrap)" : "",
                                                                      enc.Elements[i].Info.TopAligned ? " (TopAligned)" : "",
-                                                                     enc.Elements[i].Info.Caltype,
+                                                                     enc.Elements[i].Info.Alignment != Encoder.TileEncoder.Shrink.Align3Type.TA000 ? " (" + enc.Elements[i].Info.Alignment.ToString() + ")" : "",
                                                                      enc.Elements[i].GetBinText(),
                                                                      enc.Elements[i].Info.EncMode,
                                                                      enc.Elements[i].Info.EncMode == Encoder.TileEncoder.EncodeMode.Hybrid ?
                                                                            enc.Elements[i].Info.Hunit.ToString() :
                                                                            "",
-                                                                     enc.Elements[i].PlateauFollowerDdiff,
                                                                      Environment.NewLine));
-                           if (enc.Elements[i].Info.Column > 0)
+
+
+
+
+
+                           if (enc.Elements[i].Info.Column > 0) {
                               textBox_Data.AppendText("\t");
+                              textBox_Hook.AppendText("\t");
+                              textBox_Align.AppendText("\t");
+                           }
 
                            textBox_Data.AppendText("[" + enc.Elements[i].Info.Data.ToString() + "]");
+                           textBox_Hook.AppendText(enc.Elements[i].Info.Hook.ToString());
+                           textBox_Align.AppendText(GetTopAlignedSymbol(enc.Elements[i], enc));
                            break;
 
-                        case Encoder.TileEncoder.HeightElement.Typ.Value:
-                           textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1}, Value={2}{3}{4} {5} [{6}] {7}{8}{9}",
+                        case Encoder.TileEncoder.HeightElement.Typ.ValueHookHigh:
+                        case Encoder.TileEncoder.HeightElement.Typ.ValueHookMiddle:
+                        case Encoder.TileEncoder.HeightElement.Typ.ValueHookLow:
+                           textBox_Encoder.AppendText(string.Format("Idx={0}, ActualHeigth={1} {2}, Data={3}, Hook={4}{5}{6}{7} [{8}] {9}{10}{11}",
                                                                      enc.Elements[i].Info.Column,
-                                                                     enc.ActualHeight,
+                                                                     enc.Elements[i].Info.Height,
+                                                                     enc.Elements[i].Info.Typ,
                                                                      enc.Elements[i].Info.Data,
+                                                                     enc.Elements[i].Info.Hook,
                                                                      enc.Elements[i].Info.Wrapped ? " (Wrap)" : "",
                                                                      enc.Elements[i].Info.TopAligned ? " (TopAligned)" : "",
-                                                                     enc.Elements[i].Info.Caltype,
+                                                                     enc.Elements[i].Info.Alignment != Encoder.TileEncoder.Shrink.Align3Type.TA000 ? " (" + enc.Elements[i].Info.Alignment.ToString() + ")" : "",
                                                                      enc.Elements[i].GetBinText(),
                                                                      enc.Elements[i].Info.EncMode,
                                                                      enc.Elements[i].Info.EncMode == Encoder.TileEncoder.EncodeMode.Hybrid ?
                                                                            enc.Elements[i].Info.Hunit.ToString() :
                                                                            "",
                                                                      Environment.NewLine));
-                           if (enc.Elements[i].Info.Column > 0)
+                           if (enc.Elements[i].Info.Column > 0) {
                               textBox_Data.AppendText("\t");
+                              textBox_Hook.AppendText("\t");
+                              textBox_Align.AppendText("\t");
+                           }
 
                            textBox_Data.AppendText(enc.Elements[i].Info.Data.ToString());
+                           textBox_Hook.AppendText(enc.Elements[i].Info.Hook.ToString());
+                           textBox_Align.AppendText(GetTopAlignedSymbol(enc.Elements[i], enc));
                            break;
 
                      }
                   }
                }
             }
+            textBox_Data.AppendText(Environment.NewLine);
+            textBox_Hook.AppendText(Environment.NewLine);
+            textBox_Align.AppendText(Environment.NewLine);
 
             for (int i = 0; i < enc.CodingTypeStd_Info.Count; i++) {
                textBox_CodingTypeStd.AppendText(enc.CodingTypeStd_Info[i]);
@@ -175,6 +228,10 @@ namespace Input2 {
             Caret2End(textBox_CodingTypePlateauFollowerNotZero);
             tabControl1.SelectedIndex = 4;
             Caret2End(textBox_CodingTypePlateauFollowerZero);
+            tabControl1.SelectedIndex = 6;
+            Caret2End(textBox_Align);
+            tabControl1.SelectedIndex = 5;
+            Caret2End(textBox_Hook);
 
             tabControl1.SelectedIndex = 0;
          }
@@ -186,6 +243,24 @@ namespace Input2 {
          tb.Select(tb.TextLength, 0);
          tb.ScrollToCaret();
          tb.Focus();
+      }
+
+      string GetTopAlignedSymbol(Encoder.TileEncoder.HeightElement he, Encoder.TileEncoder enc) {
+         if (he.Info.Typ != Encoder.TileEncoder.HeightElement.Typ.PlateauLength) {
+            if (he.Info.Height == 0)
+               return "0";
+            if (he.Info.Height == enc.MaxHeight)
+               return "X";
+            return he.Info.TopAligned ?
+                        he.Info.Hook >= enc.MaxHeight ? "T" : "t" :
+                        he.Info.Hook <= 0 ? "_" : "-";
+         } else {
+            if (he.Info.Height == 0)
+               return "0*";
+            if (he.Info.Height == enc.MaxHeight)
+               return "M*";
+            return he.Info.TopAligned ? "t*" : "-*";
+         }
       }
 
       protected override void OnKeyDown(KeyEventArgs e) {

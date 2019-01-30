@@ -1,0 +1,1 @@
+BuildDEMFile -O -d test.DEM --hgtpath=d:\MyExt\OSMData\srtm_zip --usedummydata -l 18.1 -t 50.0 -w 5.90 -h 5.60 --dlon=8.333333333333333e-4;0.0016666666666667;0.0033333333333333;0.0066666666666667;0.0266666666666664

@@ -110,11 +110,9 @@ namespace BuildDEMFile {
       }
 
       public void SetExtentFromTRE(string trefile) {
-         double west, north, east, south;
-         int iwest, inorth, ieast, isouth;
          if (!TREFileHelper.ReadEdges(trefile,
-                                      out west, out north, out east, out south,
-                                      out iwest, out inorth, out ieast, out isouth))
+                                      out double west, out double north, out double east, out double south,
+                                      out int iwest, out int inorth, out int ieast, out int isouth))
             throw new Exception("Couldn't read data from TRE file.");
 
          Console.WriteLine("data from TRE file '" + trefile + "'");

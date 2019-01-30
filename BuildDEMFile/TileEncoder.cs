@@ -95,7 +95,7 @@ namespace Encoder {
          }
 
          public bool Equals(Position pos) {
-            if ((object)pos == null) // NICHT "p == null" usw. --> führt zur Endlosschleife
+            if (pos is null) // NICHT "p == null" usw. --> führt zur Endlosschleife
                return false;
             return (X == pos.X) && (Y == pos.Y);
          }
@@ -1035,7 +1035,7 @@ namespace Encoder {
                if (MaxRealheight > 0) {
                   SortedDictionary<int, int> tmp = new SortedDictionary<int, int>();
 
-                  int s = int_ld((Shrink - 1) / 2);
+                  int s = Int_ld((Shrink - 1) / 2);
                   for (int i = 0; i < 16; i++) {
                      int v = 3 * (i + 1) + s;
                      int k = (int)Math.Pow(2, i);
@@ -1072,7 +1072,7 @@ namespace Encoder {
             }
          }
 
-         static int int_ld(int v) {
+         static int Int_ld(int v) {
             return (int)Math.Floor(Math.Log(v) / Math.Log(2));
          }
 

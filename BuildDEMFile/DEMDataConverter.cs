@@ -78,8 +78,15 @@ namespace BuildDEMFile {
       /// <param name="right"></param>
       /// <param name="bottom"></param>
       /// <param name="dummydataonerror"></param>
+      /// <param name="maxthreads"></param>
       /// <returns></returns>
-      public bool ReadData(List<string> hgtpath, double left, double top, double right, double bottom, bool dummydataonerror) {
+      public bool ReadData(List<string> hgtpath, 
+                           double left, 
+                           double top, 
+                           double right, 
+                           double bottom, 
+                           bool dummydataonerror,
+                           int maxthreads) {
          DateTime starttime = DateTime.Now;
 
          bool ret = true;
@@ -97,122 +104,96 @@ namespace BuildDEMFile {
 
          dat = new DEM1x1[iRight - iLeft + 1, iTop - iBottom + 1];
 
-         ReaderThreadPoolExt readerpool = new ReaderThreadPoolExt(ReaderMessage);
+         if (maxthreads != 1)
+            Console.WriteLine("multithreaded ({0})", maxthreads);
 
-         Console.WriteLine("read DEM's ...");
-         for (int lon = iLeft; lon <= iRight; lon++)
-            for (int lat = iBottom; lat <= iTop; lat++)
-               readerpool.Start(new ThreadInputData(lon, lat, lon - iLeft, lat - iBottom, hgtpath, dummydataonerror, dat));
-         readerpool.Wait4NotWorking();
-         ret = readerpool.ExceptionCount == 0;
+         FSoftUtils.TaskQueue tq = new FSoftUtils.TaskQueue(maxthreads);
+
+         try {
+            Console.WriteLine("read DEM's ...");
+            for (int lon = iLeft; lon <= iRight; lon++)
+               for (int lat = iBottom; lat <= iTop; lat++)
+
+                  tq.StartTask(new ThreadInputData(lon, lat, lon - iLeft, lat - iBottom, hgtpath, dummydataonerror, dat),
+                               TaskWorker,
+                               new Progress<string>(TaskProgress));
+
+            tq.Wait4EmptyQueue();
+            ret = true;
+
+         } catch (Exception ex) {   // ev. eine OperationCanceledException aus einem Task
+            Console.Error.WriteLine("Exception: " + ex.Message);
+            ret = false;
+         }
 
          Console.WriteLine("time for read {0:N1}s", (DateTime.Now - starttime).TotalSeconds);
+
+         tq.Dispose();
 
          return ret;
       }
 
-      static void ReaderMessage(object para) {
-         if (para != null)
-            if (para is string) {
-               Console.WriteLine(para as string);
-            }
-      }
+      int TaskWorker(ThreadInputData tid, CancellationToken cancellationtoken, IProgress<string> taskprogress) {
+         DEM1x1 dem1x1 = null;
+         string basefilename = DEM1x1.GetStandardBasefilename(tid.lon, tid.lat);
+         for (int i = 0; i < tid.hgtpath.Count; i++) { // für jeden Pfad ...
 
-      class ReaderThreadPoolExt : ThreadPoolExt {
+            cancellationtoken.ThrowIfCancellationRequested(); // löst bei cancellationToken.IsCancellationRequested eine OperationCanceledException aus
 
-         public ReaderThreadPoolExt(WaitCallback msgfunc) : base(msgfunc, null) { }
-
-         protected override void DoWork(object para) {
-            if (ExceptionCount > 0)
-               return;
-
-            try {
-               if (para != null && para is ThreadInputData) {
-                  ThreadInputData tid = para as ThreadInputData;
-
-                  DEM1x1 dem1x1 = null;
-                  string basefilename = DEM1x1.GetStandardBasefilename(tid.lon, tid.lat);
-                  for (int i = 0; i < tid.hgtpath.Count; i++) { // für jeden Pfad ...
-                     string demfile = "";
-                     demfile = Path.Combine(tid.hgtpath[i], basefilename + ".hgt");
+            string demfile = "";
+            demfile = Path.Combine(tid.hgtpath[i], basefilename + ".hgt");
+            if (!File.Exists(demfile)) {
+               demfile = Path.Combine(tid.hgtpath[i], basefilename + ".hgt.zip");
+               if (!File.Exists(demfile)) {
+                  demfile = Path.Combine(tid.hgtpath[i], basefilename + ".tif");
+                  if (!File.Exists(demfile)) {
+                     demfile = Path.Combine(tid.hgtpath[i], basefilename + ".tiff");
                      if (!File.Exists(demfile)) {
-                        demfile = Path.Combine(tid.hgtpath[i], basefilename + ".hgt.zip");
-                        if (!File.Exists(demfile)) {
-                           demfile = Path.Combine(tid.hgtpath[i], basefilename + ".tif");
-                           if (!File.Exists(demfile)) {
-                              demfile = Path.Combine(tid.hgtpath[i], basefilename + ".tiff");
-                              if (!File.Exists(demfile)) {
-                                 if (!tid.dummydataonerror)
-                                    throw new Exception(string.Format("data for longitude={0}° and latitude={1}° don't exist", tid.lon, tid.lat));
-                                 else
-                                    dem1x1 = new DEMNoValues(tid.lon, tid.lat);
-                              } else {
-                                 dem1x1 = new DEMTiffReader(tid.lon, tid.lat, demfile);
-                                 break;
-                              }
-                           } else {
-                              dem1x1 = new DEMTiffReader(tid.lon, tid.lat, demfile);
-                              break;
-                           }
-                        } else {
-                           dem1x1 = new DEMHGTReader(tid.lon, tid.lat, tid.hgtpath[i]);
-                           break;
-                        }
+                        if (!tid.dummydataonerror)
+                           throw new Exception(string.Format("data for longitude={0}° and latitude={1}° don't exist", tid.lon, tid.lat));
+                        else
+                           dem1x1 = new DEMNoValues(tid.lon, tid.lat);
                      } else {
-                        dem1x1 = new DEMHGTReader(tid.lon, tid.lat, tid.hgtpath[i]);
+                        dem1x1 = new DEMTiffReader(tid.lon, tid.lat, demfile);
                         break;
                      }
+                  } else {
+                     dem1x1 = new DEMTiffReader(tid.lon, tid.lat, demfile);
+                     break;
                   }
-
-                  if (dem1x1 != null) {
-                     dem1x1.SetDataArray();
-
-                     if (msgfunc != null) {
-                        string msg = string.Format("altitudes for lon {0}° .. {1}° / lat {2}° .. {3}° read in, {4}x{5}, {6}",
-                                                   dem1x1.Left,
-                                                   dem1x1.Left + 1,
-                                                   dem1x1.Bottom,
-                                                   dem1x1.Bottom + 1,
-                                                   dem1x1.Columns,
-                                                   dem1x1.Rows,
-                                                   dem1x1.Minimum == dem1x1.Maximum ?
-                                                      " (only dummyvalues)" :
-                                                      string.Format("values {0} .. {1}", dem1x1.Minimum, dem1x1.Maximum));
-                        lock (msglocker) {
-                           msgfunc(msg);
-                        }
-                     }
-
-                     //if (tid.changehgtsize > 0) {
-                     //   int oldtablesize = dem1x1.Columns;
-                     //   if (dem1x1.ResizeDatatable(tid.changehgtsize, tid.changehgtsize))
-                     //      if (msgfunc != null) {
-                     //         string msg = string.Format("tablesize for lon {0}° .. {1}° / lat {2}° .. {3}° changed from {4} to {5}",
-                     //                                    dem1x1.Left,
-                     //                                    dem1x1.Left + 1,
-                     //                                    dem1x1.Bottom,
-                     //                                    dem1x1.Bottom + 1,
-                     //                                    oldtablesize,
-                     //                                    dem1x1.Columns);
-                     //         lock (msglocker) {
-                     //            msgfunc(msg);
-                     //         }
-                     //      }
-                     //}
-                  }
-
-                  tid.dat[tid.x, tid.y] = dem1x1;
+               } else {
+                  dem1x1 = new DEMHGTReader(tid.lon, tid.lat, tid.hgtpath[i]);
+                  break;
                }
-            } catch (Exception ex) {
-               IncrementExceptionCount();
-               if (msgfunc != null)
-                  lock (msglocker) {
-                     msgfunc("FEHLER: " + ex.Message);
-                  }
+            } else {
+               dem1x1 = new DEMHGTReader(tid.lon, tid.lat, tid.hgtpath[i]);
+               break;
             }
          }
 
+         if (dem1x1 != null) {
+            dem1x1.SetDataArray();
+            taskprogress?.Report(string.Format("altitudes for lon {0}° .. {1}° / lat {2}° .. {3}° read in, {4}x{5}, {6}",
+                                               dem1x1.Left,
+                                               dem1x1.Left + 1,
+                                               dem1x1.Bottom,
+                                               dem1x1.Bottom + 1,
+                                               dem1x1.Columns,
+                                               dem1x1.Rows,
+                                               dem1x1.Minimum == dem1x1.Maximum ?
+                                                    " (only dummyvalues)" :
+                                                    string.Format("values {0} .. {1}", dem1x1.Minimum, dem1x1.Maximum)));
+         }
+
+         tid.dat[tid.x, tid.y] = dem1x1;
+
+         return 0;
       }
+
+      void TaskProgress(string msg) {
+         Console.Error.WriteLine(msg);
+      }
+
 
       /// <summary>
       /// liefert die (interpolierte) Höhe

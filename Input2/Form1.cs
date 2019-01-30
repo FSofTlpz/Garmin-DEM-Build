@@ -185,23 +185,55 @@ namespace Input2 {
             }
          }
 
+         // sExternCommandArgs sollte nur Zeilennummern enthalten
+         SortedSet<int> Lines = new SortedSet<int>();
+         string[] sExternCommandArgsParts = sExternCommandArgs.Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+         for (int i = 0; i < sExternCommandArgsParts.Length; i++) {
+            string part = sExternCommandArgsParts[i];
+            string[] sNo = part.Split(new char[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int j = 0; j < sNo.Length; j++) {
+               try {
+                  int n = Convert.ToInt32(sNo[j]);
+                  if (n >= 0) {
+                     if (i > 0 && j == 0) { // Bereichsangabe
+                        for (int k = Lines.Max + 1; k < n; k++)
+                           Lines.Add(k);
+                     }
+                     Lines.Add(n);
+                  }
+               } catch { }
+            }
+         }
+
          // Kommando ausführen
          if (sExternCommand.Length > 0) {
-            try {
-               Process p = Process.Start(sExternCommand, sExternCommandArgs);      // mit Args: Start(String, String)
-               p.EnableRaisingEvents = true;
-               p.Exited += p_Exited;
+            foreach (int line in Lines) {
+               try {
+                  ProcessStartInfo startInfo = new ProcessStartInfo(sExternCommand, line.ToString());
+                  Process p = new Process();
+                  p.StartInfo = startInfo;
+                  p.Start();
+                  p.WaitForExit();
 
-               //ProcessStartInfo startInfo = new ProcessStartInfo(sExternCommand);
-               //Process p = new Process();
-               //p.EnableRaisingEvents = true;
-               //p.StartInfo = startInfo;
-               //p.Exited += p_Exited;
-               //p.Start();
+                  //Process p = Process.Start(sExternCommand, sExternCommandArgs);      // mit Args: Start(String, String)
+                  //p.EnableRaisingEvents = true;
+                  //p.Exited += p_Exited;
 
-            } catch (Exception ex) {
-               MessageBox.Show("Fehler beim Starten des externen Prozesses: " + ex.Message);
+                  //ProcessStartInfo startInfo = new ProcessStartInfo(sExternCommand);
+                  //Process p = new Process();
+                  //p.EnableRaisingEvents = true;
+                  //p.StartInfo = startInfo;
+                  //p.Exited += p_Exited;
+                  //p.Start();
+
+               } catch (Exception ex) {
+                  MessageBox.Show("Fehler beim Starten des externen Prozesses: " + ex.Message);
+                  break;
+               }
             }
+            if (Lines.Count > 0 && 
+                autostartandend)
+               Close();
          }
       }
 
@@ -406,7 +438,7 @@ namespace Input2 {
             }
             richTextBox_Bin.BackColor = col_bin_ok;
          } catch (Exception ex) {
-            MessageBox.Show("Exception bei Index " + idx.ToString() + " mit Wert " + v[idx].ToString() + ": " + ex.Message, "Fehler");
+            MessageBox.Show("Exception bei Index " + idx.ToString() + (idx < v.Count ? " mit Wert " + v[idx].ToString() : "") + ": " + ex.Message, "Fehler");
             return;
          }
 
@@ -451,8 +483,8 @@ namespace Input2 {
                   Hybrid mit HUnit 1024
             14    Hybrid mit HUnit 2048
             15    großer Wert (Hybrid)
-            16    großer Wert (L0)
-            17    großer Wert (L1)
+            16    großer Wert (L1)
+            17    großer Wert (L2)
          */
          try {
             switch (listBox_SingleTest.SelectedIndex) {
@@ -470,10 +502,12 @@ namespace Input2 {
                   bits = Encoder.TileEncoder.BigValueCodingHybrid(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
                case 16:
-                  bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiffEncoder.Value);
+                  bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiffEncoder.Value);
+                  //bits = Encoder.TileEncoder.BigValueCodingLength0(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
                case 17:
-                  bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiffEncoder.Value);
+                  bits = Encoder.TileEncoder.BigValueCodingLength2(val, (int)numericUpDown_maxdiffEncoder.Value);
+                  //bits = Encoder.TileEncoder.BigValueCodingLength1(val, (int)numericUpDown_maxdiffEncoder.Value);
                   break;
 
                default:

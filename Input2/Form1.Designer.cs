@@ -425,9 +425,9 @@
             "Hybrid mit HUnit 512",
             "Hybrid mit HUnit 1024",
             "Hybrid mit HUnit 2048",
-            "großer Wert (Hybrid)",
-            "großer Wert (L0)",
-            "großer Wert (L1)"});
+            "großer Wert (Hybrid, L0)",
+            "großer Wert (L1)",
+            "großer Wert (L2)"});
          this.listBox_SingleTest.Location = new System.Drawing.Point(6, 19);
          this.listBox_SingleTest.Name = "listBox_SingleTest";
          this.listBox_SingleTest.Size = new System.Drawing.Size(147, 64);

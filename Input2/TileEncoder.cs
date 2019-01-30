@@ -97,7 +97,7 @@ namespace Encoder {
          }
 
          public bool Equals(Position pos) {
-            if ((object)pos == null) // NICHT "p == null" usw. --> führt zur Endlosschleife
+            if (pos == null) // NICHT "p == null" usw. --> führt zur Endlosschleife
                return false;
             return (X == pos.X) && (Y == pos.Y);
          }
@@ -288,17 +288,34 @@ namespace Encoder {
          /// </summary>
          public enum Typ {
             /// <summary>
-            /// normaler Höhenwert
+            /// normaler Höhenwert mit Hook &gt;= Max
             /// </summary>
-            Value,
+            ValueHookHigh,
+
+            /// <summary>
+            /// normaler Höhenwert mit 0 &lt; Hook &lt; Max
+            /// </summary>
+            ValueHookMiddle,
+
+            /// <summary>
+            /// normaler Höhenwert mit Hook &lt;= 0
+            /// </summary>
+            ValueHookLow,
+
             /// <summary>
             /// ein Plateau
             /// </summary>
-            Plateau,
+            PlateauLength,
+
             /// <summary>
             /// Wert hinter einem Plateau
             /// </summary>
             PlateauFollower,
+
+            /// <summary>
+            /// Wert hinter einem Plateau
+            /// </summary>
+            PlateauFollower0,
          }
 
          public class HeightElementInfo {
@@ -320,10 +337,6 @@ namespace Encoder {
             ///// </summary>
             public int Line { get; private set; }
             ///// <summary>
-            ///// Berechnungstyp
-            ///// </summary>
-            public CalculationType Caltype { get; private set; }
-            ///// <summary>
             ///// Wurde der Datenwert gewrapped?
             ///// </summary>
             public bool Wrapped { get; private set; }
@@ -344,56 +357,50 @@ namespace Encoder {
             /// </summary>
             public bool TopAligned { get; private set; }
             /// <summary>
-            /// Plateaulänge
+            /// Ausrichtung der umgebenden Daten
+            /// </summary>
+            public Shrink.Align3Type Alignment { get; private set; }
+            /// <summary>
+            /// Zeilenlänge
             /// </summary>
             public int LineLength { get; private set; }
+            /// <summary>
+            /// Hook
+            /// </summary>
+            public int Hook { get; private set; }
+            /// <summary>
+            /// Höhe
+            /// </summary>
+            public int Height { get; private set; }
             /// <summary>
             /// vorhergehendes <see cref="HeightElement"/> (nur bei Plateau)
             /// </summary>
             public HeightElement LastHeightElement { get; private set; }
 
 
-            protected HeightElementInfo(Typ typ, int column, int line, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned) {
-               Typ = typ;
-               Data = data;
-               Column = column;
-               Line = line;
-               Caltype = caltype;
-               Wrapped = wrapped;
-               EncMode = encmode;
-               Hunit = int.MinValue;
-               Ddiff = int.MinValue;
+            public HeightElementInfo(ValueData valdata) {
+               Typ = valdata.HeightElementTyp;
+               Data = valdata.Data;
+               Column = valdata.X;
+               Line = valdata.Y;
+               Wrapped = valdata.IsWrapped;
+               TopAligned = valdata.IsTopAligned;
+               EncMode = valdata.Encodemode;
+               Hunit = valdata.Hunit;
+               Ddiff = valdata.DiagDiff;
                LineLength = int.MinValue;
-               TopAligned = topaligned;
+               Hook = valdata.Hook;
+               Height = valdata.Height;
+               Alignment = valdata.Alignment;
                LastHeightElement = null;
             }
 
-
-            public HeightElementInfo(Typ typ, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned, int column, int line) :
-               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
-            }
-
-            public HeightElementInfo(Typ typ, int data, CalculationType caltype, EncodeMode encmode, bool wrapped, int hunit, bool topaligned, int column, int line) :
-               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
-               Hunit = hunit;
-            }
-
-            public HeightElementInfo(Typ typ, int data, int ddiff, CalculationType caltype, EncodeMode encmode, bool wrapped, int hunit, bool topaligned, int column, int line) :
-               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
-               Ddiff = ddiff;
-               Hunit = hunit;
-            }
-
-            public HeightElementInfo(Typ typ, int data, int ddiff, CalculationType caltype, EncodeMode encmode, bool wrapped, bool topaligned, int column, int line) :
-               this(typ, column, line, data, caltype, encmode, wrapped, topaligned) {
-               Ddiff = ddiff;
-            }
-
-            public HeightElementInfo(Typ typ, int length, int linelength, IList<HeightElement> oldheightelements, bool topaligned, int column, int line) :
-               this(typ, column, line, length, CalculationType.nothing, EncodeMode.Plateau, false, topaligned) {
+            public HeightElementInfo(ValueData valdata, int linelength, IList<HeightElement> oldheightelements) :
+               this(valdata) {
                LineLength = linelength;
+               TopAligned = valdata.IsTopAligned;
                for (int i = oldheightelements.Count - 1; i >= 0; i--) // letztes Plateau-Element suchen
-                  if (oldheightelements[i].Info.Typ == HeightElement.Typ.Plateau) {
+                  if (oldheightelements[i].Info.Typ == Typ.PlateauLength) {
                      LastHeightElement = oldheightelements[i];
                      break;
                   }
@@ -554,10 +561,6 @@ namespace Encoder {
          }
 
          /// <summary>
-         /// 
-         /// </summary>
-         public int PlateauFollowerDdiff { get; private set; }
-         /// <summary>
          /// Tabellenpos. für die letzte Unit des akt. Plateaus
          /// </summary>
          public int PlateauTableIdx { get; private set; }
@@ -634,15 +637,17 @@ namespace Encoder {
 
             Info = hi;
 
-            PlateauFollowerDdiff = Info.Ddiff;
             if (Info.LastHeightElement != null)
                PlateauTable4Tile = Info.LastHeightElement.PlateauTable4Tile;
             else
                PlateauTable4Tile = new PlateauTable();
 
             switch (hi.Typ) {
-               case Typ.Value:
+               case Typ.ValueHookHigh:
+               case Typ.ValueHookMiddle:
+               case Typ.ValueHookLow:
                case Typ.PlateauFollower:
+               case Typ.PlateauFollower0:
                   switch (Info.EncMode) {
                      case EncodeMode.Hybrid:
                         EncodeHybrid(Info.Data, Info.Hunit);
@@ -674,7 +679,7 @@ namespace Encoder {
                   }
                   break;
 
-               case Typ.Plateau:
+               case Typ.PlateauLength:
                   EncodePlateau(Info.Data, Info.Column, Info.Line, Info.LineLength);
                   break;
 
@@ -1092,7 +1097,7 @@ namespace Encoder {
                sb.Append(" (Wrap)");
             if (Info.TopAligned)
                sb.Append(" (TopAligned)");
-            if (Info.Typ == Typ.Plateau) {
+            if (Info.Typ == Typ.PlateauLength) {
                sb.Append(", PlateauTableIdx=" + PlateauTableIdx.ToString());
                sb.Append(", PlateauBinBits=" + PlateauBinBits.ToString());
             }
@@ -1105,10 +1110,10 @@ namespace Encoder {
 
 #if EXPLORERFUNCTION
 
-            if (Info.Typ == Typ.Plateau)
+            if (Info.Typ == Typ.PlateauLength)
                sb.Append(" " + GetPlateauUnitsText());
             else if (Info.Typ == Typ.PlateauFollower)
-               sb.Append(" ddiff=" + PlateauFollowerDdiff);
+               sb.Append(" ddiff=" + Info.Ddiff.ToString());
 
 #endif
 
@@ -1267,70 +1272,69 @@ namespace Encoder {
          /// <summary>
          /// ein Wert wird bei Bedarf gewrapt
          /// </summary>
-         /// <param name="data">Wert</param>
-         /// <param name="wrapped">gesetzt, wenn ein gewrapter Wert geliefert wird</param>
-         /// <param name="em">Codierart des Wertes</param>
+         /// <param name="valdata">Wert</param>
+         /// <param name="normalwrap">wenn falls, wird ein um 1 kleinerer Wrap-Wert verwendet</param>
          /// <returns>zu verwendender Wert</returns>
-         public int Wrap(int data, out bool wrapped, EncodeMode em) {
-            wrapped = false;
+         public int Wrap(ValueData valdata, bool normalwrap) {
+            valdata.IsWrapped = false;
             int datawrapped = int.MinValue;
 
-            switch (em) {
+            switch (valdata.Encodemode) {
                case EncodeMode.Hybrid:
-                  if (data > H_wrapdown)
-                     datawrapped = WrapDown(data);
-                  else if (data < H_wrapup)
-                     datawrapped = WrapUp(data);
+                  if (valdata.Data > H_wrapdown)
+                     datawrapped = WrapDown(valdata.Data, normalwrap);
+                  else if (valdata.Data < H_wrapup)
+                     datawrapped = WrapUp(valdata.Data, normalwrap);
                   break;
 
                case EncodeMode.Length0:
-                  if (data > L0_wrapdown)
-                     datawrapped = WrapDown(data);
-                  else if (data < L0_wrapup)
-                     datawrapped = WrapUp(data);
+                  if (valdata.Data > L0_wrapdown)
+                     datawrapped = WrapDown(valdata.Data, normalwrap);
+                  else if (valdata.Data < L0_wrapup)
+                     datawrapped = WrapUp(valdata.Data, normalwrap);
                   break;
 
                case EncodeMode.Length1:
-                  if (data > L1_wrapdown)
-                     datawrapped = WrapDown(data);
-                  else if (data < L1_wrapup)
-                     datawrapped = WrapUp(data);
+                  if (valdata.Data > L1_wrapdown)
+                     datawrapped = WrapDown(valdata.Data, normalwrap);
+                  else if (valdata.Data < L1_wrapup)
+                     datawrapped = WrapUp(valdata.Data, normalwrap);
                   break;
 
                case EncodeMode.Length2:
-                  if (data > L2_wrapdown)
-                     datawrapped = WrapDown(data);
-                  else if (data < L2_wrapup)
-                     datawrapped = WrapUp(data);
+                  if (valdata.Data > L2_wrapdown)
+                     datawrapped = WrapDown(valdata.Data, normalwrap);
+                  else if (valdata.Data < L2_wrapup)
+                     datawrapped = WrapUp(valdata.Data, normalwrap);
                   break;
 
                case EncodeMode.BigBinary:
                case EncodeMode.BigBinaryL2: {
                      HeightElement.GetValueRangeBigBin(out int minval, out int maxval);
-                     if (data < minval || maxval < data) {
-                        if (data > maxval)
-                           datawrapped = WrapDown(data);
-                        else if (data < minval)
-                           datawrapped = WrapUp(data);
+                     if (valdata.Data < minval || maxval < valdata.Data) {
+                        if (valdata.Data > maxval)
+                           datawrapped = WrapDown(valdata.Data, normalwrap);
+                        else if (valdata.Data < minval)
+                           datawrapped = WrapUp(valdata.Data, normalwrap);
                      }
                   }
                   break;
 
                case EncodeMode.BigBinaryL1: {
                      HeightElement.GetValueRangeBigBinL1(out int minval, out int maxval);
-                     if (data < minval || maxval < data) {
-                        if (data > maxval)
-                           datawrapped = WrapDown(data);
-                        else if (data < minval)
-                           datawrapped = WrapUp(data);
+                     if (valdata.Data < minval || maxval < valdata.Data) {
+                        if (valdata.Data > maxval)
+                           datawrapped = WrapDown(valdata.Data, normalwrap);
+                        else if (valdata.Data < minval)
+                           datawrapped = WrapUp(valdata.Data, normalwrap);
                      }
                   }
                   break;
             }
 
-            wrapped = datawrapped != int.MinValue;
+            valdata.IsWrapped = datawrapped != int.MinValue;
 
-            return wrapped ? datawrapped : data;
+            return valdata.IsWrapped ? datawrapped : valdata.Data;
          }
 
          /// <summary>
@@ -1342,152 +1346,37 @@ namespace Encoder {
          /// <param name="hunit">nur für die Codierart <see cref="HeightElement.EncodeMode.Hybrid"/> nötig</param>
          /// <param name="iPlateauLengthBinBits">Anzahl der Binbits für die ev. vorausgehende Plateaulänge</param>
          /// <returns>zu verwendender Wert</returns>
-         public EncodeMode FitEncodeMode(int data, EncodeMode em, int hunit, int iPlateauLengthBinBits = -1) {
+         public EncodeMode FitEncodeMode(ValueData valdata, int iHunitValue, int iPlateauLengthBinBits = -1) {
             int minval, maxval;
-            switch (em) {
+            switch (valdata.Encodemode) {
                case EncodeMode.Hybrid:
-                  HeightElement.GetValueRangeHybrid(hunit, out minval, out maxval, iPlateauLengthBinBits);
-                  return data < minval || maxval < data ?
+                  HeightElement.GetValueRangeHybrid(iHunitValue, out minval, out maxval, iPlateauLengthBinBits);
+                  return valdata.Data < minval || maxval < valdata.Data ?
                                  EncodeMode.BigBinary :
-                                 em;
+                                 valdata.Encodemode;
 
                case EncodeMode.Length0:
                   HeightElement.GetValueRangeLength0(out minval, out maxval, iPlateauLengthBinBits);
-                  return data < minval || maxval < data ?
+                  return valdata.Data < minval || maxval < valdata.Data ?
                                  EncodeMode.BigBinary :
-                                 em;
+                                 valdata.Encodemode;
 
                case EncodeMode.Length1:
                   HeightElement.GetValueRangeLength1(out minval, out maxval, iPlateauLengthBinBits);
-                  return data < minval || maxval < data ?
+                  return valdata.Data < minval || maxval < valdata.Data ?
                                  EncodeMode.BigBinaryL1 :
-                                 em;
+                                 valdata.Encodemode;
 
                case EncodeMode.Length2:
                   HeightElement.GetValueRangeLength2(out minval, out maxval, iPlateauLengthBinBits);
-                  return data < minval || maxval < data ?
+                  return valdata.Data < minval || maxval < valdata.Data ?
                                  EncodeMode.BigBinaryL2 :
-                                 em;
+                                 valdata.Encodemode;
 
                default:
-                  return em;
+                  return valdata.Encodemode;
             }
          }
-
-
-         //public int WrapAlt(int data, out bool wrapped, ref EncodeMode em, int hunit, int iPlateauLengthBinBits) {
-         //   int minval, maxval;
-         //   wrapped = false;
-         //   int datawrapped = int.MinValue;
-
-         //   wrapped = false;
-         //   if (data > 0) {
-         //      if (2 * data > max + 1) {
-         //         data = WrapDown(data);
-         //         wrapped = true;
-         //      }
-         //   } else if (data < 0) {
-         //      if (2 * data < -(max + 1)) {
-         //         data = WrapUp(data);
-         //         wrapped = true;
-         //      }
-         //   }
-
-
-         //   switch (em) {
-         //      case EncodeMode.Length0:
-         //         if (data > L0_wrapdown)
-         //            datawrapped = WrapDown(data);
-         //         else if (data < L0_wrapup)
-         //            datawrapped = WrapUp(data);
-
-         //         HeightElement.GetValueRangeLength0(max, out minval, out maxval, iPlateauLengthBinBits);
-         //         if (datawrapped != int.MinValue) {
-         //            if (datawrapped < minval || maxval < datawrapped) {
-         //               datawrapped = int.MinValue; // wird doch nicht benötigt
-         //               em = EncodeMode.BigBinary;
-         //            }
-         //         } else if (data < minval || maxval < data)
-         //            em = EncodeMode.BigBinary;
-         //         break;
-
-         //      case EncodeMode.Length1:
-         //         if (data > L1_wrapdown)
-         //            datawrapped = WrapDown(data);
-         //         else if (data < L1_wrapup)
-         //            datawrapped = WrapUp(data);
-
-         //         HeightElement.GetValueRangeLength1(max, out minval, out maxval, iPlateauLengthBinBits);
-         //         if (datawrapped != int.MinValue) {
-         //            if (datawrapped < minval || maxval < datawrapped) {
-         //               datawrapped = int.MinValue; // wird doch nicht benötigt
-         //               em = EncodeMode.BigBinaryL1;
-         //            }
-         //         } else if (data < minval || maxval < data)
-         //            em = EncodeMode.BigBinaryL1;
-         //         break;
-
-         //      case EncodeMode.Length2:
-         //         if (data > L2_wrapdown)
-         //            datawrapped = WrapDown(data);
-         //         else if (data < L2_wrapup)
-         //            datawrapped = WrapUp(data);
-
-         //         HeightElement.GetValueRangeLength2(max, out minval, out maxval, iPlateauLengthBinBits);
-         //         if (datawrapped != int.MinValue) {
-         //            if (datawrapped < minval || maxval < datawrapped) {
-         //               datawrapped = int.MinValue; // wird doch nicht benötigt
-         //               em = EncodeMode.BigBinaryL2;
-         //            }
-         //         } else if (data < minval || maxval < data)
-         //            em = EncodeMode.BigBinaryL2;
-         //         break;
-
-         //      case EncodeMode.Hybrid:
-         //         if (data > H_wrapdown)
-         //            datawrapped = WrapDown(data);
-         //         else if (data < H_wrapup)
-         //            datawrapped = WrapUp(data);
-
-         //         HeightElement.GetValueRangeHybrid(hunit, max, out minval, out maxval, iPlateauLengthBinBits);
-         //         if (datawrapped != int.MinValue) {
-         //            if (datawrapped < minval || maxval < datawrapped) {
-         //               datawrapped = int.MinValue; // wird doch nicht benötigt
-         //               em = EncodeMode.BigBinary;
-         //            }
-         //         } else if (data < minval || maxval < data)
-         //            em = EncodeMode.BigBinary;
-         //         break;
-         //   }
-
-         //   // schon gewrapte Werte sind auf keinen Fall BigBin
-         //   if (datawrapped == int.MinValue) {
-         //      switch (em) {
-         //         case EncodeMode.BigBinary:
-         //            // minval und maxval beziehen sich hier auf den theoretischen (!) Wertebereich auf Grund der Bitanzahl
-         //            //HeightElement.GetValueRangeBigBin(max, out minval, out maxval);
-         //            maxval = max / 2;
-         //            minval = -maxval;
-         //            if (data > maxval)
-         //               datawrapped = WrapDown(data);
-         //            else if (data < minval)
-         //               datawrapped = WrapUp(data);
-         //            break;
-
-         //         case EncodeMode.BigBinaryL1:
-         //            HeightElement.GetValueRangeBigBinL1(max, out minval, out maxval);
-         //            if (data > maxval)
-         //               datawrapped = WrapDown(data);
-         //            else if (data < minval)
-         //               datawrapped = WrapUp(data);
-         //            break;
-         //      }
-         //   }
-
-         //   wrapped = datawrapped != int.MinValue;
-
-         //   return wrapped ? datawrapped : data;
-         //}
 
 #if INCLUDENOTNEEDED
 
@@ -1507,12 +1396,12 @@ namespace Encoder {
 
 #endif
 
-         int WrapDown(int data) {
-            return data -= max + 1;
+         int WrapDown(int data, bool normalwrap) {
+            return data -= max + (normalwrap ? 1 : 0);
          }
 
-         int WrapUp(int data) {
-            return data += max + 1;
+         int WrapUp(int data, bool normalwrap) {
+            return data += max + (normalwrap ? 1 : 0);
          }
 
          public override string ToString() {
@@ -1530,7 +1419,7 @@ namespace Encoder {
 
       #region CodingType-Klassen
 
-      abstract class CodingType {
+      public abstract class CodingType {
 
          /// <summary>
          /// akt. Codierungsart
@@ -2142,16 +2031,12 @@ namespace Encoder {
          /// Längencodierung Variante 1
          /// </summary>
          Length1,
-
-         Length2,
-
          /// <summary>
-         /// Spezialcodierung für Plateaulänge
+         /// Längencodierung Variante 2 (Negation von L0)
          /// </summary>
-         Plateau,
-
+         Length2,
          /// <summary>
-         /// Codierung im "festen" Binärformat (für große Zahlen)
+         /// Codierung im "festen" Binärformat (für große Zahlen an Stelle der <see cref="Hybrid"/>- und <see cref="Length0"/>-Codierung)
          /// </summary>
          BigBinary,
          /// <summary>
@@ -2162,38 +2047,11 @@ namespace Encoder {
          /// Codierung im "festen" Binärformat (für große Zahlen an Stelle der <see cref="Length2"/>-Codierung)
          /// </summary>
          BigBinaryL2,
-      }
-
-      /// <summary>
-      /// Art der Berechnung
-      /// </summary>
-      public enum CalculationType {
-         /// <summary>
-         /// nur für Init.
-         /// </summary>
-         nothing,
 
          /// <summary>
-         /// Standardberechnung für 0 kleiner Hook kleiner Max
+         /// Spezialcodierung für Plateaulänge
          /// </summary>
-         Std,
-         /// <summary>
-         /// Standardberechnung für Max kleiner/gleich Hook
-         /// </summary>
-         StdHookOverMax,
-         /// <summary>
-         /// Standardberechnung für Hook kleiner/gleich 0
-         /// </summary>
-         StdHookNotPos,
-
-         /// <summary>
-         /// Nachfolger nach Plateau (ddiff=0)
-         /// </summary>
-         PlateauFollower0,
-         /// <summary>
-         /// Nachfolger nach Plateau (ddiff<>0)
-         /// </summary>
-         PlateauFollower1,
+         PlateauLength,
       }
 
 
@@ -2225,7 +2083,7 @@ namespace Encoder {
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Standardwerte
       /// </summary>
-      CodingTypeStd ct_std;
+      readonly CodingTypeStd ct_std;
 
       /// <summary>
       /// zur Bestimmung der Heightunit für die Gruppe der Plateau-Nachfolger mit ddiff=0
@@ -2270,19 +2128,10 @@ namespace Encoder {
       /// </summary>
       public byte Codingtype { get; protected set; }
 
-      CodingTypeStd _initialHeightUnit;
-
       /// <summary>
       /// hunit bei der Init. des Encoders (abh. von der Maximalhöhe; konstant; max. 256)
       /// </summary>
-      public int InitialHeightUnit {
-         get {
-            return _initialHeightUnit.HunitValue;
-         }
-         private set {
-            _initialHeightUnit = new CodingTypeStd(value, shrink.ShrinkValue > 0);
-         }
-      }
+      CodingTypeStd initialHeightUnit;
 
       /// <summary>
       /// akt. hunit
@@ -2294,35 +2143,16 @@ namespace Encoder {
       /// </summary>
       public int ActualHeight {
          get {
-            return nextPosition.Idx > 0 ? HeightValues[nextPosition.Idx - 1] : 0;
-         }
-      }
-
-      /// <summary>
-      /// Standardhöhe der akt. Zeile
-      /// </summary>
-      public int StdHeight { get; protected set; }
-
-      /// <summary>
-      /// Zeile der nächsten Höhe
-      /// </summary>
-      public int NextHeightLine {
-         get {
-            return nextPosition.Y;
-         }
-      }
-
-      /// <summary>
-      /// Spalte der nächsten Höhe
-      /// </summary>
-      public int NextHeightColumn {
-         get {
-            return nextPosition.X;
+            return nextPosition.Idx > 0 ? RealHeightValues.Get(nextPosition.Idx - 1) : 0;
          }
       }
 
 #endif
 
+      /// <summary>
+      /// zum einfacheren Testen des Verhaltens beim Shrink
+      /// <para>Alle Funktionen können auch für "ungeshrinkte" Werte verwendet werden.</para>
+      /// </summary>
       public class Shrink {
 
          /// <summary>
@@ -2346,7 +2176,7 @@ namespace Encoder {
          public bool TopAlignIsPossible { get; private set; }
 
          /// <summary>
-         /// reale Höhendaten müssen noch verkleinert werden
+         /// reale Höhendaten müssen noch verkleinert werden (sonst werden die Originaldaten z.B. für Tests verwendet)
          /// </summary>
          public bool ShrinkHeightsNecessary { get; private set; }
 
@@ -2355,9 +2185,11 @@ namespace Encoder {
          /// </summary>
          readonly int delta;
 
+         #region interne Hilfsklassen
+
          class TopAlignedArray {
 
-            SetType[] dat;
+            readonly SetType[,] dat;
 
             public int Width, Height;
 
@@ -2370,7 +2202,7 @@ namespace Encoder {
             public TopAlignedArray(ushort width, ushort height) {
                Width = width;
                Height = height;
-               dat = new SetType[Width * Height];
+               dat = new SetType[Width, Height];
             }
 
             /// <summary>
@@ -2382,27 +2214,29 @@ namespace Encoder {
             public void Set(int x, int y, bool top) {
                if (0 <= x && x < Width &&
                    0 <= y && y < Height)
-                  dat[y * Width + x] = top ? SetType.Yes : SetType.No;
+                  dat[x, y] = top ? SetType.Yes : SetType.No;
             }
 
             public bool Get(int x, int y) {
-               if (x < 0 || y < 0)
+               if (x < -1 || y < -1 || Width <= x || Height <= y)
                   return false;
-               int idx = y * Width + x;
-               return dat[idx] == SetType.Yes;
+
+               if (x >= 0 && y >= 0)                  // Standard
+                  return dat[x, y] == SetType.Yes;
+               if (x < 0 && y > 0)                    // virt. Spalte (Übernahme von "rechts oben")
+                  return dat[0, y - 1] == SetType.Yes;
+               else                                   // virt. Zeile (immer No)
+                  return false;
             }
 
             public string ToString(int y) {
                StringBuilder sb = new StringBuilder();
-               for (int i = y * Width; i < dat.Length; i++) {
-                  if (i == (y + 1) * Width)
-                     break;
-                  switch (dat[i]) {
+               for (int x = 0; x < Width; x++)
+                  switch (dat[x, y]) {
                      case SetType.No: sb.Append("N"); break;
                      case SetType.Yes: sb.Append("Y"); break;
                      default: sb.Append("?"); break;
                   }
-               }
                return sb.ToString();
             }
 
@@ -2414,19 +2248,184 @@ namespace Encoder {
             }
          }
 
+         class SurelyAlignedArray {
+
+            enum SurelyAligned {
+               /// <summary>
+               /// Position ohne Wert
+               /// </summary>
+               Nothing,
+               /// <summary>
+               /// sicher topaligned (Wert ist <see cref="MaxEncoderheight"/> oder Hook ist größer oder gleich <see cref="MaxEncoderheight"/>)
+               /// </summary>
+               Top,
+               /// <summary>
+               /// (Wert und Hook sind zwischen 0 und <see cref="MaxEncoderheight"/>)
+               /// </summary>
+               Between,
+               /// <summary>
+               /// sicher NICHT topaligned (Wert ist 0 oder Hook ist kleiner oder gleich 0)
+               /// </summary>
+               Bottom,
+            }
+
+            /// <summary>
+            /// Topaligned-Werte
+            /// </summary>
+            readonly SurelyAligned[,] data;
+
+            public readonly int Width;
+            public readonly int Height;
+
+            readonly int max;
+
+
+            public SurelyAlignedArray(ushort width, ushort height, int maxvalue) {
+               max = maxvalue;
+               Width = width;
+               Height = height;
+               data = new SurelyAligned[width, height];
+               for (int y = 0; y < height; y++)
+                  for (int x = 0; x < width; x++)
+                     data[x, y] = SurelyAligned.Nothing;
+            }
+
+            public void AddValue(ValueData vd) {
+               data[vd.X, vd.Y] = GetStatus(vd);
+            }
+
+            SurelyAligned GetStatus(ValueData vd) {
+               if (vd.Height == max)
+                  return SurelyAligned.Top;
+               if (vd.Height == 0)
+                  return SurelyAligned.Bottom;
+               if (vd.Hook >= max)
+                  return SurelyAligned.Top;
+               if (vd.Hook <= 0)
+                  return SurelyAligned.Bottom;
+               return SurelyAligned.Between;
+            }
+
+            /// <summary>
+            /// Ist der Wert mit Sicherheit topaligned (abgeleitet aus dem Hook und dem Wert)?
+            /// </summary>
+            /// <param name="vd"></param>
+            /// <returns></returns>
+            public bool IsSurelyTopAligned(ValueData vd) {
+               return GetStatus(vd) == SurelyAligned.Top;
+            }
+
+            /// <summary>
+            /// Ist der Wert mit Sicherheit downaligned (abgeleitet aus dem Hook und dem Wert)?
+            /// </summary>
+            /// <param name="vd"></param>
+            /// <returns></returns>
+            public bool IsSurelyBottomAlignedNo(ValueData vd) {
+               return GetStatus(vd) == SurelyAligned.Bottom;
+            }
+
+            /// <summary>
+            /// liefert nur dann true, wenn in der Zeile ein <see cref="SurelyAligned.Bottom"/> (vor einem ev. vorhandenen <see cref="SurelyAligned.Top"/>) gefunden wird
+            /// <para>Die Suche erfolgt nach links.</para>
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <returns></returns>
+            public bool HasOnLine_SurelyBottomAligned(int x, int y) {
+               for (int linepos = x - 1; linepos >= 0; linepos--) {
+                  switch (data[linepos, y]) {
+                     case SurelyAligned.Top:
+                        return false;
+                     case SurelyAligned.Bottom:
+                        return true;
+                  }
+               }
+               return false;
+            }
+
+            /// <summary>
+            /// liefert nur dann true, wenn in der Zeile ein <see cref="SurelyAligned.Top"/> (vor einem ev. vorhandenen <see cref="SurelyAligned.Bottom"/>) gefunden wird
+            /// <para>Die Suche erfolgt nach links.</para>
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <returns></returns>
+            public bool HasOnLine_SurelyTopAligned(int x, int y) {
+               for (int linepos = x - 1; linepos >= 0; linepos--) {
+                  switch (data[linepos, y]) {
+                     case SurelyAligned.Bottom:
+                        return false;
+                     case SurelyAligned.Top:
+                        return true;
+                  }
+               }
+               return false;
+            }
+
+            /// <summary>
+            /// liefert nur dann true, wenn in der Spalte ein <see cref="SurelyAligned.Bottom"/> (vor einem ev. vorhandenen <see cref="SurelyAligned.Top"/>) gefunden wird
+            /// <para>Die Suche erfolgt nach oben.</para>
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <returns></returns>
+            public bool HasOnColumn_SurelyBottomAligned(int x, int y) {
+               for (int colpos = y - 1; colpos >= 0; colpos--) {
+                  switch (data[x, colpos]) {
+                     case SurelyAligned.Top:
+                        return false;
+                     case SurelyAligned.Bottom:
+                        return true;
+                  }
+               }
+               return false;
+            }
+
+            /// <summary>
+            /// liefert nur dann true, wenn in der Spalte ein <see cref="SurelyAligned.Top"/> (vor einem ev. vorhandenen <see cref="SurelyAligned.Bottom"/>) gefunden wird
+            /// <para>Die Suche erfolgt nach oben.</para>
+            /// </summary>
+            /// <param name="x"></param>
+            /// <param name="y"></param>
+            /// <returns></returns>
+            public bool HasOnColumn_SurelyTopAligned(int x, int y) {
+               for (int colpos = y - 1; colpos >= 0; colpos--) {
+                  switch (data[x, colpos]) {
+                     case SurelyAligned.Bottom:
+                        return false;
+                     case SurelyAligned.Top:
+                        return true;
+                  }
+               }
+               return false;
+            }
+
+         }
+
+         #endregion
+
+         SurelyAlignedArray SurelyAlignedData;
+
          TopAlignedArray TopAlignedData;
+
+         /// <summary>
+         /// reale Höhendaten
+         /// </summary>
+         DataArray realdata;
 
 
          /// <summary>
          /// 
          /// </summary>
+         /// <param name="enc">zugehöriger Encoder</param>
          /// <param name="width">Spaltenanzahl des Datenbereiches</param>
          /// <param name="height">Zeilenanzahl des Datenbereiches</param>
          /// <param name="shrink">Verkleinerungsfaktor (1, 3, 5, ...)</param>
          /// <param name="maxrealheight">max. reale Höhe</param>
          /// <param name="maxencoderheight">max. Höhe mit der der Encoder rechnet</param>
          /// <param name="shrinkheightsnecessary">true, wenn reale (noch nicht verkleinerte) Höhen geliefert werden</param>
-         public Shrink(ushort width, ushort height, int shrink, int maxrealheight, int maxencoderheight = 0, bool shrinkheightsnecessary = false) {
+         public Shrink(DataArray data, ushort width, ushort height, int shrink, int maxrealheight, int maxencoderheight = 0, bool shrinkheightsnecessary = false) {
+            this.realdata = data;
             ShrinkValue = shrink;
             MaxRealheight = maxrealheight;
 
@@ -2448,6 +2447,7 @@ namespace Encoder {
                ShrinkHeightsNecessary = false;
 
             TopAlignedData = new TopAlignedArray(width, height);
+            SurelyAlignedData = new SurelyAlignedArray(width, height, MaxEncoderheight);
          }
 
          /// <summary>
@@ -2459,7 +2459,7 @@ namespace Encoder {
          /// <param name="y"></param>
          /// <param name="realheight"></param>
          /// <returns></returns>
-         public int GetEncoderHeight4RealHeight(int x, int y, int realheight) {
+         protected int GetEncoderHeight4RealHeight(int x, int y, int realheight) {
             if (ShrinkHeightsNecessary) {
                if (!IsTopAligned(x, y)) {
 
@@ -2480,52 +2480,68 @@ namespace Encoder {
             return realheight;
          }
 
+         /// <summary>
+         /// liefert den Höhenwert für den Encoder
+         /// <para>Es wird nur dann der korrekte Wert geliefert, wenn <see cref="TopAlignedData"/> bis direkt vor diese Position schon korrekt ermittelt wurde. Das ist erst bei der 
+         /// Encodierung der Fall!</para>
+         /// </summary>
+         /// <param name="x"></param>
+         /// <param name="y"></param>
+         /// <returns></returns>
+         public int GetEncoderHeightValue(int x, int y) {
+            return GetEncoderHeight4RealHeight(x, y, realdata.Get(x, y));
+         }
 
          /// <summary>
          /// setzt die Ausrichtung für diesen Wert (und liefert sie)
          /// </summary>
-         /// <param name="x">Spalte</param>
-         /// <param name="y">Zeile</param>
-         /// <param name="heigth">Höhe</param>
-         /// <param name="hook">Höhe davor + Höhe darüber - Höhe links darüber</param>
+         /// <param name="valenv"></param>
          /// <returns></returns>
-         public bool SetTopAligned4Normal(int x, int y, int heigth, int hook, AlignType3 aligntype) {
+         public bool SetTopAligned4Normal(ValueData valenv) {
             if (TopAlignIsPossible) {
                bool topaligned = false;
-               if (heigth == 0) {
+               if (valenv.Height == 0) {
                   topaligned = false;
-               } else if (heigth == MaxEncoderheight) {
+               } else if (valenv.Height == MaxEncoderheight) {
                   topaligned = true;
                } else {
-                  switch (aligntype) {
-                     case AlignType3.TA111:
-                     case AlignType3.TA100:
-                     case AlignType3.TA010:
-                     case AlignType3.TA001:
-                        if (0 < hook)
+                  switch (valenv.Alignment) {
+                     case Align3Type.TA111:
+                     case Align3Type.TA100:
+                     case Align3Type.TA010:
+                     case Align3Type.TA001:
+                        if (0 < valenv.Hook)
                            topaligned = true;
                         break;
 
-                     case AlignType3.TA110:
-                     case AlignType3.TA000:
-                     case AlignType3.TA101:
-                     case AlignType3.TA011:
-                        if (MaxEncoderheight <= hook)
+                     case Align3Type.TA110:
+                     case Align3Type.TA000:
+                     case Align3Type.TA101:
+                     case Align3Type.TA011:
+                        if (MaxEncoderheight <= valenv.Hook)
                            topaligned = true;
                         break;
                   }
                }
-               TopAlignedData.Set(x, y, topaligned);
+               TopAlignedData.Set(valenv.X, valenv.Y, topaligned);
+               SurelyAlignedData.AddValue(valenv);
                return topaligned;
             }
             return false;
          }
 
-         public bool SetTopAligned4Plateau(int x, int y, int length) {
+         /// <summary>
+         /// setzt die Ausrichtung für das Plateau (und liefert sie)
+         /// </summary>
+         /// <param name="valenv"></param>
+         /// <param name="length">Plateaulänge</param>
+         /// <returns></returns>
+         public bool SetTopAligned4Plateau(ValueData valenv, int length) {
             if (TopAlignIsPossible) {
-               bool topaligned = TopAlignedData.Get(x - 1, y);
+               bool topaligned = TopAlignedData.Get(valenv.X - 1, valenv.Y);
                for (int i = 0; i < length; i++)
-                  TopAlignedData.Set(x + i, y, topaligned);
+                  TopAlignedData.Set(valenv.X + i, valenv.Y, topaligned);
+               SurelyAlignedData.AddValue(valenv);
                return topaligned;
             }
             return false;
@@ -2537,27 +2553,42 @@ namespace Encoder {
          /// <param name="x">Spalte</param>
          /// <param name="y">Zeile</param>
          /// <param name="heigth">Höhe</param>
-         /// <param name="ddiffTis0">"Diagonaldifferenz" unter Berücksichtigung der Ausrichtung (<see cref="Ddiff"/>())</param>
          /// <returns></returns>
-         public bool SetTopAligned4Plateaufollower(int x, int y, int heigth, bool ddiffTis0) {
+         public bool SetTopAligned4Plateaufollower(ValueData valenv) {
             if (TopAlignIsPossible) {
                bool topaligned = false;
-               if (heigth == 0) {
+               if (valenv.Height == 0) {
                   topaligned = false;
-               } else if (heigth == MaxEncoderheight) {
+               } else if (valenv.Height == MaxEncoderheight) {
                   topaligned = true;
                } else {
-                  if (ddiffTis0)
-                     topaligned = TopAlignedData.Get(x - 1, y);
-                  else
-                     topaligned = TopAlignedData.Get(x, y - 1);
+                  switch (valenv.Alignment) {
+                     case Align3Type.TA000:
+                     case Align3Type.TA001:
+                        topaligned = false;
+                        break;
+                     case Align3Type.TA110:
+                     case Align3Type.TA111:
+                        topaligned = true;
+                        break;
+                     case Align3Type.TA100:
+                     case Align3Type.TA101:
+                        topaligned = valenv.HeightUpper + 1 == valenv.HeightLeft;
+                        break;
+                     case Align3Type.TA011:
+                        topaligned = valenv.HeightUpper - 1 != valenv.HeightLeft;
+                        break;
+                     case Align3Type.TA010:
+                        topaligned = valenv.HeightUpper != valenv.HeightLeft;
+                        break;
+                  }
                }
-               TopAlignedData.Set(x, y, topaligned);
+               TopAlignedData.Set(valenv.X, valenv.Y, topaligned);
+               SurelyAlignedData.AddValue(valenv);
                return topaligned;
             }
             return false;
          }
-
 
          /// <summary>
          /// Gilt an dieser Position der TopAligned-Modus?
@@ -2566,131 +2597,144 @@ namespace Encoder {
          /// <param name="y"></param>
          /// <returns></returns>
          public bool IsTopAligned(int x, int y) {
-            return x >= 0 && y >= 0 ?
-                        TopAlignedData.Get((ushort)x, (ushort)y) :
-                        (x < 0 && y > 0) ?
-                              TopAlignedData.Get(0, (ushort)(y - 1)) :
-                              false;
+            if (TopAlignIsPossible)
+               return TopAlignedData.Get((ushort)x, (ushort)y);
+            return false;
          }
 
          /// <summary>
          /// Beginnt an dieser Position ein Plateau?
          /// </summary>
-         /// <param name="x"></param>
-         /// <param name="y"></param>
-         /// <param name="hl">Höhe links</param>
-         /// <param name="hu">Höhe darüber</param>
-         /// <param name="hlu">Höhe links darüber</param>
+         /// <param name="valdata"></param>
          /// <returns></returns>
-         public bool IsPlateauStart(int x, int y, int hl, int hu, int hll, int hlu, int hlll, int hllu, int hlllu) {
-            if (TopAlignIsPossible && // sonst gelten die Standardregeln
-                x > 0) { // bei x==0 immer Plateau
+         public bool IsPlateauStart(ValueData valdata) {
+            if (TopAlignIsPossible &&     // sonst gilt die einfache Standardregeln
+                valdata.X > 0) {          // bei x==0 immer Plateau
 
-               AlignType3 tmp;
-               switch (GetAlignType3(x, y)) {
-                  case AlignType3.TA000:
-                  case AlignType3.TA001:
-                  case AlignType3.TA110:
-                  case AlignType3.TA111:
-                     return hl == hu;
+               switch (valdata.Alignment) {
+                  case Align3Type.TA000:
+                  case Align3Type.TA001:
+                  case Align3Type.TA110:
+                  case Align3Type.TA111:
+                     return valdata.HeightUpper == valdata.HeightLeft;
 
-                  case AlignType3.TA101:
-                     return hl == hu + 1;
+                  // Bei TA01* und TA10* kann ein Sonderfall auftreten.
+                  // Bei TA*xy (x != y) muss die Spalte m, bei TA*xx die Zeile n für Position (m,n) getestet werden.
 
-                  case AlignType3.TA010:
-                     return hl + 1 == hu;
-
-                  case AlignType3.TA100:
-                     if (GetAlignType3(x - 1, y) == AlignType3.TA001 && Hook(x, y, hll, hlu, hllu, out tmp) >= 1)
-                        return hl == hu;
-                     else
-                        return hl == hu + 1;
-
-                  case AlignType3.TA011:
-                     //if (GetAlignType3(x - 1, y) == AlignType3.TA110 && Hook(x, y, hl, hu, hlu, out tmp) >= 1)
-                     //   return hl == hu;
-                     //else
-                     //   return hl + 1 == hu;
-
-                     tmp = GetAlignType3(x - 1, y);
-                     if (hl + 1 == hu) {
-                        if (tmp == AlignType3.TA110) {
-                           return Hook(x - 1, y, hll, hlu, hllu, out tmp) <= 1 &&
-                                  Hook(x - 2, y, hlll, hllu, hlllu, out tmp) <= 1;
-                        } else
-                           return true;      // Standard
-                     } else {
-                        if (hl == hu)     // Spezialfall für zusätzliche Plateaus
-                           if (tmp == AlignType3.TA110)
-                              return Hook(x - 1, y, hll, hlu, hllu, out tmp) > 1;
+                  case Align3Type.TA010:
+                  case Align3Type.TA011:
+                     if (valdata.HeightUpper == valdata.HeightLeft + 1 ||    // normalerweise Plateau bei TA01
+                         valdata.HeightUpper == valdata.HeightLeft) {        // normalerweise KEIN Plateau bei TA01
+                        return !IsDiagonalSpecialcase(valdata) ?
+                                    valdata.HeightUpper == valdata.HeightLeft + 1 :
+                                    valdata.HeightUpper != valdata.HeightLeft + 1; // also valdata.HeightUpper == valdata.HeightLeft
                      }
                      return false;
+
+                  case Align3Type.TA100:
+                  case Align3Type.TA101:
+                     if (valdata.HeightUpper == valdata.HeightLeft - 1 ||    // normalerweise Plateau bei TA10
+                         valdata.HeightUpper == valdata.HeightLeft) {        // normalerweise KEIN Plateau bei TA10
+                        return !IsDiagonalSpecialcase(valdata) ?
+                                    valdata.HeightUpper == valdata.HeightLeft - 1 :
+                                    valdata.HeightUpper != valdata.HeightLeft - 1; // also valdata.HeightUpper == valdata.HeightLeft
+                     }
+                     return false;
+
                }
 
             }
-            return hl == hu;
+            return valdata.HeightUpper == valdata.HeightLeft;
          }
 
          /// <summary>
-         /// berechnet die "Diagonaldifferenz" unter Berücksichtigung von <see cref="TopAlignedData"/>
+         /// Sonderfall für Plateaustart und Plateaufollower bei TA01 und TA10 bei ddiff=-1, 0 oder 1
          /// </summary>
-         /// <param name="x"></param>
-         /// <param name="y"></param>
-         /// <param name="hl"></param>
-         /// <param name="hu"></param>
-         /// <param name="usetopalign">TopAlign berücksichtigen</param>
+         /// <param name="valdata"></param>
          /// <returns></returns>
-         public int Ddiff(int x, int y, int hl, int hu, bool usetopalign = true) {
-            int diff = hu - hl;
-            if (usetopalign && TopAlignIsPossible) {              // sonst gelten die Standardregeln
-               switch (GetAlignType2(x, y)) {
-                  case AlignType2.TA00:
-                  case AlignType2.TA11:
-                     break;
+         public bool IsDiagonalSpecialcase(ValueData valdata) {
+            bool specialcase = true;
+            switch (valdata.Alignment) {
+               case Align3Type.TA011:
+                  // Vorgänger in Zeile valdata.Y untersuchen:
+                  //    Ein Vorgänger mit MaxEncoderheight oder hook >= MaxEncoderheight führt zu einem positiven Testabbruch.
+                  //    Ein Vorgänger mit 0 oder hook <= 0 führt zu einem negativen Testabbruch.
+                  //    Ohne Abbruch pos.
+                  specialcase = !SurelyAlignedData.HasOnLine_SurelyBottomAligned(valdata.X, valdata.Y);
+                  break;
 
-                  case AlignType2.TA10:
-                     diff++;
-                     break;
+               case Align3Type.TA101:
+                  // Vorgänger in Spalte valdata.X untersuchen:
+                  //    Ein Vorgänger mit MaxEncoderheight oder hook >= MaxEncoderheight führt zu einem positiven Testabbruch.
+                  //    Ein Vorgänger mit 0 oder hook <= 0 führt zu einem negativen Testabbruch.
+                  //    Ohne Abbruch pos.
+                  specialcase = !SurelyAlignedData.HasOnColumn_SurelyBottomAligned(valdata.X, valdata.Y);
+                  break;
 
-                  case AlignType2.TA01:
-                     diff--;
-                     break;
+               case Align3Type.TA100:
+                  // Vorgänger in Zeile valdata.Y untersuchen:
+                  //    Ein Vorgänger mit 0 oder hook <= 0 führt zu einem positiven Testabbruch.
+                  //    Ein Vorgänger mit MaxEncoderheight oder hook >= MaxEncoderheight führt zu einem negativen Testabbruch.
+                  //    Ohne Abbruch pos.
+                  specialcase = !SurelyAlignedData.HasOnLine_SurelyTopAligned(valdata.X, valdata.Y);
+                  break;
+
+               case Align3Type.TA010:
+                  // Vorgänger in Spalte valdata.X untersuchen:
+                  //    Ein Vorgänger mit 0 oder hook <= 0 führt zu einem positiven Testabbruch.
+                  //    Ein Vorgänger mit MaxEncoderheight oder hook >= MaxEncoderheight führt zu einem negativen Testabbruch.
+                  //    Ohne Abbruch pos.
+                  specialcase = !SurelyAlignedData.HasOnColumn_SurelyTopAligned(valdata.X, valdata.Y);
+                  break;
+
+            }
+            return specialcase;
+         }
+
+         /// <summary>
+         /// ermittelt die Länge eines Plateaus ab der Startposition (ev. auch 0)
+         /// </summary>
+         /// <param name="valenv">Startpos.</param>
+         /// <param name="length">Länge</param>
+         /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
+         public bool GetPlateauLength(ValueData valenv, out int length) {
+            Position tst = new Position(realdata.Width, realdata.Height, valenv.X, valenv.Y);
+            length = 0;
+            bool bEnd = false;
+            int value = GetEncoderHeightValue(tst.X - 1, tst.Y);
+
+            while (tst.Idx < realdata.Count) {
+               if (GetEncoderHeightValue(tst.X, tst.Y) != value)
+                  break;
+
+               length++;
+
+               if (tst.X == tst.Width - 1)   // Zeilenende ereicht
+                  break;
+
+               if (!tst.MoveForward()) { // Ende erreicht
+                  bEnd = true;
+                  break;
                }
             }
-            return diff;
+            return bEnd;
          }
 
          /// <summary>
-         /// liefert den Hook und setzt den Align-Type für die akt. Pos.
+         /// liefert nur dann true, wenn in der Zeile ein <see cref="SurelyTopAligned.No"/> (vor einem ev. vorhandenen <see cref="SurelyTopAligned.Yes"/>) gefunden wird
+         /// <para>Die Suche erfolgt nach links.</para>
          /// </summary>
-         /// <param name="x"></param>
-         /// <param name="y"></param>
-         /// <param name="hl"></param>
-         /// <param name="hu"></param>
-         /// <param name="hlu"></param>
-         /// <param name="aligntype3"></param>
+         /// <param name="valenv"></param>
          /// <returns></returns>
-         public int Hook(int x, int y, int hl, int hu, int hlu, out AlignType3 aligntype3) {
-            int hook = hl + hu - hlu;
-            if (TopAlignIsPossible) {
-               aligntype3 = GetAlignType3(x, y);
-               switch (aligntype3) {
-                  case AlignType3.TA001:
-                     hook++;
-                     break;
-                  case AlignType3.TA110:
-                     hook--;
-                     break;
-               }
-            } else
-               aligntype3 = AlignType3.unknown;
-            return hook;
+         public bool HasOnLine_SurelyTopAlignedNo(ValueData valenv) {
+            return SurelyAlignedData.HasOnLine_SurelyBottomAligned(valenv.X, valenv.Y);
          }
+
 
          /// <summary>
          /// 0- oder Top-Align für die 3 Nachbarn (hl, hu, hlu bzw. x,y,z)
          /// </summary>
-         public enum AlignType3 {
+         public enum Align3Type {
             unknown = -1,
             TA000 = 0,
             TA100 = 100,
@@ -2703,22 +2747,14 @@ namespace Encoder {
          }
 
          /// <summary>
-         /// 0- oder Top-Align für die 2 direkten Nachbarn (hl, hu)
-         /// </summary>
-         public enum AlignType2 {
-            TA00 = 0,
-            TA10 = 10,
-            TA01 = 1,
-            TA11 = 11,
-         }
-
-         /// <summary>
          /// liefert den Align-Typ für die Position basierend auf den 3 Nachbarwerten
          /// </summary>
          /// <param name="x"></param>
          /// <param name="y"></param>
          /// <returns></returns>
-         public AlignType3 GetAlignType3(int x, int y) {
+         public Align3Type GetAlignType3(int x, int y) {
+            if (!TopAlignIsPossible)
+               return Align3Type.TA000;
             int ht = 0;
             if (TopAlignedData.Get((ushort)x - 1, (ushort)y))
                ht += 100;
@@ -2726,33 +2762,270 @@ namespace Encoder {
                ht += 10;
             if (TopAlignedData.Get((ushort)x - 1, (ushort)y - 1))
                ht += 1;
-            return (AlignType3)ht;
-         }
-
-         /// <summary>
-         /// liefert den Align-Typ für die Position basierend auf den 2 direkten Nachbarwerten
-         /// </summary>
-         /// <param name="x"></param>
-         /// <param name="y"></param>
-         /// <returns></returns>
-         public AlignType2 GetAlignType2(int x, int y) {
-            int ht = 0;
-            if (TopAlignedData.Get((ushort)x - 1, (ushort)y))
-               ht += 10;
-            if (TopAlignedData.Get((ushort)x, (ushort)y - 1))
-               ht += 1;
-            return (AlignType2)ht;
+            return (Align3Type)ht;
          }
 
       }
 
+      /// <summary>
+      /// zum Verwalten eines 2-dim-Arrays von ushort-Daten
+      /// </summary>
+      public class DataArray {
+
+         readonly ushort[,] h = null;
+
+         public int Width { get; }
+
+         public int Height { get; }
+
+         /// <summary>
+         /// höchste serielle Position der gesetzten Werte
+         /// </summary>
+         public int Count { get; private set; }
+
+
+         public DataArray(int width, int height) {
+            if (width <= 0 || height <= 0)
+               throw new ArgumentException("width and height in DataArray must be greater then 0");
+            Width = width;
+            Height = height;
+            h = new ushort[width, height];
+            Count = 0;
+         }
+
+         public DataArray(int width, int height, IList<int> data) : this(width, height) {
+            int i = 0;
+            for (int y = 0; y < height; y++)
+               for (int x = 0; x < width && i < data.Count; x++, i++)
+                  h[x, y] = (ushort)data[i];
+            Count = i;
+         }
+
+         public DataArray(int width, int height, IList<ushort> data) : this(width, height) {
+            int i = 0;
+            for (int y = 0; y < height; y++)
+               for (int x = 0; x < width && i < data.Count; x++, i++)
+                  h[x, y] = data[i];
+            Count = i;
+         }
+
+#if DEBUG
+         void coordcheck(int x, int y) {
+            if (x < 0 || y < 0 ||
+                Width <= x || Height <= y)
+               throw new ArgumentException("coords in DataArray not valid");
+         }
+#endif
+
+         public void Set(int x, int y, int value) {
+            Set(x, y, (ushort)value);
+         }
+
+         public void Set(int x, int y, ushort value) {
+#if DEBUG
+            coordcheck(x, y);
+#endif
+            h[x, y] = value;
+            int count = y * Width + x;
+            if (Count < count)
+               Count = count;
+         }
+
+         public ushort Get(int x, int y) {
+            if (x < 0 || y < 0) {
+               if (x < 0) {
+                  x = 0;
+                  y = y - 1;  // virtuelle Spalte
+               }
+               if (y < 0) {
+                  return 0;   // virtuelle Zeile
+               }
+            }
+#if DEBUG
+            coordcheck(x, y);
+#endif
+            return h[x, y];
+         }
+
+         /// <summary>
+         /// Wert der seriellen Position
+         /// </summary>
+         /// <param name="pos"></param>
+         /// <returns></returns>
+         public ushort Get(int pos) {
+            return Get(pos % Width, pos / Height);
+         }
+
+         public override string ToString() {
+            return string.Format("Width={0} x ={1}, Count={2}", Width, Height, Count);
+         }
+
+      }
+
+      /// <summary>
+      /// ein Höhenwert mit seinen "umgebenden" Höhenwerten und weiteren korrespondierenden Daten
+      /// </summary>
+      public class ValueData {
+
+         /// <summary>
+         /// Position des Wertes
+         /// </summary>
+         public int X, Y;
+
+         /// <summary>
+         /// Höhenwert
+         /// </summary>
+         public int Height;
+
+         /// <summary>
+         /// Höhenwert links
+         /// </summary>
+         public int HeightLeft;
+
+         /// <summary>
+         /// Höhenwert oben
+         /// </summary>
+         public int HeightUpper;
+
+         /// <summary>
+         /// Höhenwert links oben
+         /// </summary>
+         public int HeightLeftUpper;
+
+         /// <summary>
+         /// Ausrichtung der Nachbarwerte (links, oben, link oben)
+         /// </summary>
+         public Shrink.Align3Type Alignment;
+
+         /// <summary>
+         /// Hook
+         /// </summary>
+         public int Hook;
+
+         /// <summary>
+         /// Diagonaldiff.
+         /// </summary>
+         public int DiagDiff;
+
+         /// <summary>
+         /// Signum der Diagonaldiff.
+         /// </summary>
+         public int SgnDiagDiff;
+
+         /// <summary>
+         /// zu speichernder Wert
+         /// </summary>
+         public int Data;
+
+         /// <summary>
+         /// Wert wurde gewrapt
+         /// </summary>
+         public bool IsWrapped;
+
+         /// <summary>
+         /// Art der Codierung
+         /// </summary>
+         public EncodeMode Encodemode;
+
+         /// <summary>
+         /// Art des Elementes
+         /// </summary>
+         public HeightElement.Typ HeightElementTyp;
+
+
+         /// <summary>
+         /// Hunit (nut gültig wenn <see cref="Encodemode"/>==<see cref="EncodeMode.Hybrid"/>)
+         /// </summary>
+         public int Hunit;
+
+         /// <summary>
+         /// Ist der akt. Wert topaligned?
+         /// </summary>
+         public bool IsTopAligned;
+
+         public static int GetHook(int left, int upper, int leftupper, Shrink.Align3Type alignment) {
+            int hook = left + upper - leftupper;
+            switch (alignment) {
+               case Shrink.Align3Type.TA001:
+                  hook++;
+                  break;
+
+               case Shrink.Align3Type.TA110:
+                  hook--;
+                  break;
+            }
+            return hook;
+         }
+
+         public static int GetDiagDiff(int left, int upper, Shrink.Align3Type alignment) {
+            int ddiff = upper - left;
+            switch (alignment) {
+               case Shrink.Align3Type.TA010:
+               case Shrink.Align3Type.TA011:
+                  ddiff--;
+                  break;
+
+               case Shrink.Align3Type.TA100:
+               case Shrink.Align3Type.TA101:
+                  ddiff++;
+                  break;
+            }
+            return ddiff;
+         }
+
+         public static int GetSgn(int v) {
+            return v > 0 ? 1 : v < 0 ? -1 : 0; ;
+         }
+
+
+         public ValueData() {
+            Alignment = Shrink.Align3Type.unknown;
+            X = Y = int.MinValue;
+            Hook = DiagDiff = SgnDiagDiff = int.MinValue;
+            Height = HeightLeft = HeightUpper = HeightLeftUpper = int.MinValue;
+            Data = 0;
+
+            IsWrapped = false;
+            IsTopAligned = false;
+            Encodemode = EncodeMode.notdefined;
+            Hunit = int.MinValue;
+         }
+
+         public ValueData(Shrink shrink, int x, int y) : this() {
+            X = x;
+            Y = y;
+
+            Height = shrink.GetEncoderHeightValue(x, y);
+            HeightLeft = shrink.GetEncoderHeightValue(x - 1, y);
+            HeightUpper = shrink.GetEncoderHeightValue(x, y - 1);
+            HeightLeftUpper = shrink.GetEncoderHeightValue(x - 1, y - 1);
+
+            Alignment = shrink.GetAlignType3(x, y);
+            Hook = GetHook(HeightLeft, HeightUpper, HeightLeftUpper, Alignment);
+            DiagDiff = HeightUpper - HeightLeft; // GetDiagDiff(HeightLeft, HeightUpper, Alignment);
+            SgnDiagDiff = GetSgn(DiagDiff);
+         }
+
+         public override string ToString() {
+            return string.Format("X={0}, Y={1}, Height={2}, HeightLeft={3}, HeightUpper={4}, HeightLeftUpper={5}, Alignment={6}, Hook={7}, DiagDiff={8}, SgnDiagDiff={9}, Data={10}, IsWrapped={11}, Encodemode={12}",
+                                 X, Y,
+                                 Height, HeightLeft, HeightUpper, HeightLeftUpper,
+                                 Alignment,
+                                 Hook,
+                                 DiagDiff, SgnDiagDiff,
+                                 Data,
+                                 IsWrapped,
+                                 Encodemode == EncodeMode.Hybrid ? Encodemode.ToString() + Hunit.ToString() : Encodemode.ToString());
+         }
+      }
+
+
       public Shrink shrink;
 
       /// <summary>
-      /// alle Höhenwerte
+      /// alle (realen, ungeshrinkten) Höhenwerte
       /// </summary>
-      public List<int> HeightValues { get; protected set; }
-
+      public DataArray RealHeightValues { get; protected set; }
 
       /// <summary>
       /// erzeugt einen Encoder für eine Kachel
@@ -2769,14 +3042,15 @@ namespace Encoder {
       /// <param name="height">Liste der Höhendaten (Anzahl normalerweise <see cref="tilesize"/> * <see cref="tilesize"/>)</param>
       /// <param name="shrinkheights">true, wenn reale (noch nicht verkleinerte) Höhen geliefert werden</param>
       public TileEncoder(int maxrealheight, int maxheightencoder, byte codingtyp, int shrink, int tilesizehorz, int tilesizevert, IList<int> height, bool shrinkheights) {
-         this.shrink = new Shrink((ushort)tilesizehorz, (ushort)tilesizevert, shrink, maxrealheight, maxheightencoder, shrinkheights);
-
-         MaxRealHeight = this.shrink.MaxRealheight;
-         MaxHeight = this.shrink.MaxEncoderheight;
-
          TileSizeHorz = tilesizehorz;
          TileSizeVert = tilesizevert;
 
+         RealHeightValues = new DataArray(TileSizeHorz, TileSizeVert, height);
+
+         this.shrink = new Shrink(RealHeightValues, (ushort)tilesizehorz, (ushort)tilesizevert, shrink, maxrealheight, maxheightencoder, shrinkheights);
+
+         MaxRealHeight = this.shrink.MaxRealheight;
+         MaxHeight = this.shrink.MaxEncoderheight;
          HeightElement.Shrink = this.shrink.ShrinkValue;
          HeightElement.MaxEncoderheight = MaxHeight;
          HeightElement.MaxRealheight = MaxRealHeight;
@@ -2784,13 +3058,10 @@ namespace Encoder {
 #if EXPLORERFUNCTION
 
          Codingtype = codingtyp;
-         StdHeight = 0;
-         InitialHeightUnit = MaxHeight; // die korrekte hunit wird intern bestimmt
+         initialHeightUnit = new CodingTypeStd(MaxHeight, this.shrink.ShrinkValue > 0);
 
 #endif
-
-         HeightValues = new List<int>(height);
-         nextPosition = new Position(tilesizehorz, tilesizevert);
+         nextPosition = new Position(TileSizeHorz, TileSizeVert);
 
          ct_std = new CodingTypeStd(MaxHeight, shrink > 1);
          ct_ddiff4plateaufollower_zero = new CodingTypePlateauFollowerZero(MaxHeight);
@@ -2891,11 +3162,11 @@ namespace Encoder {
       public int ComputeNext(out bool bTileIsFull) {
          int elements = Elements.Count;
          bTileIsFull = true;
-         if (nextPosition.Idx < HeightValues.Count)
+         if (nextPosition.Idx < RealHeightValues.Count)
             bTileIsFull = CalculateData(nextPosition);      // die akt. Höhe oder zusätzlich mehrere folgende Höhen codieren
 
-         if (nextPosition.Idx > HeightValues.Count)   // sicherheitshalber eingrenzen
-            nextPosition.Idx = HeightValues.Count;
+         if (nextPosition.Idx > RealHeightValues.Count)   // sicherheitshalber eingrenzen
+            nextPosition.Idx = RealHeightValues.Count;
 
          return Elements.Count - elements; ;
       }
@@ -2907,24 +3178,19 @@ namespace Encoder {
       /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
       bool CalculateData(Position pos) {
          bool bEnd = false;
-         int h = ValidHeight(pos);
+         ValueData valenv = new ValueData(shrink, pos.X, pos.Y);
 
-         if (h >= 0) { // nur nichtnegative Höhen
+         if (valenv.Height >= 0) { // nur nichtnegative Höhen
 
             try {
 
-               //if (ValidHeightDDiff(pos) == 0) { // die Diagonale hat konstante Höhe (gilt auch für die 1. Spalte) -> immer Plateau (ev. auch mit Länge 0)
-               if (shrink.IsPlateauStart(pos.X, pos.Y,
-                                         ValidHeight(pos.X - 1, pos.Y), ValidHeight(pos.X, pos.Y - 1),
-                                         ValidHeight(pos.X - 2, pos.Y), ValidHeight(pos.X - 1, pos.Y - 1),
-                                         ValidHeight(pos.X - 3, pos.Y), ValidHeight(pos.X - 2, pos.Y - 1),
-                                         ValidHeight(pos.X - 3, pos.Y - 1)))
-                  bEnd = WritePlateau(pos, ct_ddiff4plateaufollower_zero, ct_ddiff4plateaufollower_notzero);
+               if (shrink.IsPlateauStart(valenv))
+                  bEnd = WritePlateau(pos, valenv);
                else
-                  bEnd = WriteStandardValue(pos, h, ct_std);
+                  bEnd = WriteStandardValue(pos, valenv);
 
             } catch (Exception ex) {
-               throw new Exception(string.Format("interner Fehler bei Position {0}, Höhe {1}: {2}", pos, ValidHeight(pos), ex.Message));
+               throw new Exception(string.Format("interner Fehler bei Position {0}, Höhe {1}: {2}", pos, valenv.Height, ex.Message));
             }
          } else
             throw new Exception(string.Format("negative Daten (Pos {0}) können nicht verarbeitet werden.", pos));
@@ -2935,86 +3201,54 @@ namespace Encoder {
       /// erzeugt ein <see cref="HeightElement"/> für den Standardwert
       /// </summary>
       /// <param name="pos">akt. Position</param>
-      /// <param name="h">akt. Höhe</param>
-      /// <param name="ct"></param>
+      /// <param name="valdata">akt. Höhendaten</param>
       /// <returns></returns>
-      bool WriteStandardValue(Position pos, int h, CodingTypeStd ct) {
-         int hl = ValidHeight(pos.X - 1, pos.Y);
-         int hu = ValidHeight(pos.X, pos.Y - 1);
-         int hlu = ValidHeight(pos.X - 1, pos.Y - 1);
+      bool WriteStandardValue(Position pos, ValueData valdata) {
+         if (valdata.DiagDiff == 0)
+            switch (valdata.Alignment) {
+               case Shrink.Align3Type.TA010:
+               case Shrink.Align3Type.TA011:
+                  valdata.DiagDiff--;
+                  valdata.SgnDiagDiff = ValueData.GetSgn(valdata.DiagDiff);
+                  break;
 
-         Shrink.AlignType3 aligntype;
-         int hook = shrink.Hook(pos.X, pos.Y, hl, hu, hlu, out aligntype);
-         int ddiff = shrink.Ddiff(pos.X, pos.Y, hl, hu);
-         if (ddiff == 0)
-            ddiff = shrink.Ddiff(pos.X, pos.Y, hl, hu, false);
-         int sgnddiff = ddiff > 0 ? 1 : ddiff < 0 ? -1 : 0;
+               case Shrink.Align3Type.TA101:
+               case Shrink.Align3Type.TA100:
+                  valdata.DiagDiff++;
+                  valdata.SgnDiagDiff = ValueData.GetSgn(valdata.DiagDiff);
+                  break;
+            }
+         if (valdata.SgnDiagDiff == 0)
+            throw new Exception(string.Format("sgnddiff == 0 bei Pos [{0},{1}]", valdata.X, valdata.Y));
 
-         if (sgnddiff == 0)
-            throw new Exception(string.Format("sgnddiff == 0 bei Pos {0}", pos));
+         if (shrink.MaxEncoderheight <= valdata.Hook) {
 
-         CalculationType caltype = CalculationType.nothing;
-         int data = 0;
-         if (shrink.MaxEncoderheight <= hook) {
+            valdata.Data = -valdata.SgnDiagDiff * (valdata.Height + 1);
+            valdata.HeightElementTyp = HeightElement.Typ.ValueHookHigh;
 
-            data = -sgnddiff * (h + 1);
-            caltype = CalculationType.StdHookOverMax;
+         } else if (valdata.Hook <= 0) {
 
-         } else if (hook <= 0) {
-
-            data = -sgnddiff * h;
-            caltype = CalculationType.StdHookNotPos;
+            valdata.Data = -valdata.SgnDiagDiff * valdata.Height;
+            valdata.HeightElementTyp = HeightElement.Typ.ValueHookLow;
 
          } else {
 
-            data = -sgnddiff * (h - hook);
-            caltype = CalculationType.Std;
+            valdata.Data = -valdata.SgnDiagDiff * (valdata.Height - valdata.Hook);
+            valdata.HeightElementTyp = HeightElement.Typ.ValueHookMiddle;
 
          }
 
-         bool wrapped = false;
-         data = ValueWrap.Wrap(data, out wrapped, ct.EncodeMode);
+         valdata.Encodemode = ct_std.EncodeMode;
+         valdata.Hunit = ct_std.HunitValue;
+         valdata.Data = ValueWrap.Wrap(valdata, true);
 
          if (shrink.TopAlignIsPossible) {
-            // Sonderfälle bei denen 0 als MaxEncoderheight bzw. MaxEncoderheight als 0 dargestellt wird vermeiden
-            bool wrapspec = false;
-            if (hook <= 0) {
-               if (data == -sgnddiff * shrink.MaxEncoderheight)
-                  wrapspec = true;
-            } else if (0 < hook && hook < shrink.MaxEncoderheight) {
-               switch (aligntype) {
-                  case Shrink.AlignType3.TA101:
-                  case Shrink.AlignType3.TA100:
-                  case Shrink.AlignType3.TA010:
-                  case Shrink.AlignType3.TA111:
-                     if (data == sgnddiff * hook)
-                        wrapspec = true;
-                     break;
-
-                  case Shrink.AlignType3.TA000:
-                  case Shrink.AlignType3.TA011:
-                     if (data == sgnddiff * (hook - shrink.MaxEncoderheight))
-                        wrapspec = true;
-                     break;
-               }
-            } else {
-               if (data == sgnddiff * shrink.MaxEncoderheight)
-                  wrapspec = true;
-            }
-
-            if (wrapspec) {
-               if (data < 0)
-                  data += shrink.MaxEncoderheight + 1;
-               else if (data > 0)
-                  data -= shrink.MaxEncoderheight + 1;
-            }
-
-            shrink.SetTopAligned4Normal(pos.X, pos.Y, h, hook, aligntype);
+            AvoidSpecialMinMax4StandardValues(valdata);
+            shrink.SetTopAligned4Normal(valdata);
          }
 
-         EncodeMode em = ValueWrap.FitEncodeMode(data, ct.EncodeMode, ct.HunitValue);
-
-         AddHeightValue(data, caltype, pos, ct, em, int.MinValue, wrapped);
+         valdata.Encodemode = ValueWrap.FitEncodeMode(valdata, ct_std.HunitValue);
+         AddHeightValue(valdata, ct_std);
 
          return !pos.MoveForward();
       }
@@ -3023,173 +3257,160 @@ namespace Encoder {
       /// erzeugt ein <see cref="HeightElement"/> für die Plateaulänge und eins für den Plateaunachfolger
       /// </summary>
       /// <param name="pos">akt. Position</param>
-      /// <param name="ct_followerddiffzero">hunit-Berechnung wenn die ddiff für den Nachfolger 0 ist</param>
-      /// <param name="ct_followerddiffnotzero">hunit-Berechnung wenn die ddiff für den Nachfolger ungleich 0 ist</param>
+      /// <param name="valdata">akt. Höhendaten</param>
       /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
-      bool WritePlateau(Position pos, CodingTypePlateauFollowerZero ct_followerddiffzero, CodingTypePlateauFollowerNotZero ct_followerddiffnotzero) {
-         bool bEnd = GetPlateauLength(pos, out int length);
-
-         shrink.SetTopAligned4Plateau(pos.X, pos.Y, length);
+      bool WritePlateau(Position pos, ValueData valdata) {
+         bool bEnd = shrink.GetPlateauLength(valdata, out int length);
+         valdata.Data = length;
+         shrink.SetTopAligned4Plateau(valdata, length);
+         valdata.Encodemode = EncodeMode.PlateauLength;
+         valdata.HeightElementTyp = HeightElement.Typ.PlateauLength;
+         AddHeightValue(valdata, null);
 
          // pos steht am Anfang des Plateaus bzw., bei Länge 0, schon auf dem Follower
          // also zeigt pos.X+length auf die Pos. des Followers
-
-         // Plateaulänge codieren
-         HeightElement he = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Plateau, length, TileSizeHorz, Elements, shrink.IsTopAligned(pos.X, pos.Y), pos.X, pos.Y));
-         Elements.Add(he);
          bool bLineFilled = pos.X + length >= TileSizeHorz;
          bEnd = !pos.MoveForward(length);
 
+         CodingType ct = null;
          if (!bLineFilled) { // Nachfolgewert bestimmen
             if (!bEnd) {
-               int h = ValidHeight(pos);
-               int hu = ValidHeight(pos.X, pos.Y - 1);
-               int hl = ValidHeight(pos.X - 1, pos.Y);
 
-               int hlu_start = ValidHeight(pos.X - length - 1, pos.Y - 1);
+               valdata = new ValueData(shrink, pos.X, pos.Y);
+               valdata.Data = valdata.Height - valdata.HeightUpper;  // vdiff
+               int sgndiagdiff = valdata.SgnDiagDiff;
 
-
-               int ddiff = pos.X == 0 ?
-                                 0 : // wegen virt. Spalte
-                                 shrink.Ddiff(pos.X, pos.Y, hl, hu);
-
-               CodingType ct;
-               if (ddiff != 0)
-                  ct = ct_followerddiffnotzero;
-               else
-                  ct = ct_followerddiffzero;
-
-               // Nachfolger codieren
-               int data = h - hu;  // vdiff
-
-               EncodeMode em = ct.EncodeMode;
-               bool wrapped = false;
-               // "einfaches" Wrapping
-               //if (data > shrink.MaxEncoderheight / 2)
-               //   data -= shrink.MaxEncoderheight + 1;
-               //else if (data < -shrink.MaxEncoderheight / 2)
-               //   data += shrink.MaxEncoderheight + 1;
-               CalculationType caltyp2 = CalculationType.nothing;
-               data = ValueWrap.Wrap(data, out wrapped, em);
-
-               if (ddiff != 0) {
-
-                  caltyp2 = CalculationType.PlateauFollower1;
-                  if (ddiff > 0)
-                     data = -data;
-
-                  if (shrink.TopAlignIsPossible) {
-                     // Sonderfälle vermeiden
-                     bool wrapspec = false;
-                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
-                        case Shrink.AlignType2.TA11:
-                        case Shrink.AlignType2.TA01:
-                           if (h == 0)
-                              if (ddiff > 0) {
-                                 if (data == hu)
-                                    wrapspec = true;
-                              } else {
-                                 if (data == -hu)
-                                    wrapspec = true;
-                              }
+               // immer PlateauFollower0, wenn bei
+               //    TA00, TA11:    DiagDiff = 0
+               //    TA01:          DiagDiff = 1   ( -> sgn(ddiff - 1))
+               //    TA10:          DiagDiff = -1  ( -> sgn(ddiff + 1))
+               bool bCodingType0 = false;
+               bool specialcase = false;
+               switch (valdata.Alignment) {
+                  case Shrink.Align3Type.TA000:
+                  case Shrink.Align3Type.TA001:
+                  case Shrink.Align3Type.TA110:
+                  case Shrink.Align3Type.TA111:
+                     switch (valdata.DiagDiff) {
+                        case 0:
+                           bCodingType0 = true;
                            break;
+                     }
+                     break;
 
-                        case Shrink.AlignType2.TA10:
-                        case Shrink.AlignType2.TA00:
-                           // Sonderfälle für MaxEncoderheight
-                           if (h == shrink.MaxEncoderheight) {  // statt MaxEncoderheight wird 0 angezeigt
-                              if (ddiff > 0) {
-                                 if (data == -(shrink.MaxEncoderheight - hu))  // data <= 0
-                                    wrapspec = true;
-                              } else {
-                                 if (data == shrink.MaxEncoderheight - hu)  // data >= 0
-                                    wrapspec = true;
-                              }
+                  case Shrink.Align3Type.TA010:
+                  case Shrink.Align3Type.TA011:
+                     valdata.DiagDiff--;
+                     switch (valdata.DiagDiff) {
+                        case 0:
+                           bCodingType0 = true;
+                           specialcase = shrink.IsDiagonalSpecialcase(valdata);
+                           if (specialcase) {      // dann doch kein PlateauFollower0
+                              bCodingType0 = false;
+                              //sgndiagdiff = 1;  // stimmt schon
+                           }
+                           break;
+                        case -1:
+                           bCodingType0 = false;
+                           sgndiagdiff = -1;
+                           specialcase = shrink.IsDiagonalSpecialcase(valdata);
+                           if (specialcase) {      // dann doch PlateauFollower0
+                              bCodingType0 = true;
                            }
                            break;
                      }
+                     break;
 
-                     if (wrapspec) {
-                        if (data < 0)
-                           data += shrink.MaxEncoderheight + 1;
-                        else if (data > 0)
-                           data -= shrink.MaxEncoderheight + 1;
-                     }
-
-                     shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, h, false);
-                  }
-
-               } else {
-
-                  caltyp2 = CalculationType.PlateauFollower0;
-
-                  if (shrink.TopAlignIsPossible) {
-
-                     // spez. Berechnung (normalerweise:  if (data < 0) data++)
-                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
-                        case Shrink.AlignType2.TA11:
-                        case Shrink.AlignType2.TA00:
-                           // hl=hu; data=h-hu -> data=h-hl -> wegen h <> hl folgt data <> 0, d.h. data<0 kann um 1 vergrößert werden
-                           if (data < 0)
-                              data++;
+                  case Shrink.Align3Type.TA100:
+                  case Shrink.Align3Type.TA101:
+                     valdata.DiagDiff++;
+                     switch (valdata.DiagDiff) {
+                        case 0:
+                           bCodingType0 = true;
+                           specialcase = shrink.IsDiagonalSpecialcase(valdata);
+                           if (specialcase) {      // dann doch kein PlateauFollower0
+                              bCodingType0 = false;
+                              //sgndiagdiff = -1; // stimmt schon
+                           }
                            break;
-
-                        case Shrink.AlignType2.TA10:
-                           // hl=hu+1; data=h-hu -> data=h-(hl-1)=h-hl+1 -> wegen h <> hl folgt data <> 1, d.h. data>1 kann um 1 verringert werden
-                           if (data > 0)
-                              data--;
-                           break;
-
-                        case Shrink.AlignType2.TA01:
-                           // hl+1=hu; data=h-hu -> data=h-(hl+1)=h-hl-1 -> wegen h <> hl folgt data <> -1, d.h. 
-                           //    data > -1 kann um 1 vergrößert werden
-                           //    data < -1 kann sogar um 2 vergrößert werden
-                           if (data >= 0)
-                              data++;
-                           else
-                              data += 2;
+                        case 1:
+                           bCodingType0 = false;
+                           sgndiagdiff = 1;
+                           specialcase = shrink.IsDiagonalSpecialcase(valdata);
+                           if (specialcase) {      // dann doch PlateauFollower0
+                              bCodingType0 = true;
+                           }
                            break;
                      }
-
-                     // Sonderfälle vermeiden
-                     bool wrapspec = false;
-                     switch (shrink.GetAlignType2(pos.X, pos.Y)) {
-                        case Shrink.AlignType2.TA11:
-                           if (h == 0 && data <= 0)
-                              wrapspec = true;
-                           break;
-
-                        case Shrink.AlignType2.TA10:
-                           if (h == 0 && data <= 0)
-                              wrapspec = true;
-                           break;
-
-                        case Shrink.AlignType2.TA01:
-                        case Shrink.AlignType2.TA00:
-                           if (h == shrink.MaxEncoderheight && data > 0)
-                              wrapspec = true;
-                           break;
-                     }
-
-                     if (wrapspec) {
-                        if (data < 0)
-                           data += shrink.MaxEncoderheight + 1;
-                        else if (data > 0)
-                           data -= shrink.MaxEncoderheight + 1;
-                     }
-
-                     shrink.SetTopAligned4Plateaufollower(pos.X, pos.Y, h, true);
-
-                  } else {
-
-                     if (data < 0)
-                        data++;
-
-                  }
+                     break;
                }
 
-               em = ValueWrap.FitEncodeMode(data, em, ct.HunitValue, he.PlateauBinBits);
-               AddHeightValue(data, caltyp2, pos, ct, em, ddiff, wrapped);
+               if (!bCodingType0) {
+
+                  ct = ct_ddiff4plateaufollower_notzero;
+                  valdata.Encodemode = ct.EncodeMode;
+                  valdata.HeightElementTyp = HeightElement.Typ.PlateauFollower;
+
+                  if (sgndiagdiff > 0)                // data = -(valdata.Height - valdata.HeightUpper)
+                     valdata.Data = -valdata.Data;    // data =  (valdata.Height - valdata.HeightUpper)
+
+                  valdata.Data = ValueWrap.Wrap(valdata, true);
+
+                  if (shrink.TopAlignIsPossible) {
+                     AvoidSpecialMinMax4PlateauFollower(valdata);
+                     shrink.SetTopAligned4Plateaufollower(valdata);
+                  }
+
+               } else { // bCodingType0 == true
+
+                  ct = ct_ddiff4plateaufollower_zero;
+                  valdata.Encodemode = ct.EncodeMode;
+                  valdata.HeightElementTyp = HeightElement.Typ.PlateauFollower0;
+
+                  if (!specialcase) {
+                     // bisher gilt nur: data = h - hu
+                     //    TA00,TA11  data = (h - hu);     d < 0 -> d++
+                     //    TA10       data = (h - hu);     d > 0 -> d--
+                     //    TA01       data = (h - hu) + 1; d < 0 -> d++
+                     switch (valdata.Alignment) {
+                        case Shrink.Align3Type.TA000:
+                        case Shrink.Align3Type.TA001:
+                        case Shrink.Align3Type.TA110:
+                        case Shrink.Align3Type.TA111:
+                           if (valdata.Data < 0)
+                              valdata.Data++;
+                           break;
+
+                        case Shrink.Align3Type.TA100:
+                        case Shrink.Align3Type.TA101:
+                           if (valdata.Data > 0)
+                              valdata.Data--;
+                           break;
+
+                        case Shrink.Align3Type.TA011:
+                        case Shrink.Align3Type.TA010:
+                           valdata.Data++;
+                           if (valdata.Data < 0)
+                              valdata.Data++;
+                           break;
+                     }
+                  } else {
+                     // bisher gilt nur: data = h - hu
+                     //    immer     data = (h - hu);     d < 0 -> d++
+                     if (valdata.Data < 0)
+                        valdata.Data++;
+                  }
+
+                  valdata.Data = ValueWrap.Wrap(valdata, false);
+
+                  AvoidSpecialMinMax4PlateauFollower0(valdata);
+                  shrink.SetTopAligned4Plateaufollower(valdata);
+
+               }
+
+               valdata.Hunit = ct.HunitValue;
+               valdata.Encodemode = ValueWrap.FitEncodeMode(valdata, ct.HunitValue, Elements[Elements.Count - 1].PlateauBinBits);
+               AddHeightValue(valdata, ct);
 
                bEnd = !pos.MoveForward();
             }
@@ -3199,132 +3420,205 @@ namespace Encoder {
       }
 
       /// <summary>
-      /// ermittelt die Länge eines Plateaus ab der Startposition (ev. auch 0)
+      /// spezielle Datenwerte vermeiden, mit denen 0 bzw. der Maximalwert NICHT erreicht wird
       /// </summary>
-      /// <param name="pos">Startpos.</param>
-      /// <param name="length">Länge</param>
-      /// <returns>true, wenn die Endpos. rechts-unten erreicht wurde</returns>
-      bool GetPlateauLength(Position startpos, out int length) {
-         Position tst = new Position(startpos);
-         length = 0;
-         int value = -1;
-         bool bEnd = false;
+      /// <param name="valdata"></param>
+      void AvoidSpecialMinMax4StandardValues(ValueData valdata) {
+         // Sonderfälle bei denen 0 als MaxEncoderheight bzw. MaxEncoderheight als 0 dargestellt wird vermeiden
+         bool wrap4minmax = false;
 
-         while (tst.Idx < HeightValues.Count) {
-            if (value < 0)
-               value = ValidHeight(tst.X - 1, tst.Y);
+         if (valdata.Height == 0) {
 
-            if (HeightValues[tst.Idx] != value)
-               break;
+            switch (valdata.Alignment) {
+               case Shrink.Align3Type.TA100:
+               case Shrink.Align3Type.TA010:
+               case Shrink.Align3Type.TA111:
+                  if ((0 < valdata.Hook && valdata.Hook < shrink.MaxEncoderheight && !valdata.IsWrapped) ||
+                      (shrink.MaxEncoderheight <= valdata.Hook && valdata.IsWrapped))
+                     wrap4minmax = true;
+                  break;
 
-            length++;
-
-            if (tst.X == tst.Width - 1)   // Zeilenende ereicht
-               break;
-
-            if (!tst.MoveForward()) { // Ende erreicht
-               bEnd = true;
-               break;
+               case Shrink.Align3Type.TA001:
+                  if ((0 < valdata.Hook && valdata.Hook < shrink.MaxEncoderheight && !valdata.IsWrapped) ||
+                      (shrink.MaxEncoderheight <= valdata.Hook && valdata.IsWrapped && shrink.HasOnLine_SurelyTopAlignedNo(valdata)))
+                     wrap4minmax = true;
+                  break;
             }
+
+         } else if (valdata.Height == shrink.MaxEncoderheight) {
+
+            switch (valdata.Alignment) {
+               case Shrink.Align3Type.TA000:
+               case Shrink.Align3Type.TA101:
+                  if (valdata.Hook < shrink.MaxEncoderheight && !valdata.IsWrapped)
+                     wrap4minmax = true;
+                  break;
+
+               case Shrink.Align3Type.TA011:
+               case Shrink.Align3Type.TA110:
+                  if ((valdata.Hook <= 0 && !valdata.IsWrapped) ||
+                      (0 < valdata.Hook && valdata.Hook < shrink.MaxEncoderheight && !valdata.IsWrapped && shrink.HasOnLine_SurelyTopAlignedNo(valdata)))
+                     wrap4minmax = true;
+                  break;
+            }
+
          }
 
-         return bEnd;
+         if (wrap4minmax) {
+            if (valdata.Data < 0)
+               valdata.Data += shrink.MaxEncoderheight + 1;
+            else if (valdata.Data > 0)
+               valdata.Data -= shrink.MaxEncoderheight + 1;
+            valdata.IsWrapped = true;
+         }
+
+      }
+
+      /// <summary>
+      /// spezielle Datenwerte vermeiden, mit denen 0 bzw. der Maximalwert NICHT erreicht wird
+      /// </summary>
+      /// <param name="valdata"></param>
+      /// <param name="speccaseTA011"></param>
+      /// <param name="speccaseTA10"></param>
+      void AvoidSpecialMinMax4PlateauFollower(ValueData valdata) {
+         bool wrap4minmax = false;
+
+         if (!valdata.IsWrapped) {
+            if (valdata.Height == 0) {
+               switch (valdata.Alignment) { // TA*1*
+                  case Shrink.Align3Type.TA110:
+                  case Shrink.Align3Type.TA111:
+                  case Shrink.Align3Type.TA010:
+                  case Shrink.Align3Type.TA011:
+                     wrap4minmax = true;
+                     break;
+               }
+            } else {
+               if (valdata.Height == shrink.MaxEncoderheight) {
+                  switch (valdata.Alignment) { // TA*0*
+                     case Shrink.Align3Type.TA000:
+                     case Shrink.Align3Type.TA001:
+                     case Shrink.Align3Type.TA100:
+                     case Shrink.Align3Type.TA101:
+                        wrap4minmax = true;
+                        break;
+                  }
+               }
+            }
+
+            if (wrap4minmax) {
+               if (valdata.Data < 0)
+                  valdata.Data += shrink.MaxEncoderheight + 1;
+               else if (valdata.Data > 0)
+                  valdata.Data -= shrink.MaxEncoderheight + 1;
+               else // data=0;
+                  valdata.Data += shrink.MaxEncoderheight + 1;   // höchtwahrscheinlich egal, ob -= oder +=
+               valdata.IsWrapped = true;
+            }
+         }
+      }
+
+      /// <summary>
+      /// spezielle Datenwerte vermeiden, mit denen 0 bzw. der Maximalwert NICHT erreicht wird
+      /// </summary>
+      /// <param name="valdata"></param>
+      /// <param name="speccaseTA011"></param>
+      /// <param name="speccaseTA10"></param>
+      void AvoidSpecialMinMax4PlateauFollower0(ValueData valdata) {
+         bool wrap4minmax = false;
+
+         if (!valdata.IsWrapped) {
+            if (valdata.Height == 0) {
+               switch (valdata.Alignment) { // wenn TA1**
+                  case Shrink.Align3Type.TA110:
+                  case Shrink.Align3Type.TA111:
+                  case Shrink.Align3Type.TA100:
+                  case Shrink.Align3Type.TA101:
+                     wrap4minmax = true;
+                     break;
+               }
+            } else {
+               if (valdata.Height == shrink.MaxEncoderheight) {
+                  switch (valdata.Alignment) { // wenn TA0**
+                     case Shrink.Align3Type.TA000:
+                     case Shrink.Align3Type.TA001:
+                     case Shrink.Align3Type.TA010:
+                     case Shrink.Align3Type.TA011:
+                        if (valdata.Height == shrink.MaxEncoderheight)
+                           wrap4minmax = true;
+                        break;
+                  }
+               }
+            }
+
+            if (wrap4minmax) { // bei PlateauFollower0 nur shrink.MaxEncoderheight und NICHT (shrink.MaxEncoderheight + 1) !
+               if (valdata.Data < 0)
+                  valdata.Data += shrink.MaxEncoderheight;
+               else if (valdata.Data > 0)
+                  valdata.Data -= shrink.MaxEncoderheight;
+               else // data=0;
+                  valdata.Data += shrink.MaxEncoderheight;   // höchtwahrscheinlich egal, ob -= oder +=
+               valdata.IsWrapped = true;
+            }
+
+         }
       }
 
       /// <summary>
       /// fügt eine neues <see cref="HeightElement"/> an die Liste <see cref="Elements"/> an und registriert den Datenwert im <see cref="CodingType"/>
       /// </summary>
-      /// <param name="data">Datenwert</param>
-      /// <param name="caltype">Berechnungstyp (Plateau-Nachfolger oder andere)</param>
-      /// <param name="pos">Pos. in der Kachel</param>
-      /// <param name="ct">Codierart</param>
-      /// <param name="em_explicit">ausdrücklicher Codiermodus bei einem Plateau-Nachfolger</param>
-      /// <param name="extdata">ddiff für den Plateau-Nachfolger</param>
-      /// <param name="wrapped_info">true, falls der Datenwert gewrapt ist</param>
-      void AddHeightValue(int data,
-                          CalculationType caltype,
-                          Position pos,
-                          CodingType ct,
-                          EncodeMode em_explicit = EncodeMode.notdefined,
-                          int extdata = int.MinValue,
-                          bool wrapped_info = false) {
-         HeightElement elem = null;
-         bool topaligned = shrink.IsTopAligned(pos.X, pos.Y);
+      /// <param name="valdata">Datenwert</param>
+      /// <param name="em_explicit">ausdrücklicher Codiermodus</param>
+      void AddHeightValue(ValueData valdata, CodingType ct) {
+         valdata.IsTopAligned = shrink.IsTopAligned(valdata.X, valdata.Y);
+         HeightElement.HeightElementInfo hei = null;
 
-         switch (caltype) {
-            case CalculationType.PlateauFollower0:
-            case CalculationType.PlateauFollower1:
-               switch (em_explicit) {
-                  case EncodeMode.Hybrid:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, extdata, caltype, EncodeMode.Hybrid, wrapped_info, ct.HunitValue, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.Length0:
-                  case EncodeMode.Length1:
-                  case EncodeMode.Length2:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, extdata, caltype, em_explicit, wrapped_info, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.BigBinary:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinary, wrapped_info, extdata, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.BigBinaryL1:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinaryL1, wrapped_info, extdata, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.BigBinaryL2:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.PlateauFollower, data, caltype, EncodeMode.BigBinaryL2, wrapped_info, extdata, topaligned, pos.X, pos.Y));
-                     break;
-               }
+         switch (valdata.HeightElementTyp) {
+            case HeightElement.Typ.PlateauLength:
+               hei = new HeightElement.HeightElementInfo(valdata, TileSizeHorz, Elements);
                break;
 
-            default: // Standardwert
-               switch (em_explicit) {
-                  case EncodeMode.Hybrid:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.Hybrid, wrapped_info, ct.HunitValue, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.Length0:
-                  case EncodeMode.Length1:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, em_explicit, wrapped_info, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.BigBinary:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.BigBinary, wrapped_info, topaligned, pos.X, pos.Y));
-                     break;
-
-                  case EncodeMode.BigBinaryL1:
-                     elem = new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, caltype, EncodeMode.BigBinaryL1, wrapped_info, topaligned, pos.X, pos.Y));
-                     break;
-               }
+            case HeightElement.Typ.PlateauFollower:
+            case HeightElement.Typ.PlateauFollower0:
+            case HeightElement.Typ.ValueHookHigh:
+            case HeightElement.Typ.ValueHookMiddle:
+            case HeightElement.Typ.ValueHookLow:
+               hei = new HeightElement.HeightElementInfo(valdata);
                break;
          }
 
-         if (elem != null) {
-            Elements.Add(elem);
+         if (hei != null) {
+            Elements.Add(new HeightElement(hei));
 
             if (ct != null) {
 
-               ct.AddValue(data);
+               ct.AddValue(valdata.Data);
 
 #if EXPLORERFUNCTION
 
                List<string> infolst = null;
 
-               if (ct is CodingTypeStd) {
-                  infolst = CodingTypeStd_Info;
-               } else if (ct is CodingTypePlateauFollowerNotZero) {
-                  infolst = CodingTypePlateauFollowerNotZero_Info;
-               } else if (ct is CodingTypePlateauFollowerZero) {
-                  infolst = CodingTypePlateauFollowerZero_Info;
+               switch (valdata.HeightElementTyp) {
+                  case HeightElement.Typ.PlateauFollower:
+                     infolst = CodingTypePlateauFollowerNotZero_Info;
+                     break;
+
+                  case HeightElement.Typ.PlateauFollower0:
+                     infolst = CodingTypePlateauFollowerZero_Info;
+                     break;
+
+                  case HeightElement.Typ.ValueHookHigh:
+                  case HeightElement.Typ.ValueHookMiddle:
+                  case HeightElement.Typ.ValueHookLow:
+                     infolst = CodingTypeStd_Info;
+                     break;
                }
 
                if (infolst.Count == 0)
                   infolst.Add("Bonus " + ct.Bonus.ToString());
 
                string info = string.Format("Position=[{0},{1}], ElemCount={2}, data={3}, eval={4}, HunitValue={5}, SumH={6}, SumL={7}",
-                                            pos.X, pos.Y, ct.ElemCount, data, ct.Eval, ct.HunitValue, ct.SumH, ct.SumL);
+                                            valdata.X, valdata.Y, ct.ElemCount, valdata.Data, ct.Eval, ct.HunitValue, ct.SumH, ct.SumL);
                if (ct.ExtInfo4LastAdd.Length > 0)
                   info += "; [" + ct.ExtInfo4LastAdd + "]";
 
@@ -3335,122 +3629,6 @@ namespace Encoder {
          }
       }
 
-      #region spezielle Höhendifferenzen
-
-      /// <summary>
-      /// liefert die horizontale Höhendifferenz (zur Vorgängerhöhe)
-      /// </summary>
-      /// <param name="pos"></param>
-      /// <returns></returns>
-      int ValidHeightHDiff(Position pos) {
-         return ValidHeightHDiff(pos.X, pos.Y);
-      }
-
-      /// <summary>
-      /// liefert die horizontale Höhendifferenz (zur Vorgängerhöhe)
-      /// </summary>
-      /// <param name="col"></param>
-      /// <param name="line"></param>
-      /// <returns></returns>
-      int ValidHeightHDiff(int col, int line) {
-         return ValidHeight(col, line) - ValidHeight(col - 1, line);
-      }
-
-      /// <summary>
-      /// liefert die vertikale Höhendifferenz (zur darüber liegenden Höhe)
-      /// </summary>
-      /// <param name="pos"></param>
-      /// <returns></returns>
-      int ValidHeightVDiff(Position pos) {
-         return ValidHeightVDiff(pos.X, pos.Y);
-      }
-
-      /// <summary>
-      /// liefert die vertikale Höhendifferenz (zur darüber liegenden Höhe)
-      /// </summary>
-      /// <param name="col"></param>
-      /// <param name="line"></param>
-      /// <returns></returns>
-      int ValidHeightVDiff(int col, int line) {
-         return ValidHeight(col, line) - ValidHeight(col, line - 1);
-      }
-
-      /// <summary>
-      /// liefert die diagonale Höhendifferenz (der darüber liegenden Höhe zur Vorgängerhöhe)
-      /// </summary>
-      /// <param name="pos"></param>
-      /// <returns></returns>
-      int ValidHeightDDiff(Position pos) {
-         return ValidHeightDDiff(pos.X, pos.Y);
-      }
-
-      /// <summary>
-      /// liefert die diagonale Höhendifferenz (der darüber liegenden Höhe zur Vorgängerhöhe)
-      /// </summary>
-      /// <param name="col"></param>
-      /// <param name="line"></param>
-      /// <returns></returns>
-      int ValidHeightDDiff(int col, int line) {
-         return ValidHeight(col, line - 1) - ValidHeight(col - 1, line);
-      }
-
-      #endregion
-
-      #region Zugriff auf Höhenwerte
-
-      /// <summary>
-      /// liefert die Höhe aus Spalte und Zeile (Spalte und Zeile müssen gültige Werte sein, da intern der Index verwendet wird)
-      /// </summary>
-      /// <param name="x"></param>
-      /// <param name="y"></param>
-      /// <returns>negativ, wenn ungültig</returns>
-      public int Height(int x, int y) {
-         int idx = TileSizeHorz * y + x;
-         int h = 0 <= idx && idx < HeightValues.Count ?
-                        HeightValues[idx] :
-                        -1;
-         return shrink.GetEncoderHeight4RealHeight(x, y, h);
-      }
-
-      /// <summary>
-      /// liefert die Höhe bezüglich der Position (mit dem Delta muss sich eine gültige Position ergeben, da intern der Index verwendet wird)
-      /// </summary>
-      /// <param name="pos"></param>
-      /// <param name="deltax">Spalten-Delta zur Position</param>
-      /// <param name="deltay">Zeilen-Delta zur Position</param>
-      /// <returns>negativ, wenn ungültig</returns>
-      int ValidHeight(Position pos) {
-         if (pos.X < 0 || pos.X >= pos.Width ||
-             pos.Y < 0 || pos.Y >= pos.Height)
-            return -1;
-         return Height(pos.X, pos.Y);
-      }
-
-      /// <summary>
-      /// liefert auch für ungültige Spalten und Zeilen eine verarbeitbare Höhe, d.h. außerhalb von <see cref="TileSizeHorz"/> bzw. <see cref="TileSizeVert"/> immer 0 
-      /// bzw. bei Spalte -1 die virtuelle Spalte (Spalte 0 der Vorgängerzeile)
-      /// </summary>
-      /// <param name="column"></param>
-      /// <param name="line"></param>
-      /// <returns></returns>
-      public int ValidHeight(int column, int line) {
-         if (0 <= column && column < TileSizeHorz &&
-             0 <= line && line < TileSizeVert) { // innerhalb des Standardbereiches
-            int h = Height(column, line);
-            if (h >= 0) {
-               return h;
-            }
-         }
-         if (column == -1 &&
-             0 <= line && line < TileSizeVert) { // virtuelle Spalte
-            int h = Height(0, line - 1);
-            return h >= 0 ? h : 0;
-         }
-         return 0;
-      }
-
-      #endregion
-
 #if EXPLORERFUNCTION
 
       #region zum Ermitteln der Bitfolgen
@@ -3458,47 +3636,47 @@ namespace Encoder {
       static public List<byte> LengthCoding0(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length0, false, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.Length0 })).Bits);
       }
 
       static public List<byte> LengthCoding1(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length1, false, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.Length1 })).Bits);
       }
 
       static public List<byte> LengthCoding2(int data, int shrink = 1, int maxrealheight = 0) {
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Length2, false, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.Length2 })).Bits);
       }
 
       static public List<byte> HybridCoding(int data, int maxHeight, int hunit, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.Hybrid, false, hunit, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.Hybrid, Hunit = hunit })).Bits);
       }
 
       static public List<byte> BigValueCodingHybrid(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinary, false, false, int.MinValue, int.MinValue)).Bits);
-      }
-
-      static public List<byte> BigValueCodingLength0(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
-         HeightElement.MaxEncoderheight = maxHeight;
-         HeightElement.Shrink = shrink;
-         HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinary, false, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.BigBinary })).Bits);
       }
 
       static public List<byte> BigValueCodingLength1(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
          HeightElement.MaxEncoderheight = maxHeight;
          HeightElement.Shrink = shrink;
          HeightElement.MaxRealheight = maxrealheight;
-         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(HeightElement.Typ.Value, data, CalculationType.nothing, EncodeMode.BigBinaryL1, false, false, int.MinValue, int.MinValue)).Bits);
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.BigBinaryL1 })).Bits);
+      }
+
+      static public List<byte> BigValueCodingLength2(int data, int maxHeight, int shrink = 1, int maxrealheight = 0) {
+         HeightElement.MaxEncoderheight = maxHeight;
+         HeightElement.Shrink = shrink;
+         HeightElement.MaxRealheight = maxrealheight;
+         return new List<byte>(new HeightElement(new HeightElement.HeightElementInfo(new ValueData() { HeightElementTyp = HeightElement.Typ.ValueHookHigh, Data = data, Encodemode = EncodeMode.BigBinaryL2 })).Bits);
       }
 
       #endregion
@@ -3514,7 +3692,7 @@ namespace Encoder {
                               shrink.ShrinkValue,
                               TileSizeHorz,
                               TileSizeVert,
-                              InitialHeightUnit,
+                              initialHeightUnit.HunitValue,
                               HeightUnit,
                               ActualMode,
                               ActualHeight);

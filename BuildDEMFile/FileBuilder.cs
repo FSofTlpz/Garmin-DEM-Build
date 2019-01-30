@@ -184,7 +184,7 @@ namespace BuildDEMFile {
             }
 
             demconverter = new DEMDataConverter();
-            if (!demconverter.ReadData(DemDataPaths, mostleft, mosttop, mostright, mostbottom, dummydataonerror)) {     // DEM-Rohdaten einlesen
+            if (!demconverter.ReadData(DemDataPaths, mostleft, mosttop, mostright, mostbottom, dummydataonerror, maxthreads)) {     // DEM-Rohdaten einlesen
                Console.Error.WriteLine("Can not read all necessary DEM's.");
                return false;
             }
@@ -258,17 +258,25 @@ namespace BuildDEMFile {
 
          /*    Die interne Optimierung scheint mehr zu bringen als Multithreading!!
           *    32 Bit ist schneller als 64 Bit!
+          *    
+          *    => Gilt nicht mehr bei Win10!
+          *    
+          *    z.B.: wmic cpu get NumberOfCores,NumberOfLogicalProcessors
+          *    NumberOfCores  NumberOfLogicalProcessors
+          *    2              4
           */
-         //maxthreads = 4;
 
          // ----- wenn min. 1 Zoomlevel ex. beginnt jetzt die Codierung
          if (tiles4zoomlevel.Count > 0) {
-            if (maxthreads > 0)
-               Console.WriteLine("multithreaded");
 
-            CalculationThreadPoolExt calctp = maxthreads > 0 ?
-                                                   new CalculationThreadPoolExt(ThreadMsg) :
-                                                   null;
+            //maxthreads = 4;
+
+            if (maxthreads != 1)
+               Console.WriteLine("multithreaded ({0})", maxthreads);
+
+            FSoftUtils.TaskQueue tq = maxthreads != 1 ?
+                                          new FSoftUtils.TaskQueue(maxthreads) :
+                                          null;
 
             int count = 0;
             for (int z = 0; z < tiles4zoomlevel.Count; z++)
@@ -277,38 +285,43 @@ namespace BuildDEMFile {
 
             count = 0;
             List<Subtile> subtilepacket = new List<Subtile>();
-            for (int z = 0; z < tiles4zoomlevel.Count; z++) {
-               for (int y = 0; y < tiles4zoomlevel[z].GetLength(1); y++) {
-                  for (int x = 0; x < tiles4zoomlevel[z].GetLength(0); x++) {
-                     // Jedes Subtile in einem einzelnen Thread zu codieren bringt zuviel "Verwaltungsaufwand" für die Threads.
-                     // Deshalb wird immer gleich ein ganzes "Paket" von Subtiles codiert.
-                     subtilepacket.Add(tiles4zoomlevel[z][x, y]);
-                     if (subtilepacket.Count >= SUBTILEPAKETSIZE) {
-                        count += subtilepacket.Count;
-                        EncodeSubtilePaket(subtilepacket, 
-                                           maxthreads > 1 ? calctp : null, 
-                                           demconverter, 
-                                           footflag, 
-                                           stdintpol ? DEM1x1.InterpolationType.standard : DEM1x1.InterpolationType.bicubic_catmull_rom, 
-                                           usetestencoder);
+            try {
+
+               for (int z = 0; z < tiles4zoomlevel.Count; z++) {
+                  for (int y = 0; y < tiles4zoomlevel[z].GetLength(1); y++) {
+                     for (int x = 0; x < tiles4zoomlevel[z].GetLength(0); x++) {
+                        // Jedes Subtile in einem einzelnen Thread zu codieren bringt zuviel "Verwaltungsaufwand" für die Threads.
+                        // Deshalb wird immer gleich ein ganzes "Paket" von Subtiles codiert.
+                        subtilepacket.Add(tiles4zoomlevel[z][x, y]);
+                        if (subtilepacket.Count >= SUBTILEPAKETSIZE) {
+                           count += subtilepacket.Count;
+                           EncodeSubtilePaket(subtilepacket,
+                                              maxthreads != 1 ? tq : null,
+                                              demconverter,
+                                              footflag,
+                                              stdintpol ? DEM1x1.InterpolationType.standard : DEM1x1.InterpolationType.bicubic_catmull_rom,
+                                              usetestencoder);
+
+                        }
                      }
                   }
                }
-            }
-            if (subtilepacket.Count > 0) {
-               count += subtilepacket.Count;
-               EncodeSubtilePaket(subtilepacket, 
-                                  calctp, 
-                                  demconverter, 
-                                  footflag,
-                                  stdintpol ? DEM1x1.InterpolationType.standard : DEM1x1.InterpolationType.bicubic_catmull_rom,
-                                  usetestencoder);
-            }
+               if (subtilepacket.Count > 0) {
+                  count += subtilepacket.Count;
+                  EncodeSubtilePaket(subtilepacket,
+                                     tq,
+                                     demconverter,
+                                     footflag,
+                                     stdintpol ? DEM1x1.InterpolationType.standard : DEM1x1.InterpolationType.bicubic_catmull_rom,
+                                     usetestencoder);
+               }
 
-            if (maxthreads > 0) {
-               calctp.Wait4NotWorking();
-               if (calctp.ExceptionCount > 0)
-                  return false;
+               if (maxthreads != 1) 
+                  tq.Wait4EmptyQueue();
+
+            } catch (Exception ex) {   // ev. eine OperationCanceledException aus einem Task
+               Console.Error.WriteLine("Exception: " + ex.Message);
+               return false;
             }
 
             Console.WriteLine();
@@ -317,11 +330,12 @@ namespace BuildDEMFile {
             // ----- Codierung beendet
 
 
-            Head head = new Head();
-            head.Footflag = footflag ? 1 : 0;
-            head.Unknown1B = 0;
-            head.Unknown25 = 1;
-            head.Zoomlevel = (ushort)tiles4zoomlevel.Count;
+            Head head = new Head {
+               Footflag = footflag ? 1 : 0,
+               Unknown1B = 0,
+               Unknown25 = 1,
+               Zoomlevel = (ushort)tiles4zoomlevel.Count,
+            };
             List<ZoomlevelData> Zoomlevel = CreateZoomlevel(data4Zoomlevel, tiles4zoomlevel, head);
 
             head.PtrZoomlevelTable = head.Length;
@@ -363,16 +377,27 @@ namespace BuildDEMFile {
       }
 
       /// <summary>
-      /// Encodierung einer Liste von <see cref="Subtile"/>
+      /// nur für die kompakte Datenübergabe
       /// </summary>
-      /// <param name="subtilepacket"></param>
-      /// <param name="tp">wenn null, wird ohne Multithreading encodiert</param>
-      /// <param name="hgtconv">wenn null, müssen die Höhendaten in den <see cref="Subtile"/> schon vorhanden sein</param>
-      /// <param name="footflag">wenn true, dann Höhendaten in Fuß, sonst Meter</param>
-      /// <param name="intpol"></param>
-      /// <param name="usetestencoder"></param>
-      void EncodeSubtilePaket(List<Subtile> subtilepacket, CalculationThreadPoolExt tp, DEMDataConverter hgtconv, bool footflag, DEM1x1.InterpolationType intpol, bool usetestencoder) {
-         if (tp == null) {    // Paket direkt encodieren
+      class CalculationParam {
+         public List<Subtile> subtilelist;
+         public DEMDataConverter dataconverter;
+         public bool footflag;
+         public DEM1x1.InterpolationType intpol;
+         public bool usetestencoder;
+
+         public CalculationParam(List<Subtile> subtilelist, DEMDataConverter dataconverter, bool footflag, DEM1x1.InterpolationType intpol, bool usetestencoder) {
+            this.subtilelist = new List<Subtile>(subtilelist);    // Kopie der Liste übernehmen, weil das Original gleich geleert wird
+            this.dataconverter = dataconverter;
+            this.footflag = footflag;
+            this.intpol = intpol;
+            this.usetestencoder = usetestencoder;
+         }
+      }
+
+      void EncodeSubtilePaket(List<Subtile> subtilepacket, FSoftUtils.TaskQueue tq, DEMDataConverter hgtconv, bool footflag, DEM1x1.InterpolationType intpol, bool usetestencoder) {
+         if (tq == null) {    // Paket direkt encodieren
+
             for (int i = 0; i < subtilepacket.Count; i++) {
                if (hgtconv != null) {
                   Data2Dim dat = new Data2Dim(hgtconv.BuildHeightArray(subtilepacket[i].PlannedLeft,
@@ -390,81 +415,50 @@ namespace BuildDEMFile {
                   subtilepacket[i].Encoding(usetestencoder);     // Daten aus Textdatei sind schon vorhanden
             }
             Console.Write(".");
+
          } else {             // Paket im eigenen Thread encodieren
 
-            tp.Start(new CalculationParam(subtilepacket, hgtconv, footflag, intpol, usetestencoder));
+            tq.StartTask(new CalculationParam(subtilepacket, hgtconv, footflag, intpol, usetestencoder),
+                         TaskWorker,
+                         new Progress<string>(TaskProgress));
+                         //TaskEnd);
 
          }
          subtilepacket.Clear();
       }
 
-      static void ThreadMsg(object para) {
-         if (para != null) {
-            if (para is string)
-               Console.Error.Write(para as string);
-         }
-      }
+      int TaskWorker(CalculationParam para, CancellationToken cancellationtoken, IProgress<string> taskprogress) {
+         if (para is CalculationParam) {
+            CalculationParam cp = para as CalculationParam;
+            for (int i = 0; i < cp.subtilelist.Count; i++) {
+               cancellationtoken.ThrowIfCancellationRequested(); // löst bei cancellationToken.IsCancellationRequested eine OperationCanceledException aus
 
-      // Threading-Problem ev. wegen: http://simplygenius.net/Article/FalseSharing
-
-      class CalculationParam {
-         public List<Subtile> subtilelist;
-         public DEMDataConverter dataconverter;
-         public bool footflag;
-         public DEM1x1.InterpolationType intpol;
-         public bool usetestencoder;
-
-         public CalculationParam(List<Subtile> subtilelist, DEMDataConverter dataconverter, bool footflag, DEM1x1.InterpolationType intpol, bool usetestencoder) {
-            this.subtilelist = new List<Subtile>(subtilelist);    // Kopie der Liste übernehmen, weil das Original gleich geleert wird
-            this.dataconverter = dataconverter;
-            this.footflag = footflag;
-            this.intpol = intpol;
-            this.usetestencoder = usetestencoder;
-         }
-      }
-
-      class CalculationThreadPoolExt : ThreadPoolExt {
-
-         public CalculationThreadPoolExt(WaitCallback msgfunc) : base(msgfunc, null) { }
-
-         protected override void DoWork(object para) {
-            if (ExceptionCount > 0)
-               return;
-
-            try {
-               if (para is CalculationParam) {
-                  CalculationParam cp = para as CalculationParam;
-                  for (int i = 0; i < cp.subtilelist.Count; i++) {
-                     Subtile st = cp.subtilelist[i];
-                     if (cp.dataconverter == null)             // kein DEMDataConverter
-                        st.Encoding(cp.usetestencoder);        // Daten aus Textdatei sind schon vorhanden
-                     else {
-                        Data2Dim dat = new Data2Dim(cp.dataconverter.BuildHeightArray(
-                                                                         st.PlannedLeft,
-                                                                         st.PlannedTop,
-                                                                         st.PlannedLonDistance,
-                                                                         st.PlannedLatDistance,
-                                                                         st.PlannedWidth,
-                                                                         st.PlannedHeight,
-                                                                         st.Shrink,
-                                                                         cp.footflag,
-                                                                         cp.intpol));
-                        st.Encoding(cp.usetestencoder, dat);    // HGT-Daten müssen noch geliefert werden
-                        dat.Dispose();
-                     }
-
-                  }
-                  msgfunc?.Invoke(".");
+               Subtile st = cp.subtilelist[i];
+               if (cp.dataconverter == null)             // kein DEMDataConverter
+                  st.Encoding(cp.usetestencoder);        // Daten aus Textdatei sind schon vorhanden
+               else {
+                  Data2Dim dat = new Data2Dim(cp.dataconverter.BuildHeightArray(
+                                                                   st.PlannedLeft,
+                                                                   st.PlannedTop,
+                                                                   st.PlannedLonDistance,
+                                                                   st.PlannedLatDistance,
+                                                                   st.PlannedWidth,
+                                                                   st.PlannedHeight,
+                                                                   st.Shrink,
+                                                                   cp.footflag,
+                                                                   cp.intpol));
+                  st.Encoding(cp.usetestencoder, dat);    // HGT-Daten müssen noch geliefert werden
+                  dat.Dispose();
                }
-            } catch (Exception ex) {
-               IncrementExceptionCount();
-               if (msgfunc != null)
-                  lock (msglocker) {
-                     msgfunc("FEHLER: " + ex.Message);
-                  }
             }
+            taskprogress?.Report(".");
          }
 
+         return 0;
+      }
+
+      void TaskProgress(string msg) {
+         Console.Error.Write(msg);
       }
 
 
